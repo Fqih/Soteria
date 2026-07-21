@@ -26,9 +26,9 @@ from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
-from benchmark.live.soteria_run import soteria_loop_contained
 
 from benchmark.live.models import LiveResults, LiveRunRecord
+from benchmark.live.soteria_run import soteria_loop_contained
 
 matplotlib.use("Agg")  # headless backend, must precede pyplot
 

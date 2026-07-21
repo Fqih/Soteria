@@ -40,6 +40,9 @@ live-benchmark = [
   "httpx>=0.27",
   "matplotlib>=3.8",
 ]
+providers = [
+  "httpx>=0.27",
+]
 
 [project.scripts]
 soteria = "soteria.cli:main"

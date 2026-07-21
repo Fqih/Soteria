@@ -29,11 +29,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from benchmark.live.soteria_run import (
-    run_soteria,
-    run_soteria_interrupted,
-)
-
 from benchmark.live.consent import (
     COST_CONSENT_ENV,
     COST_CONSENT_FLAG,
@@ -43,6 +38,10 @@ from benchmark.live.models import Approach, LiveResults, LiveRunRecord
 from benchmark.live.pricing import estimate_upper_bound, resolve_pricing
 from benchmark.live.raw_loop import run_raw_loop
 from benchmark.live.scenarios import LIVE_SCENARIOS, LiveScenario
+from benchmark.live.soteria_run import (
+    run_soteria,
+    run_soteria_interrupted,
+)
 from soteria.providers.base import ModelProvider
 
 SleepFn = Callable[[float], Any]

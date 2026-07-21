@@ -10,13 +10,12 @@ from pydantic import JsonValue
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from benchmark.live.scenarios import LiveScenario, scenario_by_name
 from benchmark.live.soteria_run import (
     run_soteria,
     run_soteria_interrupted,
     soteria_loop_contained,
 )
-
-from benchmark.live.scenarios import LiveScenario, scenario_by_name
 from soteria import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from soteria.providers import FakeProvider
 from soteria.state import RunState, StopReason
