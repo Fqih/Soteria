@@ -24,7 +24,7 @@ pytest.importorskip("matplotlib")
 
 from benchmark.live.models import LiveResults
 from benchmark.live.render import load_results
-from soteria import RunState, StopReason
+from soteria_loop import RunState, StopReason
 
 _EXAMPLE_DIR = Path(__file__).resolve().parents[1] / "example_output"
 _JSON_PATH = _EXAMPLE_DIR / "example_results.json"
@@ -58,10 +58,10 @@ def test_example_json_has_three_runs_per_applicable_approach() -> None:
     )
 
     assert grouped[("normal_completion", "raw")] == _SAMPLE_SIZE
-    assert grouped[("normal_completion", "soteria")] == _SAMPLE_SIZE
+    assert grouped[("normal_completion", "soteria_loop")] == _SAMPLE_SIZE
     assert grouped[("repetition_prone", "raw")] == _SAMPLE_SIZE
-    assert grouped[("repetition_prone", "soteria")] == _SAMPLE_SIZE
-    assert grouped[("interrupted_resume", "soteria")] == _SAMPLE_SIZE
+    assert grouped[("repetition_prone", "soteria_loop")] == _SAMPLE_SIZE
+    assert grouped[("interrupted_resume", "soteria_loop")] == _SAMPLE_SIZE
 
 
 def test_example_records_carry_token_duration_and_containment_fields() -> None:
@@ -76,7 +76,7 @@ def test_example_records_carry_token_duration_and_containment_fields() -> None:
     repetition_soteria = [
         record
         for record in results.records
-        if record.scenario == "repetition_prone" and record.approach == "soteria"
+        if record.scenario == "repetition_prone" and record.approach == "soteria_loop"
     ]
     assert repetition_soteria
     for record in repetition_soteria:
@@ -93,7 +93,7 @@ def test_example_interruption_record_resumes_exactly_once() -> None:
     ]
     assert len(interruptions) == _SAMPLE_SIZE
     for record in interruptions:
-        assert record.approach == "soteria"
+        assert record.approach == "soteria_loop"
         assert record.resume_tool_executed_exactly_once is True
 
 

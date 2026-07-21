@@ -7,15 +7,15 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from soteria.events import TERMINAL_EVENT_TYPES, AgentEvent, EventType
-from soteria.exceptions import (
+from soteria_loop.events import TERMINAL_EVENT_TYPES, AgentEvent, EventType
+from soteria_loop.exceptions import (
     EventInvariantError,
     InvalidStateTransitionError,
     StorageError,
 )
-from soteria.models import ModelResponse, RunRecord
-from soteria.state import RunState, StopReason, validate_terminal_outcome, validate_transition
-from soteria.storage import InMemoryEventStore
+from soteria_loop.models import ModelResponse, RunRecord
+from soteria_loop.state import RunState, StopReason, validate_terminal_outcome, validate_transition
+from soteria_loop.storage import InMemoryEventStore
 from tests.helpers import seed_run
 
 

@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator, model_validator
 
-from soteria.state import RunState, StopReason, is_terminal, validate_terminal_outcome
+from soteria_loop.state import RunState, StopReason, is_terminal, validate_terminal_outcome
 
 
 def new_id() -> str:

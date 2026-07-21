@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria import (
+from soteria_loop import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -17,14 +17,14 @@ from soteria import (
     TokenUsage,
     ToolCall,
 )
-from soteria.exceptions import (
+from soteria_loop.exceptions import (
     CheckpointNotFoundError,
     RunAlreadyTerminalError,
     RunNotFoundError,
     UnsafeResumeError,
 )
-from soteria.providers import FakeProvider
-from soteria.storage import InMemoryEventStore, SQLiteEventStore
+from soteria_loop.providers import FakeProvider
+from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run, value_tool
 
 

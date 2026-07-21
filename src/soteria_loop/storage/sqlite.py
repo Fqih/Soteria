@@ -10,10 +10,10 @@ from typing import cast
 
 from pydantic import ValidationError
 
-from soteria.events import AgentEvent, EventType, validate_event_append
-from soteria.exceptions import RunNotFoundError, SoteriaError, StorageError
-from soteria.models import Checkpoint, RunRecord
-from soteria.state import is_terminal
+from soteria_loop.events import AgentEvent, EventType, validate_event_append
+from soteria_loop.exceptions import RunNotFoundError, SoteriaError, StorageError
+from soteria_loop.models import Checkpoint, RunRecord
+from soteria_loop.state import is_terminal
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (

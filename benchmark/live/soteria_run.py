@@ -16,10 +16,10 @@ from tempfile import TemporaryDirectory
 
 from benchmark.live.models import LiveRunRecord
 from benchmark.live.scenarios import LiveScenario
-from soteria import AgentEvent, AgentRuntime, EventType, RunResult, RunTrace
-from soteria.providers.base import ModelProvider
-from soteria.state import RunState, StopReason
-from soteria.storage import InMemoryEventStore, SQLiteEventStore
+from soteria_loop import AgentEvent, AgentRuntime, EventType, RunResult, RunTrace
+from soteria_loop.providers.base import ModelProvider
+from soteria_loop.state import RunState, StopReason
+from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
 
 # Policy-driven stop reasons that mean Soteria's containment fences fired.
 _CONTAINMENT_STOP_REASONS = frozenset(
@@ -81,7 +81,7 @@ def _record_from_result(
 
     return LiveRunRecord(
         scenario=scenario.name,
-        approach="soteria",
+        approach="soteria_loop",
         run_index=run_index,
         status=result.status,
         stop_reason=result.stop_reason,
@@ -152,9 +152,9 @@ async def run_soteria_interrupted(
     """
 
     counter = [0]
-    run_id = f"live-soteria-{scenario.name}-{run_index}"
+    run_id = f"live-soteria_loop-{scenario.name}-{run_index}"
 
-    with TemporaryDirectory(prefix="soteria-live-") as directory:
+    with TemporaryDirectory(prefix="soteria_loop-live-") as directory:
         database = Path(directory) / "runs.db"
 
         first_store = SQLiteEventStore(database)

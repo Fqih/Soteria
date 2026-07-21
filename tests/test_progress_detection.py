@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from soteria.models import ModelResponse, ToolCall, ToolResult
-from soteria.progress import ProgressDetector, model_response_fingerprint
-from soteria.tools import canonical_fingerprint, tool_call_fingerprint
+from soteria_loop.models import ModelResponse, ToolCall, ToolResult
+from soteria_loop.progress import ProgressDetector, model_response_fingerprint
+from soteria_loop.tools import canonical_fingerprint, tool_call_fingerprint
 
 
 def test_canonical_fingerprint_ignores_mapping_order() -> None:

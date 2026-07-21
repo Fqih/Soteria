@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from soteria import ModelRequest, ModelResponse
-from soteria.exceptions import ProviderError
+from soteria_loop import ModelRequest, ModelResponse
+from soteria_loop.exceptions import ProviderError
 
 from .http_common import build_openai_payload, parse_openai_response, redact_text
 

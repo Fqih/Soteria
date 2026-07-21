@@ -8,11 +8,11 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from soteria.models import SoteriaModel, TokenUsage, utc_now
-from soteria.state import RunState, StopReason
+from soteria_loop.models import SoteriaModel, TokenUsage, utc_now
+from soteria_loop.state import RunState, StopReason
 
 RawOutcome = Literal["completed", "hit_manual_step_cap", "error"]
-Approach = Literal["raw", "soteria"]
+Approach = Literal["raw", "soteria_loop"]
 
 
 class UnexpectedRawLoopError(Exception):
@@ -48,7 +48,7 @@ class LiveRunRecord(SoteriaModel):
     approach: Approach
     run_index: int | None = Field(default=None, ge=0)
 
-    # Outcome (raw approach uses ``outcome``; soteria approach uses status/stop_reason).
+    # Outcome (raw approach uses ``outcome``; soteria_loop approach uses status/stop_reason).
     outcome: RawOutcome | None = None
     status: RunState | None = None
     stop_reason: StopReason | None = None

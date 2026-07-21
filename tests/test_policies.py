@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from soteria.models import TokenUsage
-from soteria.policies import LoopPolicy
-from soteria.state import StopReason
+from soteria_loop.models import TokenUsage
+from soteria_loop.policies import LoopPolicy
+from soteria_loop.state import StopReason
 
 
 def test_policy_defaults_are_bounded() -> None:

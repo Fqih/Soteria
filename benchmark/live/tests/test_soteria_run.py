@@ -16,9 +16,9 @@ from benchmark.live.soteria_run import (
     run_soteria_interrupted,
     soteria_loop_contained,
 )
-from soteria import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria.providers import FakeProvider
-from soteria.state import RunState, StopReason
+from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from soteria_loop.providers import FakeProvider
+from soteria_loop.state import RunState, StopReason
 
 
 def _normal_scenario() -> LiveScenario:
@@ -61,7 +61,7 @@ async def test_run_soteria_maps_normal_completion() -> None:
     record = await run_soteria(provider, _normal_scenario(), run_index=0)
 
     assert record.scenario == "normal_completion"
-    assert record.approach == "soteria"
+    assert record.approach == "soteria_loop"
     assert record.run_index == 0
     assert record.status is RunState.COMPLETED
     assert record.stop_reason is StopReason.COMPLETED
@@ -100,7 +100,7 @@ async def test_run_soteria_maps_repetition_policy_stop() -> None:
     record = await run_soteria(provider, _repetition_scenario(), run_index=1)
 
     assert record.scenario == "repetition_prone"
-    assert record.approach == "soteria"
+    assert record.approach == "soteria_loop"
     assert record.run_index == 1
     assert record.status is RunState.STOPPED
     assert record.stop_reason is StopReason.REPEATED_ACTION
@@ -154,7 +154,7 @@ async def test_run_soteria_interrupted_executes_side_effect_exactly_once() -> No
     )
 
     assert record.scenario == "interrupted_resume"
-    assert record.approach == "soteria"
+    assert record.approach == "soteria_loop"
     assert record.run_index == 2
     assert record.status is RunState.COMPLETED
     assert record.stop_reason is StopReason.COMPLETED

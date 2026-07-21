@@ -6,8 +6,8 @@ import asyncio
 
 from pydantic import BaseModel
 
-from soteria import AgentRuntime, FunctionTool, LoopPolicy, ModelResponse, ToolCall
-from soteria.providers import FakeProvider
+from soteria_loop import AgentRuntime, FunctionTool, LoopPolicy, ModelResponse, ToolCall
+from soteria_loop.providers import FakeProvider
 
 
 class WriteArguments(BaseModel):

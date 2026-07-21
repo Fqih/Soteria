@@ -83,12 +83,12 @@ flowchart LR
 - An explicit, validated execution state machine (8 states, 4 terminal).
 - An append-only, per-run event history with sequence invariants.
 - Step, runtime, token, repetition, error, and no-progress policies.
-- Configurable provider and tool operation timeouts.
+- Configurable provider request timeouts (checked between operations, not preemptive mid-call).
 - In-memory and durable SQLite event stores.
 - Checkpoints and `resume(run_id)` with completed tool-call ID tracking.
 - Deterministic fake-provider scripts so tests never need an API key.
 - Chronological text and structured traces.
-- One explicit `StopReason` per terminal run.
+- One explicit `StopReason` per terminal run (13 enum values).
 
 ---
 
@@ -109,28 +109,37 @@ python -m pip install -e ".[live-benchmark]"
 When the 0.1 package is published, the runtime-only installation will be:
 
 ```bash
-python -m pip install soteria
+python -m pip install soteria-loop
 ```
+
+The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
 
 ### Optional Lethe context management
 
-Soteria can use the companion Lethe memory store to retrieve a bounded set of
-relevant memories before a model call and persist final answers after
-completion. Lethe is intentionally not a core dependency:
+Lethe is a separate package that holds long-term memories outside Soteria's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Soteria's tests ship a local fake.
 
 ```python
 from lethe import MemoryStore
-from soteria import AgentRuntime, LetheMemoryAdapter
+from soteria_loop import AgentRuntime, FakeProvider, ModelResponse
+from soteria_loop.integrations.lethe import LetheMemoryAdapter
 
 memory = LetheMemoryAdapter(MemoryStore(), recall_k=5)
-runtime = AgentRuntime(provider=provider, memory=memory)
+
+async def main() -> None:
+    runtime = AgentRuntime(
+        provider=FakeProvider([ModelResponse(content="ok")]),
+        memory=memory,
+    )
+    result = await runtime.run("Continue the previous plan.")
 ```
 
-Install or expose Lethe separately in the application environment. The
-adapter uses Lethe's public `MemoryStore.recall` and `MemoryStore.remember`
-methods.
+Install Lethe separately in the application environment:
 
-The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
+```bash
+python -m pip install lethe
+```
+
+If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/soteria_loop/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
 
 ---
 
@@ -141,8 +150,8 @@ This example makes one typed tool call and then completes without an API key:
 ```python
 import asyncio
 from pydantic import BaseModel
-from soteria import AgentRuntime, FunctionTool, ModelResponse, ToolCall
-from soteria.providers import FakeProvider
+from soteria_loop import AgentRuntime, FunctionTool, ModelResponse, ToolCall
+from soteria_loop.providers import FakeProvider
 
 
 class AddArguments(BaseModel):
@@ -303,7 +312,7 @@ Run [examples/repeated_action.py](examples/repeated_action.py) to see the full t
 Use `SQLiteEventStore` when a run must survive process restart:
 
 ```python
-store = SQLiteEventStore("soteria.db")
+store = SQLiteEventStore("soteria_loop.db")
 runtime = AgentRuntime(
     provider=provider,
     tools=[tool],
@@ -355,9 +364,9 @@ Exact enum values are lowercase when serialized.
 The CLI reads a SQLite database path:
 
 ```bash
-soteria --database soteria.db runs list
-soteria --database soteria.db runs inspect RUN_ID
-soteria --database soteria.db runs resume RUN_ID
+soteria-loop --database soteria_loop.db runs list
+soteria-loop --database soteria_loop.db runs inspect RUN_ID
+soteria-loop --database soteria_loop.db runs resume RUN_ID
 ```
 
 Generic provider and tool callables cannot be reconstructed from a database. CLI resume therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
@@ -382,7 +391,7 @@ Generic provider and tool callables cannot be reconstructed from a database. CLI
 python -m pip install -e ".[dev]"
 ruff check .
 ruff format --check .
-mypy src/soteria
+mypy src/soteria_loop
 pytest
 python -m build
 ```

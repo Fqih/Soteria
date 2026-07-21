@@ -6,7 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from pydantic import JsonValue
 
-from soteria.models import ModelRequest, ModelResponse
+from soteria_loop.models import ModelRequest, ModelResponse
 
 
 @runtime_checkable

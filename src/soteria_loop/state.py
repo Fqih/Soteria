@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from soteria.exceptions import InvalidStateTransitionError
+from soteria_loop.exceptions import InvalidStateTransitionError
 
 
 class RunState(StrEnum):

@@ -8,9 +8,9 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from soteria.exceptions import InvalidStateTransitionError
-from soteria.models import RunRecord, RunResult, TokenUsage, ToolResult, new_id
-from soteria.state import RunState, StopReason
+from soteria_loop.exceptions import InvalidStateTransitionError
+from soteria_loop.models import RunRecord, RunResult, TokenUsage, ToolResult, new_id
+from soteria_loop.state import RunState, StopReason
 
 
 def test_generated_identifier_is_canonical_uuid_string() -> None:

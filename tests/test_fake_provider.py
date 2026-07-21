@@ -7,9 +7,9 @@ from typing import cast
 import pytest
 from pydantic import JsonValue
 
-from soteria.exceptions import ProviderError
-from soteria.models import ModelRequest, ModelResponse, TokenUsage
-from soteria.providers import FakeProvider
+from soteria_loop.exceptions import ProviderError
+from soteria_loop.models import ModelRequest, ModelResponse, TokenUsage
+from soteria_loop.providers import FakeProvider
 
 
 def request(step: int = 1) -> ModelRequest:

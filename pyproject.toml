@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "soteria"
+name = "soteria-loop"
 version = "0.1.0"
 description = "Reliable execution infrastructure for long-running AI agents."
 readme = "README.md"
@@ -45,15 +45,15 @@ providers = [
 ]
 
 [project.scripts]
-soteria = "soteria.cli:main"
+soteria-loop = "soteria_loop.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/faqihhakim/soteria"
-Repository = "https://github.com/faqihhakim/soteria"
-Issues = "https://github.com/faqihhakim/soteria/issues"
+Homepage = "https://github.com/Fqih/Soteria"
+Repository = "https://github.com/Fqih/Soteria"
+Issues = "https://github.com/Fqih/Soteria/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/soteria"]
+packages = ["src/soteria_loop"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers"
@@ -62,7 +62,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["soteria"]
+source = ["soteria_loop"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -92,7 +92,7 @@ select = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["soteria"]
+packages = ["soteria_loop"]
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 

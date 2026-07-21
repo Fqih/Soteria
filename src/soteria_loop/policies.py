@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from soteria.models import TokenUsage
-from soteria.state import StopReason
+from soteria_loop.models import TokenUsage
+from soteria_loop.state import StopReason
 
 
 class LoopPolicy(BaseModel):

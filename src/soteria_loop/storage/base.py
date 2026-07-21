@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from soteria.events import AgentEvent
-from soteria.models import Checkpoint, RunRecord
+from soteria_loop.events import AgentEvent
+from soteria_loop.models import Checkpoint, RunRecord
 
 
 @runtime_checkable

@@ -19,16 +19,16 @@ from benchmark.live.models import (
     UnexpectedRawLoopError,
 )
 from benchmark.live.scenarios import LiveScenario
-from soteria.exceptions import ProviderError, ToolExecutionError
-from soteria.models import (
+from soteria_loop.exceptions import ProviderError, ToolExecutionError
+from soteria_loop.models import (
     ModelRequest,
     ModelResponse,
     TokenUsage,
     ToolCall,
     ToolResult,
 )
-from soteria.providers.base import ModelProvider
-from soteria.tools import ToolRegistry
+from soteria_loop.providers.base import ModelProvider
+from soteria_loop.tools import ToolRegistry
 
 _RAW_RUN_ID = "raw-loop"
 

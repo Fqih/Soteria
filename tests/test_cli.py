@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from soteria import AgentRuntime, EventType, ModelResponse
-from soteria.cli import main
-from soteria.providers import FakeProvider
-from soteria.storage import SQLiteEventStore
+from soteria_loop import AgentRuntime, EventType, ModelResponse
+from soteria_loop.cli import main
+from soteria_loop.providers import FakeProvider
+from soteria_loop.storage import SQLiteEventStore
 from tests.test_resume import InjectedInterruption, InterruptOnEventRuntime
 
 

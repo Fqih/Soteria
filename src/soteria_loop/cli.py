@@ -8,16 +8,16 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from soteria.exceptions import SoteriaError
-from soteria.providers.fake import FakeProvider
-from soteria.runtime import AgentRuntime
-from soteria.storage.sqlite import SQLiteEventStore
-from soteria.tracing import TraceInspector
+from soteria_loop.exceptions import SoteriaError
+from soteria_loop.providers.fake import FakeProvider
+from soteria_loop.runtime import AgentRuntime
+from soteria_loop.storage.sqlite import SQLiteEventStore
+from soteria_loop.tracing import TraceInspector
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="soteria",
+        prog="soteria-loop",
         description="Inspect and resume Soteria SQLite runs.",
     )
     parser.add_argument(
@@ -91,7 +91,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         return asyncio.run(_execute(args))
     except (SoteriaError, OSError) as exc:
-        print(f"soteria: {exc}", file=sys.stderr)
+        print(f"soteria-loop: {exc}", file=sys.stderr)
         return 2
 
 

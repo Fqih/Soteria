@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 
-from soteria.events import AgentEvent, EventType, validate_event_append
-from soteria.exceptions import RunNotFoundError, StorageError
-from soteria.models import Checkpoint, RunRecord
-from soteria.state import is_terminal
+from soteria_loop.events import AgentEvent, EventType, validate_event_append
+from soteria_loop.exceptions import RunNotFoundError, StorageError
+from soteria_loop.models import Checkpoint, RunRecord
+from soteria_loop.state import is_terminal
 
 
 class InMemoryEventStore:

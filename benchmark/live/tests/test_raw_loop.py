@@ -12,9 +12,9 @@ from benchmark.live.models import (
 )
 from benchmark.live.raw_loop import classify_raw_outcome, run_raw_loop
 from benchmark.live.scenarios import LiveScenario, scenario_by_name
-from soteria import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria.exceptions import ProviderError
-from soteria.providers import FakeProvider
+from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from soteria_loop.exceptions import ProviderError
+from soteria_loop.providers import FakeProvider
 
 
 def _normal_scenario() -> LiveScenario:
@@ -204,7 +204,7 @@ async def test_raw_loop_catches_provider_error_as_expected() -> None:
 async def test_raw_loop_catches_tool_execution_error_as_expected() -> None:
     from pydantic import BaseModel
 
-    from soteria.tools import FunctionTool
+    from soteria_loop.tools import FunctionTool
 
     class _RaisingArgs(BaseModel):
         pass
@@ -373,9 +373,9 @@ def test_raw_loop_module_does_not_import_forbidden_modules() -> None:
     with open(module_source, encoding="utf-8") as handle:
         text = handle.read()
     for forbidden in (
-        "soteria.runtime",
-        "soteria.policies",
-        "soteria.progress",
-        "soteria.storage",
+        "soteria_loop.runtime",
+        "soteria_loop.policies",
+        "soteria_loop.progress",
+        "soteria_loop.storage",
     ):
         assert forbidden not in text, f"raw_loop must not import from {forbidden}"

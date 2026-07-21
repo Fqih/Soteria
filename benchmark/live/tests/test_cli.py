@@ -23,8 +23,8 @@ from benchmark.live.run_live_benchmark import (
     run_all,
 )
 from benchmark.live.scenarios import LiveScenario, scenario_by_name
-from soteria import TokenUsage
-from soteria.providers.base import ModelProvider
+from soteria_loop import TokenUsage
+from soteria_loop.providers.base import ModelProvider
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -206,7 +206,7 @@ def _completed_record(scenario_name: str, approach: str, run_index: int) -> Live
         )
     return LiveRunRecord(
         scenario=scenario_name,
-        approach="soteria",
+        approach="soteria_loop",
         run_index=run_index,
         status="completed",
         stop_reason="completed",
@@ -243,13 +243,13 @@ async def test_run_all_orchestrates_three_scenarios_raw_and_soteria(tmp_path: Pa
 
     async def soteria_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        call_log.append(f"soteria:{scenario.name}:{run_index}")
-        return _completed_record(scenario.name, "soteria", run_index=run_index)
+        call_log.append(f"soteria_loop:{scenario.name}:{run_index}")
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        call_log.append(f"soteria-interrupted:{scenario.name}:{run_index_inner}")
-        return _completed_record(scenario.name, "soteria", run_index=run_index_inner)
+        call_log.append(f"soteria_loop-interrupted:{scenario.name}:{run_index_inner}")
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index_inner)
 
     results = await run_all(
         args,
@@ -260,11 +260,14 @@ async def test_run_all_orchestrates_three_scenarios_raw_and_soteria(tmp_path: Pa
         sleep=lambda _seconds: None,
     )
 
-    # Two scenarios are raw-and-soteria capable (3 raw + 3 soteria per scenario
-    # * 2 scenarios * 2 runs), and one scenario is soteria-interrupted-only.
+    # Two scenarios are raw-and-soteria-loop capable (3 raw + 3 soteria-loop per
+    # scenario * 2 scenarios * 2 runs), and one scenario is
+    # soteria-loop-interrupted-only.
     raw_calls = [entry for entry in call_log if entry.startswith("raw:")]
-    soteria_calls = [entry for entry in call_log if entry.startswith("soteria:")]
-    interrupted_calls = [entry for entry in call_log if entry.startswith("soteria-interrupted:")]
+    soteria_calls = [entry for entry in call_log if entry.startswith("soteria-loop:")]
+    interrupted_calls = [
+        entry for entry in call_log if entry.startswith("soteria-loop-interrupted:")
+    ]
 
     assert len(raw_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
     assert len(soteria_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
@@ -300,11 +303,11 @@ async def test_run_all_persists_utc_timestamped_json(tmp_path: Path) -> None:
 
     async def soteria_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "soteria", run_index=run_index)
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "soteria", run_index=run_index_inner)
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index_inner)
 
     results = await run_all(
         args,
@@ -348,11 +351,11 @@ async def test_run_all_marks_internal_errors_incomplete() -> None:
 
     async def soteria_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "soteria", run_index=run_index)
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "soteria", run_index=run_index_inner)
+        return _completed_record(scenario.name, "soteria_loop", run_index=run_index_inner)
 
     results = await run_all(
         args,
@@ -394,14 +397,14 @@ def test_main_prints_summary_and_one_trace_example(
 
     async def soteria_runner(provider, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        record = _completed_record(scenario.name, "soteria", run_index=run_index)
+        record = _completed_record(scenario.name, "soteria_loop", run_index=run_index)
         # Ensure the summary trace render has a non-empty trace to print.
         record.trace_text = f"Run: {scenario.name}\nStop reason: completed\n"
         return record
 
     async def interrupted_runner(provider_factory, scenario, run_index=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        record = _completed_record(scenario.name, "soteria", run_index=run_index)
+        record = _completed_record(scenario.name, "soteria_loop", run_index=run_index)
         record.trace_text = f"Run: {scenario.name}\nStop reason: completed\n"
         return record
 

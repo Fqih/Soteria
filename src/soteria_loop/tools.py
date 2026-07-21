@@ -11,14 +11,14 @@ from typing import Generic, Protocol, TypeVar, cast, runtime_checkable
 
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
-from soteria.exceptions import (
+from soteria_loop.exceptions import (
     DuplicateToolError,
     ToolAlreadyCompletedError,
     ToolExecutionError,
     ToolNotFoundError,
     ToolValidationError,
 )
-from soteria.models import ToolCall, ToolMetadata, ToolResult, utc_now
+from soteria_loop.models import ToolCall, ToolMetadata, ToolResult, utc_now
 
 ArgumentsT = TypeVar("ArgumentsT", bound=BaseModel)
 ToolCallable = Callable[[ArgumentsT], JsonValue | Awaitable[JsonValue]]

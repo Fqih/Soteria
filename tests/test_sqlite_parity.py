@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from soteria.events import AgentEvent, EventType
-from soteria.exceptions import RunNotFoundError, StorageError
-from soteria.models import Checkpoint, RunRecord
-from soteria.policies import LoopPolicy
-from soteria.state import RunState, StopReason
-from soteria.storage import EventStore, InMemoryEventStore, SQLiteEventStore
+from soteria_loop.events import AgentEvent, EventType
+from soteria_loop.exceptions import RunNotFoundError, StorageError
+from soteria_loop.models import Checkpoint, RunRecord
+from soteria_loop.policies import LoopPolicy
+from soteria_loop.state import RunState, StopReason
+from soteria_loop.storage import EventStore, InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run
 
 

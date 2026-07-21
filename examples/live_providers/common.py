@@ -6,8 +6,8 @@ import json
 import re
 from typing import Any
 
-from soteria import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria.exceptions import ProviderError
+from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from soteria_loop.exceptions import ProviderError
 
 
 def json_safe_content(value: object) -> str:

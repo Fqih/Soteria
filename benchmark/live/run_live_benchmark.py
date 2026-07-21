@@ -42,7 +42,7 @@ from benchmark.live.soteria_run import (
     run_soteria,
     run_soteria_interrupted,
 )
-from soteria.providers.base import ModelProvider
+from soteria_loop.providers.base import ModelProvider
 
 SleepFn = Callable[[float], Any]
 ProviderFactory = Callable[[], ModelProvider]
@@ -271,7 +271,7 @@ def _load_provider_module(provider: str) -> ModuleType:
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             f"Provider {provider!r} requires optional live-benchmark dependencies. "
-            f"Install with `pip install soteria[live-benchmark]`. ({exc})"
+            f"Install with `pip install soteria_loop[live-benchmark]`. ({exc})"
         ) from exc
 
 
@@ -359,7 +359,7 @@ async def run_all(
                     interrupted_runner,
                     scenario=scenario,
                     run_index=run_index,
-                    approach="soteria",
+                    approach="soteria_loop",
                     provider_factory=provider_factory,
                     run_index_inner=run_index,
                 )
@@ -407,7 +407,7 @@ async def _run_with_sleep(
             _wrap_soteria(soteria_runner, scenario, run_index),
             scenario=scenario,
             run_index=run_index,
-            approach="soteria",
+            approach="soteria_loop",
             provider=provider,
         )
         records.append(_mark_complete(record))

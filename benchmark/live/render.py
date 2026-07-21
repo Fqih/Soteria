@@ -3,7 +3,7 @@
 The renderer is deliberately JSON-driven: provider, model, and sample size are
 read from the bundle rather than hardcoded so the same code can chart any
 provider's results.  Matplotlib is an optional dependency of the live benchmark
-extras (``pip install soteria[live-benchmark]``); tests gate on
+extras (``pip install soteria_loop[live-benchmark]``); tests gate on
 ``pytest.importorskip("matplotlib")`` so the suite stays green without it.
 
 Public surface:
@@ -40,7 +40,7 @@ _NORMAL_SCENARIO = "normal_completion"
 _REPETITION_PNG = "repetition_containment.png"
 _NORMAL_PNG = "normal_completion_comparison.png"
 
-_APPROACH_ORDER: tuple[str, ...] = ("raw", "soteria")
+_APPROACH_ORDER: tuple[str, ...] = ("raw", "soteria_loop")
 
 _CHART_STYLE = "seaborn-v0_8-whitegrid"
 

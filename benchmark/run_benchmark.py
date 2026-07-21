@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from pydantic import BaseModel
 from scenarios.catalog import SCENARIOS, Scenario, ScenarioKind
 
-from soteria import (
+from soteria_loop import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -26,9 +26,9 @@ from soteria import (
     TokenUsage,
     ToolCall,
 )
-from soteria.events import TERMINAL_EVENT_TYPES
-from soteria.providers import FakeProvider, ScriptItem
-from soteria.storage import InMemoryEventStore, SQLiteEventStore
+from soteria_loop.events import TERMINAL_EVENT_TYPES
+from soteria_loop.providers import FakeProvider, ScriptItem
+from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
 
 HARNESS_STEP_LIMIT = 6
 
@@ -289,7 +289,7 @@ async def run_soteria_interruption(scenario: Scenario) -> Outcome:
         ),
         ModelResponse(content="recovered"),
     ]
-    with TemporaryDirectory(prefix="soteria-benchmark-") as directory:
+    with TemporaryDirectory(prefix="soteria_loop-benchmark-") as directory:
         path = Path(directory) / "benchmark.db"
         first_store = SQLiteEventStore(path)
         interrupted = InterruptingRuntime(
@@ -380,11 +380,11 @@ def aggregate(outcomes: list[Outcome]) -> dict[str, str]:
     }
 
 
-def render_results(raw: list[Outcome], soteria: list[Outcome]) -> str:
+def render_results(raw: list[Outcome], soteria_loop: list[Outcome]) -> str:
     """Render reproducible Markdown benchmark output."""
 
     raw_metrics = aggregate(raw)
-    soteria_metrics = aggregate(soteria)
+    soteria_metrics = aggregate(soteria_loop)
     rows = [
         "# Deterministic Benchmark Results",
         "",
@@ -410,7 +410,7 @@ def render_results(raw: list[Outcome], soteria: list[Outcome]) -> str:
     )
     for scenario in SCENARIOS:
         raw_outcome = next(item for item in raw if item.scenario is scenario.kind)
-        soteria_outcome = next(item for item in soteria if item.scenario is scenario.kind)
+        soteria_outcome = next(item for item in soteria_loop if item.scenario is scenario.kind)
         rows.append(
             f"| {scenario.kind.value} | {str(raw_outcome.task_completed).lower()} | "
             f"{str(soteria_outcome.task_completed).lower()} | "
@@ -439,8 +439,8 @@ async def main() -> None:
     """Execute every scenario for both systems and write RESULTS.md."""
 
     raw = [await run_raw(scenario) for scenario in SCENARIOS]
-    soteria = [await run_soteria(scenario) for scenario in SCENARIOS]
-    output = render_results(raw, soteria)
+    soteria_loop = [await run_soteria(scenario) for scenario in SCENARIOS]
+    output = render_results(raw, soteria_loop)
     results_path = Path(__file__).with_name("RESULTS.md")
     results_path.write_text(output, encoding="utf-8")
     print(output)

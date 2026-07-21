@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from soteria.events import AgentEvent, EventType
-from soteria.models import RunRecord, TokenUsage
-from soteria.state import RunState, StopReason
-from soteria.tracing import RunTrace, TraceInspector
+from soteria_loop.events import AgentEvent, EventType
+from soteria_loop.models import RunRecord, TokenUsage
+from soteria_loop.state import RunState, StopReason
+from soteria_loop.tracing import RunTrace, TraceInspector
 
 
 def test_summary_covers_all_operational_event_variants() -> None:

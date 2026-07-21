@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, cast
 
 from pydantic import JsonValue, TypeAdapter, ValidationError
 
-from soteria.events import AgentEvent, EventType
-from soteria.exceptions import (
+from soteria_loop.events import AgentEvent, EventType
+from soteria_loop.exceptions import (
     CheckpointNotFoundError,
     FakeProviderExhaustedError,
     ProviderError,
@@ -22,8 +22,8 @@ from soteria.exceptions import (
     ToolAlreadyCompletedError,
     UnsafeResumeError,
 )
-from soteria.integrations.lethe import LetheMemoryAdapter
-from soteria.models import (
+from soteria_loop.integrations.lethe import LetheMemoryAdapter
+from soteria_loop.models import (
     Checkpoint,
     ModelRequest,
     ModelResponse,
@@ -34,16 +34,16 @@ from soteria.models import (
     ToolResult,
     utc_now,
 )
-from soteria.policies import LoopPolicy
-from soteria.progress import ProgressDetector
-from soteria.providers.base import ModelProvider, StatefulModelProvider
-from soteria.state import RunState, StopReason, is_terminal, validate_transition
-from soteria.storage.base import EventStore
-from soteria.storage.memory import InMemoryEventStore
-from soteria.tools import Tool, ToolRegistry, tool_call_fingerprint
+from soteria_loop.policies import LoopPolicy
+from soteria_loop.progress import ProgressDetector
+from soteria_loop.providers.base import ModelProvider, StatefulModelProvider
+from soteria_loop.state import RunState, StopReason, is_terminal, validate_transition
+from soteria_loop.storage.base import EventStore
+from soteria_loop.storage.memory import InMemoryEventStore
+from soteria_loop.tools import Tool, ToolRegistry, tool_call_fingerprint
 
 if TYPE_CHECKING:
-    from soteria.tracing import RunTrace
+    from soteria_loop.tracing import RunTrace
 
 Clock = Callable[[], datetime]
 ApprovalCallback = Callable[[ToolCall], bool | Awaitable[bool]]
@@ -252,7 +252,7 @@ class AgentRuntime:
     async def inspect(self, run_id: str) -> RunTrace:
         """Build a chronological trace for a stored run."""
 
-        from soteria.tracing import TraceInspector
+        from soteria_loop.tracing import TraceInspector
 
         return await TraceInspector(self.event_store).inspect(run_id)
 

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pydantic import JsonValue
 
-from soteria.models import ModelResponse, ToolCall, ToolResult
-from soteria.tools import (
+from soteria_loop.models import ModelResponse, ToolCall, ToolResult
+from soteria_loop.tools import (
     canonical_fingerprint,
     tool_call_fingerprint,
     tool_result_fingerprint,

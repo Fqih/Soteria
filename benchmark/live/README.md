@@ -47,7 +47,7 @@ The raw baseline records exactly one of three `outcome` values:
 The Soteria approach records `status` and `stop_reason` instead:
 `completed`, `repeated_action` (policy containment), or any other RunState
 value. The renderer's containment rule is `approach=raw -> manual_step_cap_hit`,
-and `approach=soteria -> soteria_loop_contained(record)`, so the raw loop's
+and `approach=soteria_loop -> soteria_loop_contained(record)`, so the raw loop's
 manual safety cap is treated as containment for *charting* but is never
 attributed to Soteria.
 
@@ -164,7 +164,7 @@ The live benchmark is gated behind an optional extra so the core package and
 the deterministic benchmark stay install-free:
 
 ```bash
-pip install soteria[live-benchmark]
+pip install soteria-loop[live-benchmark]
 ```
 
 The optional extra pulls in the live provider modules under

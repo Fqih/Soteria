@@ -6,10 +6,10 @@ from datetime import datetime
 
 from pydantic import Field, JsonValue
 
-from soteria.events import AgentEvent, EventType
-from soteria.models import RunRecord, SoteriaModel, TokenUsage
-from soteria.state import RunState, StopReason
-from soteria.storage.base import EventStore
+from soteria_loop.events import AgentEvent, EventType
+from soteria_loop.models import RunRecord, SoteriaModel, TokenUsage
+from soteria_loop.state import RunState, StopReason
+from soteria_loop.storage.base import EventStore
 
 
 class TraceEntry(SoteriaModel):

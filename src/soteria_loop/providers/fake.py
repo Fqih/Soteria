@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import JsonValue
 
-from soteria.exceptions import FakeProviderExhaustedError, ProviderError
-from soteria.models import ModelRequest, ModelResponse, TokenUsage
+from soteria_loop.exceptions import FakeProviderExhaustedError, ProviderError
+from soteria_loop.models import ModelRequest, ModelResponse, TokenUsage
 
 ScriptItem = ModelResponse | Mapping[str, Any] | Exception
 

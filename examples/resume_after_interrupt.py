@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 
 from pydantic import BaseModel
 
-from soteria import AgentEvent, AgentRuntime, EventType, FunctionTool, ModelResponse, ToolCall
-from soteria.providers import FakeProvider
-from soteria.storage import SQLiteEventStore
+from soteria_loop import AgentEvent, AgentRuntime, EventType, FunctionTool, ModelResponse, ToolCall
+from soteria_loop.providers import FakeProvider
+from soteria_loop.storage import SQLiteEventStore
 
 
 class AbruptInterruption(BaseException):
@@ -64,7 +64,7 @@ async def main() -> None:
         ]
     )
 
-    with TemporaryDirectory(prefix="soteria-example-") as directory:
+    with TemporaryDirectory(prefix="soteria_loop-example-") as directory:
         database = Path(directory) / "runs.db"
         first_store = SQLiteEventStore(database)
         first_runtime = InterruptAfterToolResult(

@@ -7,9 +7,9 @@ from enum import StrEnum
 
 from pydantic import Field, JsonValue, field_validator
 
-from soteria.exceptions import EventInvariantError, InvalidStateTransitionError
-from soteria.models import SoteriaModel, new_id, utc_now
-from soteria.state import RunState, StopReason, validate_terminal_outcome, validate_transition
+from soteria_loop.exceptions import EventInvariantError, InvalidStateTransitionError
+from soteria_loop.models import SoteriaModel, new_id, utc_now
+from soteria_loop.state import RunState, StopReason, validate_terminal_outcome, validate_transition
 
 
 class EventType(StrEnum):

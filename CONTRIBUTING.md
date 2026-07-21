@@ -25,7 +25,7 @@ Run the same gates used by CI:
 ```bash
 ruff check .
 ruff format --check .
-mypy src/soteria
+mypy src/soteria_loop
 pytest
 python -m build
 ```
