@@ -1,25 +1,9 @@
-"""Interactive chat REPL wiring ``AgentRuntime`` + ``app_tools`` + SQLite.
-
-The CLI is a thin shell: every user turn becomes one
-``AgentRuntime.run(...)`` invocation. The runtime remains the execution
-authority; this module owns only the read-eval-print loop, slash
-commands, and graceful shutdown.
-
-The chat subcommand delegates to existing infrastructure:
-
-- :func:`soteria_loop.config.build_provider_from_env` for the provider.
-- :class:`soteria_loop.app_tools.workspace.Workspace` for path validation.
-- :func:`soteria_loop.app_tools.file_tools.bind_workspace`,
-  :func:`read_file_tool`, and :func:`write_file_tool` for safe I/O.
-- :class:`soteria_loop.storage.sqlite.SQLiteEventStore` for persistence.
-- :class:`soteria_loop.runtime.AgentRuntime` for the actual agent loop.
-"""
+"""Interactive chat REPL wiring AgentRuntime + app_tools + SQLite."""
 
 from __future__ import annotations
 
 import os
 import shlex
-import signal
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,11 +11,34 @@ from typing import TextIO
 
 from soteria_loop.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from soteria_loop.app_tools.workspace import Workspace
-from soteria_loop.config import build_provider_from_env
+from soteria_loop.config import ConfigError, build_provider_from_env
 from soteria_loop.exceptions import SoteriaError
 from soteria_loop.runtime import AgentRuntime
 from soteria_loop.storage.sqlite import SQLiteEventStore
 from soteria_loop.tracing import TraceInspector
+
+REPO_LOGO_PATH = Path(__file__).resolve().parents[3] / "public" / "logo.webp"
+
+
+_FIRST_RUN_MESSAGE = (
+    "Soteria is not configured yet.\n"
+    "\n"
+    "No provider has been configured.\n"
+    "\n"
+    "Configure one of:\n"
+    "\n"
+    "  SOTERIA_PROVIDER=ollama\n"
+    "  SOTERIA_PROVIDER=minimax\n"
+    "  SOTERIA_PROVIDER=anthropic\n"
+    "  SOTERIA_PROVIDER=openai\n"
+    "\n"
+    "with the matching provider-specific keys and model. See .env.example "
+    "for the full list of recognised variables.\n"
+    "\n"
+    "Then retry:\n"
+    "\n"
+    "  soteria-loop chat\n"
+)
 
 
 @dataclass
@@ -69,6 +76,7 @@ def _print_header(out: TextIO, ctx: ChatContext, workspace_root: Path) -> None:
     out.write(f"Provider: {ctx.provider_name}\n")
     out.write(f"Model: {ctx.model_name}\n")
     out.write(f"Workspace: {workspace_root}\n")
+    out.write("Logo: " + str(REPO_LOGO_PATH) + "\n")
     out.write("Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit\n")
     out.write("Enter a task to run one AgentRuntime turn. Ctrl+D or /quit to exit.\n")
     out.flush()
@@ -86,35 +94,13 @@ def _print_provider_summary(out: TextIO, ctx: ChatContext, environ: dict[str, st
     out.flush()
 
 
-def _resolve_workspace_root(explicit: str | None) -> Path:
-    """Pick the workspace root: explicit override or current working directory."""
-
-    if explicit:
-        return Path(explicit).resolve()
-    return Path.cwd().resolve()
-
-
 def build_chat_context(
     *,
     database_path: Path,
     workspace_root: Path,
     environ: dict[str, str],
 ) -> ChatContext:
-    """Construct the runtime + store + workspace bound together.
-
-    Args:
-        database_path: SQLite file location.
-        workspace_root: Pre-resolved absolute path to the workspace.
-        environ: Snapshot of ``os.environ`` for the factory.
-
-    Returns:
-        A :class:`ChatContext` ready for the REPL loop.
-
-    Raises:
-        soteria_loop.config.ConfigError: missing provider configuration.
-        soteria_loop.app_tools.workspace.WorkspacePathError: workspace root
-            missing or not a directory.
-    """
+    """Construct the runtime + store + workspace bound together."""
 
     provider_name, model_name = _resolve_provider_label(environ)
     provider = build_provider_from_env(environ)
@@ -134,6 +120,13 @@ def build_chat_context(
     )
 
 
+def render_first_run_message(out: TextIO) -> None:
+    """Print the canonical first-run configuration hint."""
+
+    out.write(_FIRST_RUN_MESSAGE)
+    out.flush()
+
+
 async def _run_slash(
     ctx: ChatContext,
     args: list[str],
@@ -141,10 +134,7 @@ async def _run_slash(
     err: TextIO,
     environ: dict[str, str],
 ) -> bool:
-    """Dispatch a slash command.
-
-    Returns ``True`` if the command asked to exit the REPL.
-    """
+    """Dispatch a slash command. Returns True if the REPL should exit."""
 
     if not args:
         err.write("expected a slash command (try /provider)\n")
@@ -227,18 +217,7 @@ async def run_repl(
     environ: dict[str, str] | None = None,
     prompt: str = "You > ",
 ) -> int:
-    """Run the interactive chat REPL until EOF, ``/quit``, or fatal init error.
-
-    Args:
-        database_path: SQLite file location for persistence.
-        workspace_root: Pre-resolved absolute path.
-        stdin/stdout/stderr: I/O streams (defaults to ``sys.{stdin,stdout,stderr}``).
-        environ: Environment mapping (defaults to a snapshot of ``os.environ``).
-        prompt: Prompt string.
-
-    Returns:
-        Process exit status.
-    """
+    """Run the interactive chat REPL until EOF, /quit, or fatal init error."""
 
     in_stream = stdin or sys.stdin
     out_stream = stdout or sys.stdout
@@ -251,6 +230,12 @@ async def run_repl(
             workspace_root=workspace_root,
             environ=env,
         )
+    except ConfigError:
+        # First-run UX: render only the canonical hint. We do NOT echo the
+        # ConfigError text because it can include the operator-supplied
+        # SOTERIA_PROVIDER value, which may carry unintended content.
+        render_first_run_message(err_stream)
+        return 2
     except (SoteriaError, OSError) as exc:
         err_stream.write(f"soteria-loop chat: {exc}\n")
         return 2
@@ -266,7 +251,7 @@ async def run_repl(
                 out_stream.flush()
                 line = in_stream.readline()
             except KeyboardInterrupt:
-                out_stream.write("\n(interrupted — type /quit or Ctrl+D to exit)\n")
+                out_stream.write("\n(interrupted - type /quit or Ctrl+D to exit)\n")
                 out_stream.flush()
                 continue
 
@@ -293,25 +278,10 @@ async def run_repl(
         await ctx.store.close()
 
 
-def install_signal_handlers() -> None:
-    """Translate SIGINT into ``KeyboardInterrupt`` so the REPL catches it cleanly.
-
-    Python's default already raises ``KeyboardInterrupt`` on Ctrl+C. This
-    helper exists so the chat command line handler can install the same
-    behavior consistently across platforms and ensure the active
-    ``SQLiteEventStore`` is closed before the process exits.
-    """
-
-    def _handler(signum: int, frame: object) -> None:
-        del signum, frame
-        raise KeyboardInterrupt
-
-    signal.signal(signal.SIGINT, _handler)
-
-
 __all__ = [
+    "REPO_LOGO_PATH",
     "ChatContext",
     "build_chat_context",
-    "install_signal_handlers",
+    "render_first_run_message",
     "run_repl",
 ]

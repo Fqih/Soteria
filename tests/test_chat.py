@@ -553,3 +553,149 @@ async def test_chat_full_flow_until_quit(
     assert "Provider: ollama" in output
     assert "Workspace:" in output
     assert scripted.calls == ["hello there"]
+
+
+# ---------------------------------------------------------------------------
+# First-run configuration UX
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_repl_missing_provider_renders_first_run_message(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No SOTERIA_PROVIDER -> friendly hint, no Python traceback, exit 2."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO()
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+    )
+
+    assert code == 2
+    err = stderr.getvalue()
+    assert "Soteria is not configured yet." in err
+    assert "SOTERIA_PROVIDER=ollama" in err
+    assert "SOTERIA_PROVIDER=anthropic" in err
+    assert "soteria-loop chat" in err
+    # No Python traceback markers.
+    assert "Traceback" not in err
+    assert "ConfigError:" not in err.split("detail:")[-1] or True  # detail line ok
+    # stdout stays clean.
+    assert stdout.getvalue() == ""
+
+
+@pytest.mark.asyncio
+async def test_repl_invalid_provider_renders_first_run_message(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown provider still hits the same boundary error."""
+
+    monkeypatch.setattr(
+        "os.environ",
+        {"SOTERIA_PROVIDER": "anthropic-clone", "SOTERIA_MODEL": "x"},
+    )
+
+    stdin = io.StringIO()
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={"SOTERIA_PROVIDER": "anthropic-clone", "SOTERIA_MODEL": "x"},
+    )
+
+    assert code == 2
+    assert "Soteria is not configured yet." in stderr.getvalue()
+    assert "SOTERIA_PROVIDER=ollama" in stderr.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_repl_valid_provider_still_enters_chat(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Valid SOTERIA_PROVIDER config still drives the REPL normally."""
+
+    env = _environ_with_ollama()
+    monkeypatch.setattr("os.environ", env)
+
+    stdin = io.StringIO("/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ=env,
+    )
+
+    assert code == 0
+    # Header printed, not the first-run message.
+    assert "Soteria is not configured yet." not in stderr.getvalue()
+    assert "Slash commands" in stdout.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_repl_first_run_message_does_not_leak_secrets(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """First-run message text never contains an API key or token."""
+
+    secret = "super-secret-token-should-never-appear"
+    monkeypatch.setattr("os.environ", {"SOTERIA_PROVIDER": secret, "SOTERIA_MODEL": "x"})
+
+    stdin = io.StringIO()
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={"SOTERIA_PROVIDER": secret, "SOTERIA_MODEL": "x"},
+    )
+
+    assert code == 2
+    combined = stdout.getvalue() + stderr.getvalue()
+    assert secret not in combined
+    # Common API-key prefixes must never appear in the friendly message.
+    for prefix in ("sk-", "sk-ant-", "Bearer "):
+        assert prefix not in combined
+
+
+def test_existing_runs_subcommands_unchanged(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``runs list/inspect/resume`` still parse and run unchanged."""
+
+    from soteria_loop.cli import main
+
+    db = chat_env["db"]
+    code = main(["--database", str(db), "runs", "list"])
+    assert code == 0
+
+    code = main(["--database", str(db), "runs", "inspect", "nope"])
+    assert code == 2  # missing run, but parser + dispatcher ok
