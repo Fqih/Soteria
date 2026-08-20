@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 import shlex
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
@@ -18,6 +20,35 @@ from soteria_loop.storage.sqlite import SQLiteEventStore
 from soteria_loop.tracing import TraceInspector
 
 REPO_LOGO_PATH = Path(__file__).resolve().parents[3] / "public" / "logo.webp"
+
+
+# Provider catalog used by the interactive first-run setup. Each entry:
+#   key      -> canonical provider name (matches SOTERIA_PROVIDER)
+#   label    -> human-friendly label printed in the menu
+#   default_model -> suggested model if the user accepts the default
+#   needs_api_key  -> True for hosted providers; False for local Ollama
+_PROVIDER_CATALOG: dict[str, dict[str, str | bool]] = {
+    "ollama": {
+        "label": "Ollama",
+        "default_model": "llama3.1",
+        "needs_api_key": False,
+    },
+    "openai": {
+        "label": "OpenAI",
+        "default_model": "gpt-5.6",
+        "needs_api_key": True,
+    },
+    "anthropic": {
+        "label": "Anthropic",
+        "default_model": "claude-sonnet-4-6",
+        "needs_api_key": True,
+    },
+    "minimax": {
+        "label": "MiniMax",
+        "default_model": "MiniMax-M3",
+        "needs_api_key": True,
+    },
+}
 
 
 _FIRST_RUN_MESSAGE = (
@@ -127,6 +158,174 @@ def render_first_run_message(out: TextIO) -> None:
     out.flush()
 
 
+# ---------------------------------------------------------------------------
+# Interactive first-run setup
+# ---------------------------------------------------------------------------
+
+
+class _SetupAborted(Exception):
+    """Raised when the operator aborts the interactive first-run setup."""
+
+
+def _prompt_line(in_stream: TextIO, out_stream: TextIO, prompt: str) -> str:
+    """Read one line from ``in_stream`` after printing ``prompt`` to ``out_stream``.
+
+    Strips the trailing newline. Returns an empty string on EOF.
+    Raises :class:`_SetupAborted` on EOF.
+    """
+
+    out_stream.write(prompt)
+    out_stream.flush()
+    line = in_stream.readline()
+    if not line:
+        raise _SetupAborted
+    return line.rstrip("\n").rstrip("\r")
+
+
+def _prompt_choice(in_stream: TextIO, out_stream: TextIO, prompt: str, choices: list[str]) -> str:
+    """Prompt until the operator picks one of ``choices`` (case-insensitive).
+
+    Re-prompts on invalid input. Returns the canonical lowercase choice.
+    """
+
+    lowered = {c.lower(): c for c in choices}
+    while True:
+        raw = _prompt_line(in_stream, out_stream, prompt)
+        if raw.strip().lower() in lowered:
+            return lowered[raw.strip().lower()]
+        out_stream.write(f"please choose one of: {', '.join(choices)}\n")
+        out_stream.flush()
+
+
+def _prompt_optional(
+    in_stream: TextIO,
+    out_stream: TextIO,
+    prompt: str,
+    *,
+    default: str | None = None,
+) -> str:
+    """Prompt with optional default. Empty input -> default (or empty)."""
+
+    suffix = f" [{default}]" if default else ""
+    raw = _prompt_line(in_stream, out_stream, f"{prompt}{suffix}: ").strip()
+    if not raw:
+        return default or ""
+    return raw
+
+
+def _prompt_required(
+    in_stream: TextIO,
+    out_stream: TextIO,
+    prompt: str,
+    *,
+    secret: bool = False,
+    secret_reader: Callable[[str], str] | None = None,
+) -> str:
+    """Prompt until the operator supplies a non-empty value.
+
+    When ``secret=True`` the value is read via ``secret_reader`` (defaults
+    to :func:`getpass.getpass`) so it is never echoed to the terminal.
+    """
+
+    reader = secret_reader or (lambda p: getpass.getpass(p))
+    while True:
+        value = reader(prompt).strip()
+        if value:
+            return value
+        out_stream.write("value cannot be empty\n")
+        out_stream.flush()
+
+
+def interactive_first_run_setup(
+    stdin: TextIO,
+    stdout: TextIO,
+    *,
+    secret_reader: Callable[[str], str] | None = None,
+) -> dict[str, str] | None:
+    """Prompt the operator through provider, API key, and model selection.
+
+    Returns a dict of env-style variables (``SOTERIA_PROVIDER``,
+    ``SOTERIA_<PROVIDER>_API_KEY``, ``SOTERIA_MODEL``, ...) ready to be
+    merged into the chat REPL environment. Returns ``None`` if the
+    operator aborts (Ctrl+C / Ctrl+D).
+
+    The function never persists secrets to disk. The returned dict lives
+    only inside the running process so the API key disappears with the
+    process unless the operator also exports it in their shell.
+    """
+
+    try:
+        stdout.write("\n")
+        stdout.write("Soteria First-Time Setup\n")
+        stdout.write("\n")
+        stdout.write("No AI provider has been configured yet.\n")
+        stdout.write("\n")
+        stdout.write("Select your provider:\n")
+        stdout.write("\n")
+        for index, key in enumerate(_PROVIDER_CATALOG, start=1):
+            label = _PROVIDER_CATALOG[key]["label"]
+            stdout.write(f"  {index}. {label}\n")
+        stdout.write("\n")
+
+        keys = list(_PROVIDER_CATALOG.keys())
+        display_choices = [str(i) for i in range(1, len(keys) + 1)]
+        chosen_display = _prompt_choice(
+            stdin,
+            stdout,
+            f"Select provider [1-{len(keys)}]: ",
+            display_choices,
+        )
+        provider_key = keys[int(chosen_display) - 1]
+        spec = _PROVIDER_CATALOG[provider_key]
+        provider_label = str(spec["label"])
+
+        env: dict[str, str] = {"SOTERIA_PROVIDER": provider_key}
+
+        if spec["needs_api_key"]:
+            api_key = _prompt_required(
+                stdin,
+                stdout,
+                "API Key: ",
+                secret=True,
+                secret_reader=secret_reader,
+            )
+            env[f"SOTERIA_{provider_key.upper()}_API_KEY"] = api_key
+
+        # Provider-specific optional tweaks.
+        if provider_key == "openai":
+            base_url = _prompt_optional(stdin, stdout, "OpenAI base URL (optional)", default="")
+            if base_url:
+                env["SOTERIA_OPENAI_BASE_URL"] = base_url
+        elif provider_key == "minimax":
+            style = _prompt_optional(
+                stdin,
+                stdout,
+                "MiniMax API style (anthropic or openai)",
+                default="anthropic",
+            ).lower()
+            if style not in ("anthropic", "openai"):
+                stdout.write("invalid style; defaulting to anthropic\n")
+                style = "anthropic"
+            env["SOTERIA_MINIMAX_API_STYLE"] = style
+
+        default_model = str(spec["default_model"])
+        model = _prompt_optional(stdin, stdout, "Model", default=default_model).strip()
+        env["SOTERIA_MODEL"] = model or default_model
+
+        stdout.write(f"\nProvider configured: {provider_label} ({env['SOTERIA_MODEL']})\n")
+        stdout.write("\nStarting Soteria...\n\n")
+        stdout.flush()
+        return env
+    except _SetupAborted:
+        stdout.write("\nsetup aborted; no changes applied.\n")
+        stdout.flush()
+        return None
+    except KeyboardInterrupt:
+        stdout.write("\nsetup aborted (Ctrl+C); no changes applied.\n")
+        stdout.flush()
+        return None
+
+
 async def _run_slash(
     ctx: ChatContext,
     args: list[str],
@@ -216,6 +415,7 @@ async def run_repl(
     stderr: TextIO | None = None,
     environ: dict[str, str] | None = None,
     prompt: str = "You > ",
+    secret_reader: Callable[[str], str] | None = None,
 ) -> int:
     """Run the interactive chat REPL until EOF, /quit, or fatal init error."""
 
@@ -231,11 +431,25 @@ async def run_repl(
             environ=env,
         )
     except ConfigError:
-        # First-run UX: render only the canonical hint. We do NOT echo the
-        # ConfigError text because it can include the operator-supplied
-        # SOTERIA_PROVIDER value, which may carry unintended content.
-        render_first_run_message(err_stream)
-        return 2
+        # First-run UX: ask the operator to configure a provider
+        # interactively. We never echo the ConfigError text so a
+        # misconfigured SOTERIA_PROVIDER value cannot leak.
+        new_env = interactive_first_run_setup(in_stream, out_stream, secret_reader=secret_reader)
+        if new_env is None:
+            return 2
+        env = {**env, **new_env}
+        try:
+            ctx = build_chat_context(
+                database_path=database_path,
+                workspace_root=workspace_root,
+                environ=env,
+            )
+        except (SoteriaError, OSError) as exc:
+            err_stream.write(f"soteria-loop chat: {exc}\n")
+            return 2
+        except ConfigError as exc:
+            err_stream.write(f"configuration still invalid after setup: {exc}\n")
+            return 2
     except (SoteriaError, OSError) as exc:
         err_stream.write(f"soteria-loop chat: {exc}\n")
         return 2
@@ -282,6 +496,7 @@ __all__ = [
     "REPO_LOGO_PATH",
     "ChatContext",
     "build_chat_context",
+    "interactive_first_run_setup",
     "render_first_run_message",
     "run_repl",
 ]

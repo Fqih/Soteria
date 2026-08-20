@@ -561,11 +561,11 @@ async def test_chat_full_flow_until_quit(
 
 
 @pytest.mark.asyncio
-async def test_repl_missing_provider_renders_first_run_message(
+async def test_repl_missing_provider_starts_interactive_setup(
     chat_env: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No SOTERIA_PROVIDER -> friendly hint, no Python traceback, exit 2."""
+    """No SOTERIA_PROVIDER -> interactive setup wizard. Empty stdin aborts cleanly."""
 
     monkeypatch.setattr("os.environ", {})
 
@@ -583,31 +583,29 @@ async def test_repl_missing_provider_renders_first_run_message(
     )
 
     assert code == 2
-    err = stderr.getvalue()
-    assert "Soteria is not configured yet." in err
-    assert "SOTERIA_PROVIDER=ollama" in err
-    assert "SOTERIA_PROVIDER=anthropic" in err
-    assert "soteria-loop chat" in err
-    # No Python traceback markers.
-    assert "Traceback" not in err
-    assert "ConfigError:" not in err.split("detail:")[-1] or True  # detail line ok
-    # stdout stays clean.
-    assert stdout.getvalue() == ""
+    # Wizard banner shown on stdout.
+    out = stdout.getvalue()
+    assert "Soteria First-Time Setup" in out
+    assert "Select your provider" in out
+    assert "1. Ollama" in out
+    # Aborted on EOF.
+    assert "setup aborted" in out.lower() or "aborted" in out.lower()
 
 
 @pytest.mark.asyncio
-async def test_repl_invalid_provider_renders_first_run_message(
+async def test_repl_invalid_provider_starts_interactive_setup(
     chat_env: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Unknown provider still hits the same boundary error."""
+    """Unknown provider still triggers the interactive setup."""
 
     monkeypatch.setattr(
         "os.environ",
         {"SOTERIA_PROVIDER": "anthropic-clone", "SOTERIA_MODEL": "x"},
     )
 
-    stdin = io.StringIO()
+    # Provide "1\n" then EOF to abort the rest cleanly (Ollama needs no key).
+    stdin = io.StringIO("")
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -621,8 +619,7 @@ async def test_repl_invalid_provider_renders_first_run_message(
     )
 
     assert code == 2
-    assert "Soteria is not configured yet." in stderr.getvalue()
-    assert "SOTERIA_PROVIDER=ollama" in stderr.getvalue()
+    assert "Soteria First-Time Setup" in stdout.getvalue()
 
 
 @pytest.mark.asyncio
@@ -649,22 +646,22 @@ async def test_repl_valid_provider_still_enters_chat(
     )
 
     assert code == 0
-    # Header printed, not the first-run message.
-    assert "Soteria is not configured yet." not in stderr.getvalue()
+    # Header printed, not the setup wizard.
+    assert "Soteria First-Time Setup" not in stdout.getvalue()
     assert "Slash commands" in stdout.getvalue()
 
 
 @pytest.mark.asyncio
-async def test_repl_first_run_message_does_not_leak_secrets(
+async def test_repl_first_run_does_not_leak_secrets(
     chat_env: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """First-run message text never contains an API key or token."""
+    """First-run wizard text never echoes an API key value."""
 
     secret = "super-secret-token-should-never-appear"
     monkeypatch.setattr("os.environ", {"SOTERIA_PROVIDER": secret, "SOTERIA_MODEL": "x"})
 
-    stdin = io.StringIO()
+    stdin = io.StringIO("")
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -699,3 +696,139 @@ def test_existing_runs_subcommands_unchanged(
 
     code = main(["--database", str(db), "runs", "inspect", "nope"])
     assert code == 2  # missing run, but parser + dispatcher ok
+
+
+# ---------------------------------------------------------------------------
+# Interactive first-run setup unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_setup_ollama_completes() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 1 = ollama (no API key, default model)
+    stdin = io.StringIO("1\n\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
+    assert env == {
+        "SOTERIA_PROVIDER": "ollama",
+        "SOTERIA_MODEL": "llama3.1",
+    }
+    assert "Soteria First-Time Setup" in stdout.getvalue()
+    assert "Starting Soteria" in stdout.getvalue()
+
+
+def test_setup_openai_with_key() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 2 = openai, then API key (from secret_reader), empty base url, empty model
+    stdin = io.StringIO("2\n\n\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "sk-test123")
+    assert env == {
+        "SOTERIA_PROVIDER": "openai",
+        "SOTERIA_OPENAI_API_KEY": "sk-test123",
+        "SOTERIA_MODEL": "gpt-5.6",
+    }
+
+
+def test_setup_anthropic_uses_custom_model() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 3 = anthropic, key (secret_reader), model override
+    stdin = io.StringIO("3\nclaude-opus\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "sk-ant-test")
+    assert env == {
+        "SOTERIA_PROVIDER": "anthropic",
+        "SOTERIA_ANTHROPIC_API_KEY": "sk-ant-test",
+        "SOTERIA_MODEL": "claude-opus",
+    }
+
+
+def test_setup_minimax_with_api_style() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 4 = minimax, key (secret_reader), style=openai, default model
+    stdin = io.StringIO("4\nopenai\n\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "key-xyz")
+    assert env == {
+        "SOTERIA_PROVIDER": "minimax",
+        "SOTERIA_MINIMAX_API_KEY": "key-xyz",
+        "SOTERIA_MINIMAX_API_STYLE": "openai",
+        "SOTERIA_MODEL": "MiniMax-M3",
+    }
+
+
+def test_setup_invalid_choice_re_prompts() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 9 invalid, 0 invalid, then 1 valid
+    stdin = io.StringIO("9\n0\n1\n\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
+    assert env is not None
+    assert env["SOTERIA_PROVIDER"] == "ollama"
+    out = stdout.getvalue()
+    assert "please choose one of" in out
+
+
+def test_setup_eof_returns_none() -> None:
+    from soteria_loop.chat import interactive_first_run_setup
+
+    stdin = io.StringIO("")  # immediate EOF
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
+    assert env is None
+    assert "aborted" in stdout.getvalue().lower()
+
+
+def test_setup_uses_secret_reader_not_stdin() -> None:
+    """API key must come from secret_reader, not from the REPL stdin."""
+
+    from soteria_loop.chat import interactive_first_run_setup
+
+    secret = "shhh-do-not-leak"
+
+    def fake_secret_reader(prompt: str) -> str:
+        return secret
+
+    stdin = io.StringIO("2\n\n\n")  # newlines after each prompt
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=fake_secret_reader)
+    assert env is not None
+    assert env["SOTERIA_OPENAI_API_KEY"] == secret
+    # The secret must NOT appear in stdout (it was typed via secret_reader).
+    assert secret not in stdout.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_repl_setup_succeeds_then_quits(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After interactive setup completes, the REPL starts and accepts /quit."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    # 1 (ollama, no API key), empty line for default model, /quit
+    stdin = io.StringIO("1\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "irrelevant",  # Ollama doesn't read a key
+    )
+
+    assert code == 0
+    out = stdout.getvalue()
+    assert "Soteria First-Time Setup" in out
+    assert "Provider configured: Ollama" in out
+    assert "Slash commands" in out  # REPL header after setup
