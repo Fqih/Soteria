@@ -43,6 +43,9 @@ live-benchmark = [
 providers = [
   "httpx>=0.27",
 ]
+sandbox = [
+  "docker>=7.0",
+]
 
 [project.scripts]
 soteria-loop = "soteria_loop.cli:main"
