@@ -1096,16 +1096,3 @@ previous turn with `runs inspect RUN_ID`.
 - Not a multi-agent orchestrator. Each chat turn is a single run; a
   future iteration may layer an orchestrator on top, but that's out
   of scope for the 0.4 prototype.
-
----
-
-| Term | Meaning |
-|---|---|
-| **Run** | One execution of an agent against a single task. Identified by `run_id` (UUID4). |
-| **Event** | An immutable entry in the append-only log. Every state transition, model call, tool call, and policy trigger is one event. |
-| **Checkpoint** | A snapshot of the runtime context (messages, detector history, completed tool-call IDs, user state, policy, provider metadata). The latest checkpoint is sufficient to continue a non-terminal run safely. |
-| **StopReason** | A 13-value enum describing why a run terminated. Always set on terminal `RunRecord`. |
-| **Fingerprint** | A canonical-JSON hash of the tool name + arguments (no tool_call_id) for repeated-action detection; or of the tool result for no-progress detection. |
-| **Token accounting** | Whether `ModelResponse.usage` was present. Soteria never invents zeros; `token_accounting_available=False` propagates to `RunResult`. |
-| **Containment** | A run that stopped due to a Soteria policy (e.g. `REPEATED_ACTION`). Distinct from "external safety cap" (a non-runtime fence). |
-| **Idempotency key** | The tool-call fingerprint at the time of request. Used to skip already-completed tool-call IDs on resume. |
