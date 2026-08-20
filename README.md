@@ -471,7 +471,10 @@ python examples/resume_after_interrupt.py
 python benchmark/run_benchmark.py
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [DESIGN.md](DESIGN.md) for workflow and architecture details.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [DESIGN.md](DESIGN.md), and the deep
+technical reference in [project.md](project.md) for module-by-module
+documentation covering every public type, the state machine, the event
+log, providers, the live benchmark harness, and the quality gates.
 
 ---
 
