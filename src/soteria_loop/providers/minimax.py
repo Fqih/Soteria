@@ -58,10 +58,16 @@ class MiniMaxConfig(BaseModel):
 
     _auth_token: str | None = PrivateAttr(default=None)
     _openai_auth_token: str | None = PrivateAttr(default=None)
+    _soteria_api_key: str | None = PrivateAttr(default=None)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> MiniMaxConfig:
-        """Build a config from a mapping (defaults to the process environment)."""
+        """Build a config from a mapping (defaults to the process environment).
+
+        Legacy live-benchmark harness: ``MODEL_MINIMAX`` + ``BASE_URL`` plus a
+        style-dependent ``OPENAI_AUTH_TOKEN`` (openai) or ``AUTH_TOKEN``
+        (anthropic). Kept verbatim so reproduction commands do not change.
+        """
 
         env: Mapping[str, str] = os.environ if environ is None else environ
 
@@ -96,6 +102,39 @@ class MiniMaxConfig(BaseModel):
                 ) from exc
         return config
 
+    @classmethod
+    def from_soteria_env(
+        cls,
+        environ: Mapping[str, str],
+        *,
+        fallback_model: str,
+    ) -> MiniMaxConfig:
+        """Build config from the SOTERIA_MINIMAX_* environment variables.
+
+        ``SOTERIA_MINIMAX_API_KEY`` is required and serves whichever style
+        ``SOTERIA_MINIMAX_API_STYLE`` selects (default ``anthropic`` per the
+        SOTERIA_ contract).
+        """
+
+        api_key = environ.get("SOTERIA_MINIMAX_API_KEY", "").strip()
+        if not api_key:
+            raise ValueError("SOTERIA_MINIMAX_API_KEY is required when SOTERIA_PROVIDER=minimax")
+
+        model = environ.get("SOTERIA_MINIMAX_MODEL", "").strip() or fallback_model
+        base_url = (
+            environ.get("SOTERIA_MINIMAX_BASE_URL", "").strip() or "https://api.minimax.io"
+        ).rstrip("/")
+        api_style = environ.get("SOTERIA_MINIMAX_API_STYLE", "anthropic").strip().lower()
+        if api_style not in ("openai", "anthropic"):
+            raise ValueError(
+                f"Unsupported SOTERIA_MINIMAX_API_STYLE {api_style!r}; "
+                "expected 'openai' or 'anthropic'"
+            )
+
+        config = cls(model=model, base_url=base_url, api_style=api_style)
+        config._soteria_api_key = api_key
+        return config
+
     @property
     def endpoint(self) -> str:
         """Return the absolute request URL for the configured API style."""
@@ -106,13 +145,16 @@ class MiniMaxConfig(BaseModel):
     def headers(self) -> dict[str, str]:
         """Return only the auth headers for the selected style plus content type."""
 
+        soteria_key = self._soteria_api_key
         if self.api_style == "openai":
+            token = soteria_key or self._openai_auth_token or ""
             return {
-                "Authorization": f"Bearer {self._openai_auth_token or ''}",
+                "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             }
+        token = soteria_key or self._auth_token or ""
         return {
-            "x-api-key": self._auth_token or "",
+            "x-api-key": token,
             "anthropic-version": _ANTHROPIC_VERSION,
             "Content-Type": "application/json",
         }

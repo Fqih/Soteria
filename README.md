@@ -1,10 +1,16 @@
+<div align="center">
+
+![Soteria logo](logo.png)
+
 # Soteria
 
-> **Reliable execution infrastructure for long-running AI agents.**
->
-> *Bounded. Observable. Resumable. Honest about why it stopped.*
+**A Python runtime for safe, observable AI agents.**
 
-Soteria is a provider-agnostic Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, and a configurable set of safety policies. It answers the six questions every agent operator eventually asks:
+*Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
+
+</div>
+
+Soteria is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Soteria gives you the safety net most agent frameworks leave to chance:
 
 1. What is the agent doing *right now*?
 2. Why did this run stop?
@@ -15,32 +21,29 @@ Soteria is a provider-agnostic Python runtime that wraps your tool-using agent l
 
 > ⚠️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
 
+<div align="center">
+
+[`pip install soteria-loop`](#install) · [Quickstart](#quickstart) · [Deterministic benchmark](#deterministic-benchmark) · [Live case study](#live-agent-case-study-minimax-m3) · [CLI](#cli)
+
+</div>
+
 ---
 
-## Why does this exist?
+## Why a Python runtime for AI agents?
 
-A minimal agent loop is short:
+Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. They are fast to demo and brittle in production:
 
-```python
-while True:
-    response = model.generate(messages, tools)
-    if response.is_final:
-        return response
-    result = execute_tool(response.tool_call)
-    messages.append(result)
-```
-
-It works for one happy path. It breaks in five painful ways once the loop runs for more than a handful of steps:
-
-| Pain | What goes wrong | What Soteria does |
+| Pain in a typical agent | What actually breaks | How Soteria handles it |
 |---|---|---|
-| **Repeated tool calls** | Model asks `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run before the third duplicate, citing `StopReason.REPEATED_ACTION`. |
-| **Runaway token usage** | Loop spins into oblivion and the bill surprises you. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound. |
-| **Process restart loses state** | You restart, the model re-asks, the external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` re-uses completed tool-call IDs so duplicates are impossible. |
-| **No audit trail** | "What did the agent actually do?" is unanswerable. | Every state transition, tool call, and policy trigger is an immutable event. |
-| **No explicit stop reason** | "Why did it stop?" is a guess. | Every terminal run records one `StopReason` from a 13-value enum. |
+| Repeated tool calls | The model asks `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run before the third duplicate, citing `StopReason.REPEATED_ACTION`. |
+| Runaway token usage | The loop spins into oblivion and the bill surprises you. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; `token_accounting_available` flags responses that omit usage. |
+| Provider lock-in | Switching from one vendor to another means rewriting the agent. | `SOTERIA_PROVIDER` chooses `ollama`, `minimax`, `anthropic`, or `openai` without touching agent code. |
+| Process restart loses state | You restart, the model re-asks, the external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` re-uses completed tool-call IDs so duplicates are impossible. |
+| No audit trail | "What did the agent actually do?" is unanswerable. | Every state transition, tool call, and policy trigger is an immutable event in an append-only log. |
+| Stop reason is a guess | "Why did it stop?" produces folklore. | Every terminal run records one `StopReason` from a 13-value enum. |
+| Lost tool side effects | A crash between `TOOL_STARTED` and `TOOL_COMPLETED` either replays or hides the call. | Resume refuses to proceed if a started tool has no durable result; you decide, not the runtime. |
 
-A real-world incident timeline that motivated Soteria:
+A real incident timeline that motivates the design:
 
 ```mermaid
 flowchart LR
@@ -86,9 +89,11 @@ flowchart LR
 - Configurable provider request timeouts (checked between operations, not preemptive mid-call).
 - In-memory and durable SQLite event stores.
 - Checkpoints and `resume(run_id)` with completed tool-call ID tracking.
-- Deterministic fake-provider scripts so tests never need an API key.
+- A provider-neutral `ModelProvider` Protocol with built-in adapters for **Ollama** (local), **MiniMax**, **Anthropic**, and any **OpenAI-compatible** endpoint.
+- Deterministic `FakeProvider` so tests never need an API key.
 - Chronological text and structured traces.
 - One explicit `StopReason` per terminal run (13 enum values).
+- Optional long-term memory via the `LetheMemoryAdapter`.
 
 ---
 
@@ -100,10 +105,10 @@ Python 3.11 or newer. For development from this repository:
 python -m pip install -e ".[dev]"
 ```
 
-For the optional live benchmark extras (`httpx`, `matplotlib`):
+For the optional live provider and benchmark extras (`httpx`, `matplotlib`):
 
 ```bash
-python -m pip install -e ".[live-benchmark]"
+python -m pip install -e ".[live-benchmark,providers]"
 ```
 
 When the 0.1 package is published, the runtime-only installation will be:
@@ -140,6 +145,54 @@ python -m pip install lethe
 ```
 
 If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/soteria_loop/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
+
+---
+
+## Pick a provider with environment variables
+
+Soteria ships with four built-in provider adapters. Configure them through the `SOTERIA_`-prefixed environment, never via hard-coded URLs or keys in agent code:
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `SOTERIA_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `SOTERIA_MODEL` | yes | Default model name for the active provider |
+| `SOTERIA_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
+| `SOTERIA_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
+| `SOTERIA_<PROVIDER>_MODEL` | no | Provider-specific model override |
+| `SOTERIA_DATABASE_PATH` | no | SQLite path; empty = in-memory |
+| `SOTERIA_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
+| `SOTERIA_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
+| `SOTERIA_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
+
+Examples:
+
+```bash
+# Local Ollama — no API key needed
+SOTERIA_PROVIDER=ollama SOTERIA_MODEL=llama3.1 python -m my_agent
+
+# Anthropic
+SOTERIA_PROVIDER=anthropic \
+SOTERIA_MODEL=claude-sonnet-4-6 \
+SOTERIA_ANTHROPIC_API_KEY="$SOTERIA_ANTHROPIC_API_KEY" \
+python -m my_agent
+
+# OpenAI-compatible self-hosted endpoint
+SOTERIA_PROVIDER=openai \
+SOTERIA_MODEL=meta-llama/Meta-Llama-3.1-70B-Instruct \
+SOTERIA_OPENAI_BASE_URL=https://my-gateway.internal/v1 \
+SOTERIA_OPENAI_API_KEY="$SOTERIA_OPENAI_API_KEY" \
+python -m my_agent
+```
+
+`SOTERIA_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
+
+A single factory builds the right provider:
+
+```python
+from soteria_loop.config import build_provider_from_env
+
+provider = build_provider_from_env()  # raises ConfigError if anything required is missing
+```
 
 ---
 
@@ -196,6 +249,19 @@ asyncio.run(main())
 ```
 
 The complete runnable version is [examples/basic_agent.py](examples/basic_agent.py).
+
+### Switching to a real LLM
+
+Replace the `FakeProvider` with one of the built-in adapters and let the factory pick it up from the environment:
+
+```python
+from soteria_loop.config import build_provider_from_env
+from soteria_loop import AgentRuntime
+
+provider = build_provider_from_env()  # reads SOTERIA_PROVIDER + SOTERIA_MODEL
+runtime = AgentRuntime(provider=provider, tools=[...])
+result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
+```
 
 ---
 
@@ -379,8 +445,8 @@ Generic provider and tool callables cannot be reconstructed from a database. CLI
 - Runtime limits are checked between model and tool operations. Soteria does **not** preempt a tool already in flight.
 - If any provider response omits usage, token accounting is marked unavailable; Soteria never treats missing usage as zero.
 - SQLite v0.1 assumes normal single-process use. There is no distributed lease or multi-process scheduler.
-- Tool calls execute serially. Parallel calls, real provider adapters, MCP, OpenTelemetry, approval UIs, and replay are deferred.
-- A `TOOL_STARTED` event without a durable result is intentionally treated as **unsafe** to resume automatically because the external side effect is uncertain.
+- Tool calls execute serially. Parallel calls, MCP, OpenTelemetry, approval UIs, and replay are deferred.
+- A `TOOL_STARTED` event without a durable result is intentionally treated as ** unsafe to resume automatically because the external side effect is uncertain.
 - The event schema has no migration system yet.
 
 ---
