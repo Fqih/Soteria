@@ -427,15 +427,52 @@ Exact enum values are lowercase when serialized.
 
 ## CLI
 
-The CLI reads a SQLite database path:
+The CLI reads a SQLite database path and exposes three subcommands:
 
 ```bash
+# Inspect the persisted event log
 soteria-loop --database soteria_loop.db runs list
 soteria-loop --database soteria_loop.db runs inspect RUN_ID
 soteria-loop --database soteria_loop.db runs resume RUN_ID
+
+# Interactive REPL — one AgentRuntime turn per line
+SOTERIA_PROVIDER=ollama \
+SOTERIA_MODEL=llama3.1 \
+SOTERIA_OLLAMA_BASE_URL=http://localhost:11434 \
+soteria-loop chat --workspace-root $(pwd)
 ```
 
-Generic provider and tool callables cannot be reconstructed from a database. CLI resume therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
+Inside the chat REPL:
+
+```text
+Soteria
+Provider: ollama
+Model: llama3.1
+Workspace: /home/user/project
+Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit
+You > Explain this repository
+Soteria [completed/completed] steps=2 run_id=01HK…
+> …answer…
+You > /provider
+Provider: ollama
+Model: llama3.1
+Base URL: http://localhost:11434
+API key configured: False
+You > /quit
+```
+
+Slash commands:
+
+- `/provider` — print provider / model / base URL / key presence (never the key itself).
+- `/inspect RUN_ID` — reuse `TraceInspector` to render a run.
+- `/resume RUN_ID` — reuse `AgentRuntime.resume`.
+- `/quit` / `/exit` — exit cleanly; the SQLite store is closed in `finally`.
+
+The chat subcommand uses the same `build_provider_from_env`, `Workspace`,
+`bind_workspace`, and `AgentRuntime` that application code uses; it does
+not introduce a second agent loop.
+
+Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
 
 ---
 

@@ -25,6 +25,12 @@ is **0.1.0**.
   reading `SOTERIA_TOOLS_REQUIRE_APPROVAL`.
 - `src/soteria_loop/app_tools/file_tools.py` — `read_file_tool` and
   `write_file_tool` bound through `bind_workspace`.
+- `src/soteria_loop/chat.py` — interactive REPL that drives one
+  `AgentRuntime.run(...)` invocation per user line. Slash commands:
+  `/provider`, / `/inspect RUN_ID`, / `/resume RUN_ID`, / `/quit`.
+- `soteria-loop chat` — new CLI subcommand (slice 0.4 of the
+  roadmap). Delegates to existing `build_provider_from_env`,
+  `Workspace`, `bind_workspace`, file tools, and `SQLiteEventStore`.
 - `.env.example` — empty placeholder template.
 - `examples/app_tools_demo.py` — offline walk-through of the workspace
   + approval tools.
