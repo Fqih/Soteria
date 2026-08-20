@@ -27,16 +27,46 @@ It does so by wrapping a tool-using agent loop in:
 - A **provider-neutral `ModelProvider` Protocol** with built-in adapters for
   `FakeProvider`, `OllamaProvider`, `MiniMaxProvider`, `AnthropicProvider`,
   and `OpenAICompatibleProvider`.
+- A **`SOTERIA_`-prefixed env-var factory** (`config.build_provider_from_env`)
+  that dispatches a single env block to the right provider without touching
+  agent code.
 - A **pluggable event store** with in-memory and SQLite implementations.
 - A **checkpoint + resume** path that uses completed tool-call IDs to make
   duplicates impossible.
 - A **`LetheMemoryAdapter`** for long-term context recall outside the
   operational event log.
+- A **`app_tools/` package** of safe-by-construction file and shell tools
+  bound to a fixed workspace, plus an `SOTERIA_TOOLS_REQUIRE_APPROVAL`
+  approval policy read from the environment.
 
 The core runtime depends only on Pydantic. `httpx` is an optional
 dependency for live providers and is loaded lazily inside each provider
 module; `matplotlib` is an optional dependency for the live-benchmark
-renderer.
+renderer; `docker` is an optional dependency reserved for the next
+`sandbox.py` iteration.
+
+### 1.1 Direction: model-agnostic CLI assistant
+
+Soteria is positioned to grow into a **terminal-based AI assistant** that
+plugs into any provider the operator chooses — local Ollama for offline
+work, Anthropic or OpenAI for hosted quality, MiniMax for vendor
+flexibility. The pieces that make that direction viable are already
+in place:
+
+- Provider selection is one env var (`SOTERIA_PROVIDER`), not a code edit.
+- Every provider shares the same `ModelProvider` Protocol contract, so
+  the CLI / runtime code is identical regardless of backend.
+- `app_tools/` gives the assistant a safe-by-construction toolbox
+  (read_file, write_file, future run_shell through a sandbox).
+- The SQLite event store means a long assistant session can be paused
+  and resumed, and the operator can inspect its history with
+  `soteria-loop runs inspect RUN_ID`.
+
+The CLI is currently a database inspector (`soteria-loop runs list /
+inspect / resume`). The next iteration adds a `soteria-loop chat`
+subcommand that wires a runtime + `app_tools/` + the env-driven
+provider into a single interactive REPL — see **§26 Roadmap** at the
+end of this document.
 
 ---
 
@@ -552,9 +582,21 @@ build_provider_from_env(environ=None, *, max_completion_tokens=1024,
 ```
 
 Reads `SOTERIA_PROVIDER` (`ollama | minimax | anthropic | openai`) and
-`SOTERIA_MODEL`, then delegates to the matching `<Provider>Config.from_soteria_env`.
-Raises `ConfigError(ValueError)` with one actionable message per missing
-required variable.
+`SOTERIA_MODEL`, then delegates to the matching
+`<Provider>Config.from_soteria_env`. Raises `ConfigError(ValueError)`
+with one actionable message per missing required variable.
+
+| Variable | Required | Default |
+|---|:---:|---|
+| `SOTERIA_PROVIDER` | yes | – |
+| `SOTERIA_MODEL` | yes | – |
+| `SOTERIA_<PROVIDER>_API_KEY` | per provider | – |
+| `SOTERIA_<PROVIDER>_BASE_URL` | no | provider-specific |
+| `SOTERIA_<PROVIDER>_MODEL` | no | falls back to `SOTERIA_MODEL` |
+| `SOTERIA_DATABASE_PATH` | no | in-memory |
+| `SOTERIA_MAX_TOTAL_TOKENS` | no | `50000` |
+| `SOTERIA_MAX_RUNTIME_SECONDS` | no | `120.0` |
+| `SOTERIA_REPEATED_ACTION_LIMIT` | no | `3` |
 
 `apply_runtime_overrides(policy_kwargs, environ)` populates
 `max_total_tokens`, `max_runtime_seconds`, and `repeated_action_limit`
@@ -563,6 +605,85 @@ from `SOTERIA_MAX_TOTAL_TOKENS`, `SOTERIA_MAX_RUNTIME_SECONDS`, and
 
 `database_path_from_env(environ)` returns the `SOTERIA_DATABASE_PATH`
 value (stripped) or `None` for in-memory storage.
+
+This is the single entry point the CLI uses to build its provider. The
+contract — never read provider config in two places — keeps the
+runtime, the live benchmark, and the upcoming `soteria-loop chat`
+subcommand all pointing at the same auth surface.
+
+---
+
+## 13.b Application tools (`src/soteria_loop/app_tools/`)
+
+The `app_tools/` package is the safe-by-construction toolbox that the
+runtime hands to the model. It plugs into the existing
+`FunctionTool` / `ToolRegistry` / `approval_callback` contracts — no
+changes to `AgentRuntime` or the state machine.
+
+### 13.b.1 `Workspace` and `validate_path` (`app_tools/workspace.py`)
+
+```python
+workspace = Workspace(root, create=False)            # rejects missing root
+resolved = workspace.validate_path("sub/file.txt")  # must_exist=True default
+write_target = workspace.validate_for_write("new")   # refuses symlinks in chain
+```
+
+Resolution happens with `Path.resolve(strict=False)` so lexical `..`
+segments and existing-link symlinks normalize **before** the
+containment check. The containment check fires before any existence
+test, so `../file.txt` is rejected as an escape even when the leaf is
+missing on disk.
+
+Rejected inputs:
+
+- Null bytes (`"\x00"` anywhere in the path).
+- Empty strings.
+- Absolute paths outside the root.
+- `..` traversal (any depth).
+- Symlinks whose target — or any ancestor — is outside the root
+  (for reads) or anywhere in the chain (for writes — `validate_for_write`
+  refuses to follow a symlink even when the target is inside).
+- Brand-new files whose parent directory does not exist.
+
+The TOCTOU window between `validate_path` and the actual `open()` is
+not closed by this module; `file_tools.py` uses `O_NOFOLLOW` on POSIX.
+
+### 13.b.2 Approval policy (`app_tools/approval.py`)
+
+```python
+from soteria_loop.app_tools.approval import build_approval_callback
+
+callback = build_approval_callback()   # reads SOTERIA_TOOLS_REQUIRE_APPROVAL
+runtime = AgentRuntime(..., approval_callback=callback)
+```
+
+Reads `SOTERIA_TOOLS_REQUIRE_APPROVAL` (comma- or whitespace-separated
+list of tool names). Tools in the list → `False` (the runtime stops
+with `StopReason.POLICY_DENIED`). Tools not in the list → `True`
+(auto-approve, no callback invoked). Optional `on_require` hook lets
+operators escalate to a real interactive prompt before the deny
+decision.
+
+### 13.b.3 File tools (`app_tools/file_tools.py`)
+
+```python
+from soteria_loop.app_tools.file_tools import (
+    bind_workspace, read_file_tool, write_file_tool,
+)
+
+workspace = Workspace(root)
+with bind_workspace(workspace):
+    runtime = AgentRuntime(..., tools=[read_file_tool(), write_file_tool()])
+    await runtime.run("Edit src/foo.py to fix the bug.")
+```
+
+`read_file_tool()` reads inside the workspace through `validate_path`;
+`write_file_tool()` writes inside the workspace through
+`validate_for_write` (refuses leaf symlinks) and opens with
+`O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW` when available. If a file
+tool is invoked outside a `bind_workspace` block, the call raises
+`WorkspaceNotBoundError`, which the registry surfaces as
+`ToolExecutionError`.
 
 ---
 
@@ -874,6 +995,109 @@ Current state (offline):
 ---
 
 ## 25. Glossary
+
+| Term | Meaning |
+|---|---|
+| **Run** | One execution of an agent against a single task. Identified by `run_id` (UUID4). |
+| **Event** | An immutable entry in the append-only log. Every state transition, model call, tool call, and policy trigger is one event. |
+| **Checkpoint** | A snapshot of the runtime context (messages, detector history, completed tool-call IDs, user state, policy, provider metadata). The latest checkpoint is sufficient to continue a non-terminal run safely. |
+| **StopReason** | A 13-value enum describing why a run terminated. Always set on terminal `RunRecord`. |
+| **Fingerprint** | A canonical-JSON hash of the tool name + arguments (no tool_call_id) for repeated-action detection; or of the tool result for no-progress detection. |
+| **Token accounting** | Whether `ModelResponse.usage` was present. Soteria never invents zeros; `token_accounting_available=False` propagates to `RunResult`. |
+| **Containment** | A run that stopped due to a Soteria policy (e.g. `REPEATED_ACTION`). Distinct from "external safety cap" (a non-runtime fence). |
+| **Idempotency key** | The tool-call fingerprint at the time of request. Used to skip already-completed tool-call IDs on resume. |
+
+---
+
+## 26. Roadmap — terminal-based, model-agnostic CLI assistant
+
+The mid-term goal is a **terminal-based AI assistant** that the
+operator can point at any model the runtime supports. The pieces are
+already in place; the roadmap below lists the remaining work in the
+order that keeps each slice shippable and testable.
+
+### 26.1 Why this direction
+
+- Operator's choice of model is one env var (`SOTERIA_PROVIDER`), not
+  a code change. The assistant binary stays identical whether the
+  backend is Ollama on a developer laptop, Anthropic in a CI runner, or
+  MiniMax behind a vendor proxy.
+- The state machine, event log, and `app_tools/` already give the
+  assistant safe-by-construction file I/O and resumable sessions. The
+  CLI assistant is mostly an interactive shell on top of that
+  machinery.
+- Reusing the SQLite event store means a long chat session is a `run_id`
+  the operator can inspect, replay, or hand off to another tool.
+
+### 26.2 Slice plan
+
+| Slice | Scope | Status |
+|---|---|---|
+| **0.1** (released) | Provider-agnostic runtime, deterministic benchmark, live MiniMax M3 case study, 13-stop-reason state machine. | done |
+| **0.2** (current) | `SOTERIA_` env factory + Ollama / Anthropic / OpenAI-compatible adapters; `app_tools/` workspace + approval + read/write; project.md, CHANGELOG, Makefile, .github templates. | done |
+| **0.3** | `sandbox.py` + `shell_tool.py` using ephemeral Docker containers (`network_mode="none"`, `mem_limit`, `remove=True`). `SOTERIA_SANDBOX_*` env for image / cpu / mem overrides. | next |
+| **0.4** | `soteria-loop chat` REPL: reads `SOTERIA_*` env, builds the runtime + `app_tools/`, accepts user input, prints streaming tool calls and final answers, persists every turn to SQLite. | planned |
+| **0.5** | `soteria-loop chat --resume RUN_ID` and `--resume-last` to pick up an interrupted session. The SQLite event store makes this almost free. | planned |
+| **0.6** | MCP adapter (`mcp_tool.py`): bridge between the runtime and any MCP server. Operator drops MCP server URLs into `SOTERIA_MCP_SERVERS`. | planned |
+| **0.7** | Multi-process scheduler for the SQLite store: a `LEASE_ID` column plus a background reaper so two operators can share a workspace without duplicate side effects. | deferred |
+
+### 26.3 `soteria-loop chat` — target shape
+
+```bash
+# 0.4 prototype: pick provider from env, open a chat run, persist every turn.
+SOTERIA_PROVIDER=ollama SOTERIA_MODEL=llama3.1 \
+SOTERIA_DATABASE_PATH=~/.soteria/chat.db \
+SOTERIA_WORKSPACE_ROOT=$(pwd) \
+soteria-loop chat
+```
+
+```
+> Add a docstring to src/soteria_loop/foo.py.
+   ⟶ tool_call read_file(path="src/soteria_loop/foo.py")
+   ⟶ tool_call write_file(path="src/soteria_loop/foo.py", content="...")
+   ⟶ stop_reason=completed
+> /inspect
+   run_id=01HK...  steps=3  duration=2.1s  tokens=482  status=COMPLETED
+> /resume 01HK...
+> /quit
+```
+
+The REPL accepts slash-commands (`/inspect`, `/resume`, `/quit`,
+`/provider`) and plain prose. Every turn is one `AgentRuntime.run(...)`
+invocation so the operator can always answer the six questions for any
+previous turn with `runs inspect RUN_ID`.
+
+### 26.4 Decisions already locked in
+
+- **Provider neutrality stays at the runtime layer.** The CLI assistant
+  is a thin shell; it never branches on `SOTERIA_PROVIDER`. New
+  providers join the same `ModelProvider` Protocol without code in
+  `chat.py`.
+- **Tools are bound at runtime construction, not per turn.** The
+  `bind_workspace` context manager ensures the workspace is set up
+  before the first model call and torn down after the last.
+- **Approval is a synchronous boolean callback.** The CLI assistant
+  prints `tool_call` details to the terminal and asks the operator to
+  approve / deny. `SOTERIA_TOOLS_REQUIRE_APPROVAL` sets which tools
+  always ask; everything else auto-approves (default) or runs through
+  a registered interactive handler.
+- **The event store is the source of truth.** The REPL never holds
+  per-turn state that isn't in SQLite, so `--resume` is a different
+  way to attach to the same `run_id` rather than a separate code
+  path.
+
+### 26.5 What this is not
+
+- Not a hosted product. The CLI runs entirely on the operator's
+  machine; provider keys stay in the operator's env.
+- Not a replacement for project-local CL tools. The assistant can use
+  them (via `run_shell` through the sandbox), but the local CL stays
+  the authoritative tool for project-shaped operations.
+- Not a multi-agent orchestrator. Each chat turn is a single run; a
+  future iteration may layer an orchestrator on top, but that's out
+  of scope for the 0.4 prototype.
+
+---
 
 | Term | Meaning |
 |---|---|
