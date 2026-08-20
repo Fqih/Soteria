@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -706,12 +707,13 @@ def test_existing_runs_subcommands_unchanged(
 def test_setup_ollama_completes() -> None:
     from soteria_loop.chat import interactive_first_run_setup
 
-    # 1 = ollama (no API key, default model)
-    stdin = io.StringIO("1\n\n")
+    # 1 = ollama, empty base_url (default), empty model (default)
+    stdin = io.StringIO("1\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
     assert env == {
         "SOTERIA_PROVIDER": "ollama",
+        "SOTERIA_OLLAMA_BASE_URL": "http://localhost:11434",
         "SOTERIA_MODEL": "llama3.1",
     }
     assert "Soteria First-Time Setup" in stdout.getvalue()
@@ -721,13 +723,14 @@ def test_setup_ollama_completes() -> None:
 def test_setup_openai_with_key() -> None:
     from soteria_loop.chat import interactive_first_run_setup
 
-    # 2 = openai, then API key (from secret_reader), empty base url, empty model
-    stdin = io.StringIO("2\n\n\n")
+    # 2 = openai, key (secret_reader), base_url=default, model=default
+    stdin = io.StringIO("2\n\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "sk-test123")
     assert env == {
         "SOTERIA_PROVIDER": "openai",
         "SOTERIA_OPENAI_API_KEY": "sk-test123",
+        "SOTERIA_OPENAI_BASE_URL": "https://api.openai.com/v1",
         "SOTERIA_MODEL": "gpt-5.6",
     }
 
@@ -749,23 +752,40 @@ def test_setup_anthropic_uses_custom_model() -> None:
 def test_setup_minimax_with_api_style() -> None:
     from soteria_loop.chat import interactive_first_run_setup
 
-    # 4 = minimax, key (secret_reader), style=openai, default model
-    stdin = io.StringIO("4\nopenai\n\n")
+    # 4 = minimax, key (secret_reader), style=2 (openai), base_url=default, model=default
+    stdin = io.StringIO("4\n2\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "key-xyz")
     assert env == {
         "SOTERIA_PROVIDER": "minimax",
         "SOTERIA_MINIMAX_API_KEY": "key-xyz",
         "SOTERIA_MINIMAX_API_STYLE": "openai",
+        "SOTERIA_MINIMAX_BASE_URL": "https://api.minimax.io",
         "SOTERIA_MODEL": "MiniMax-M3",
     }
+
+
+def test_setup_minimax_rejects_url_in_style_prompt() -> None:
+    """A URL pasted into the style prompt must NOT be accepted as a style."""
+
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # 4 = minimax, key (secret_reader), URL pasted as style (rejected),
+    # then 2 (openai), base_url=default, model=default.
+    stdin = io.StringIO("4\nhttps://api.minimax.io/anthropic\n2\n\n\n")
+    stdout = io.StringIO()
+    env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "key-xyz")
+    assert env is not None
+    assert env["SOTERIA_MINIMAX_API_STYLE"] == "openai"
+    out = stdout.getvalue()
+    assert "please choose one of: 1, 2" in out
 
 
 def test_setup_invalid_choice_re_prompts() -> None:
     from soteria_loop.chat import interactive_first_run_setup
 
-    # 9 invalid, 0 invalid, then 1 valid
-    stdin = io.StringIO("9\n0\n1\n\n")
+    # 9 invalid, 0 invalid, then 1 valid; empty base_url, empty model
+    stdin = io.StringIO("9\n0\n1\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
     assert env is not None
@@ -794,7 +814,7 @@ def test_setup_uses_secret_reader_not_stdin() -> None:
     def fake_secret_reader(prompt: str) -> str:
         return secret
 
-    stdin = io.StringIO("2\n\n\n")  # newlines after each prompt
+    stdin = io.StringIO("2\n\n\n\n")  # newlines after each prompt
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=fake_secret_reader)
     assert env is not None
@@ -812,8 +832,8 @@ async def test_repl_setup_succeeds_then_quits(
 
     monkeypatch.setattr("os.environ", {})
 
-    # 1 (ollama, no API key), empty line for default model, /quit
-    stdin = io.StringIO("1\n\n/quit\n")
+    # 1 (ollama, no API key), empty base_url, empty model, /quit
+    stdin = io.StringIO("1\n\n\n/quit\n")
     stdout = io.StringIO()
     stderr = io.StringIO()
 
@@ -832,3 +852,304 @@ async def test_repl_setup_succeeds_then_quits(
     assert "Soteria First-Time Setup" in out
     assert "Provider configured: Ollama" in out
     assert "Slash commands" in out  # REPL header after setup
+
+
+# ---------------------------------------------------------------------------
+# Onboarding integration regression tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_fresh_minimax_setup_reaches_repl_without_configerror(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reproduces the original bug: interactive MiniMax setup -> REPL ready."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO("4\n2\n\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "fake-minimax-key",
+    )
+
+    assert code == 0
+    combined = stdout.getvalue() + stderr.getvalue()
+    # Original bug: a ConfigError appeared after the success message.
+    assert "SOTERIA_PROVIDER must be one of" not in combined
+    assert "got ''" not in combined
+    # The header that proves the REPL actually entered the loop.
+    assert "Slash commands" in combined
+    assert "Provider: minimax" in combined
+
+
+@pytest.mark.asyncio
+async def test_fresh_ollama_setup_reaches_repl(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO("1\n\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "x",
+    )
+
+    assert code == 0
+    combined = stdout.getvalue() + stderr.getvalue()
+    assert "SOTERIA_PROVIDER must be one of" not in combined
+    assert "Provider: ollama" in combined
+
+
+@pytest.mark.asyncio
+async def test_fresh_openai_setup_reaches_repl(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO("2\n\n\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "sk-openai-test",
+    )
+
+    assert code == 0
+    combined = stdout.getvalue() + stderr.getvalue()
+    assert "SOTERIA_PROVIDER must be one of" not in combined
+    assert "Provider: openai" in combined
+
+
+@pytest.mark.asyncio
+async def test_fresh_anthropic_setup_reaches_repl(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO("3\nclaude-opus\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "sk-ant-test",
+    )
+
+    assert code == 0
+    combined = stdout.getvalue() + stderr.getvalue()
+    assert "SOTERIA_PROVIDER must be one of" not in combined
+    assert "Provider: anthropic" in combined
+
+
+def test_build_chat_context_refuses_none_database_path() -> None:
+    """database_path=None must raise SoteriaError, not TypeError."""
+
+    from soteria_loop.chat import build_chat_context
+    from soteria_loop.exceptions import SoteriaError
+
+    with pytest.raises(SoteriaError):
+        build_chat_context(
+            database_path=None,  # type: ignore[arg-type]
+            workspace_root=Path("/tmp"),
+            environ={"SOTERIA_PROVIDER": "ollama", "SOTERIA_MODEL": "x"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_database_path_never_none_during_chat_normal_init(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """run_repl with a Path database_path never crashes with TypeError on None."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    stdin = io.StringIO("1\n\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    # Sanity: a real Path is passed; if anything tries to hand None downstream,
+    # we want the run to crash with a SoteriaError, never a bare TypeError.
+    assert chat_env["db"] is not None
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "x",
+    )
+    assert code == 0
+
+
+@pytest.mark.asyncio
+async def test_provider_config_errors_do_not_produce_secondary_traceback(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If interactive setup's output is still invalid, no double traceback."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    # Pick OpenAI, type API key, then abort at base_url with EOF.
+    stdin = io.StringIO("2\nsk-test123\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: "sk-test123",
+    )
+
+    assert code == 2
+    combined = stdout.getvalue() + stderr.getvalue()
+    # No raw Python traceback.
+    assert "Traceback" not in combined
+    assert "TypeError" not in combined
+
+
+@pytest.mark.asyncio
+async def test_api_key_never_appears_in_stdout_or_stderr(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Secret captured via secret_reader must not leak to either stream."""
+
+    monkeypatch.setattr("os.environ", {})
+
+    secret = "sk-test-secret-should-not-leak-anywhere"
+    stdin = io.StringIO("2\n\n\n\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ={},
+        secret_reader=lambda _: secret,
+    )
+
+    assert secret not in stdout.getvalue()
+    assert secret not in stderr.getvalue()
+
+
+def test_existing_env_config_still_works() -> None:
+    """SOTERIA_ env config still builds a provider without wizard."""
+
+    from soteria_loop.config import build_provider_from_env
+    from soteria_loop.providers.ollama import OllamaProvider
+
+    env = {
+        "SOTERIA_PROVIDER": "ollama",
+        "SOTERIA_MODEL": "llama3.1",
+        "SOTERIA_OLLAMA_BASE_URL": "http://localhost:11434",
+    }
+    provider = build_provider_from_env(env)
+    assert isinstance(provider, OllamaProvider)
+
+
+def test_build_chat_context_passes_env_to_build_provider_from_env() -> None:
+    """The env passed to build_chat_context reaches build_provider_from_env.
+
+    This is the canonical-path guarantee: onboarding output and env-var
+    input share the same provider-construction code path.
+    """
+
+    from unittest.mock import patch
+
+    from soteria_loop.chat import build_chat_context
+
+    env = {
+        "SOTERIA_PROVIDER": "openai",
+        "SOTERIA_OPENAI_API_KEY": "sk-mock",
+        "SOTERIA_OPENAI_BASE_URL": "https://example.invalid/v1",
+        "SOTERIA_MODEL": "gpt-5.6",
+    }
+
+    # Patch only the factory. The real Workspace and SQLiteEventStore
+    # still get constructed so the test exercises the actual integration.
+    with patch("soteria_loop.chat.build_provider_from_env") as factory:
+        factory.return_value = "fake-provider"
+
+        with tempfile.TemporaryDirectory() as td:
+            ws = Path(td) / "ws"
+            ws.mkdir()
+            db = Path(td) / "db"
+            try:
+                ctx = build_chat_context(
+                    database_path=db,
+                    workspace_root=ws,
+                    environ=env,
+                )
+                factory.assert_called_once()
+                called_env = factory.call_args.args[0]
+                assert called_env.get("SOTERIA_PROVIDER") == "openai"
+                assert called_env.get("SOTERIA_OPENAI_API_KEY") == "sk-mock"
+                assert ctx.runtime.provider == "fake-provider"
+            finally:
+                import asyncio
+
+                if "ctx" in locals():
+                    asyncio.run(ctx.store.close())
+
+
+def test_merged_env_after_setup_carries_provider_key() -> None:
+    """After setup, the merged env passed to build_chat_context has the key."""
+
+    from soteria_loop.chat import interactive_first_run_setup
+
+    # Simulate the run_repl merge: user-facing env empty + setup output.
+    merged: dict[str, str] = {}
+    setup_out = interactive_first_run_setup(
+        io.StringIO("4\n2\n\n\n"),  # minimax + style=openai + empty model/base
+        io.StringIO(),
+        secret_reader=lambda _: "key-xyz",
+    )
+    assert setup_out is not None
+    merged.update(setup_out)
+    assert merged["SOTERIA_PROVIDER"] == "minimax"
+    assert merged["SOTERIA_MINIMAX_API_STYLE"] == "openai"
+
+
+# `tempfile` imported lazily inside the test above.

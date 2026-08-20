@@ -131,12 +131,21 @@ def build_chat_context(
     workspace_root: Path,
     environ: dict[str, str],
 ) -> ChatContext:
-    """Construct the runtime + store + workspace bound together."""
+    """Construct the runtime + store + workspace bound together.
+
+    Raises ``SoteriaError`` (or a subclass) if ``database_path`` or
+    ``workspace_root`` are unusable. ``ConfigError`` propagates unchanged
+    from :func:`build_provider_from_env`.
+    """
+
+    if database_path is None:
+        raise SoteriaError("database_path must be a Path, not None; the CLI is misconfigured.")
+    db_path = Path(database_path)
 
     provider_name, model_name = _resolve_provider_label(environ)
     provider = build_provider_from_env(environ)
     workspace = Workspace(workspace_root, create=False)
-    store = SQLiteEventStore(database_path)
+    store = SQLiteEventStore(db_path)
     runtime = AgentRuntime(
         provider=provider,
         event_store=store,
@@ -280,6 +289,7 @@ def interactive_first_run_setup(
         provider_label = str(spec["label"])
 
         env: dict[str, str] = {"SOTERIA_PROVIDER": provider_key}
+        uppercase_key = provider_key.upper()
 
         if spec["needs_api_key"]:
             api_key = _prompt_required(
@@ -289,24 +299,43 @@ def interactive_first_run_setup(
                 secret=True,
                 secret_reader=secret_reader,
             )
-            env[f"SOTERIA_{provider_key.upper()}_API_KEY"] = api_key
+            env[f"SOTERIA_{uppercase_key}_API_KEY"] = api_key
 
-        # Provider-specific optional tweaks.
-        if provider_key == "openai":
-            base_url = _prompt_optional(stdin, stdout, "OpenAI base URL (optional)", default="")
-            if base_url:
-                env["SOTERIA_OPENAI_BASE_URL"] = base_url
-        elif provider_key == "minimax":
-            style = _prompt_optional(
+        # Provider-specific optional tweaks. Each field is asked for with
+        # an unambiguous prompt so the operator cannot paste a URL into
+        # the wrong field.
+        if provider_key == "minimax":
+            stdout.write("\nMiniMax API style:\n")
+            stdout.write("  1. Anthropic (default)\n")
+            stdout.write("  2. OpenAI\n")
+            style_choice = _prompt_choice(stdin, stdout, "Select API style [1-2]: ", ["1", "2"])
+            env["SOTERIA_MINIMAX_API_STYLE"] = "anthropic" if style_choice == "1" else "openai"
+            base_url = _prompt_optional(
                 stdin,
                 stdout,
-                "MiniMax API style (anthropic or openai)",
-                default="anthropic",
-            ).lower()
-            if style not in ("anthropic", "openai"):
-                stdout.write("invalid style; defaulting to anthropic\n")
-                style = "anthropic"
-            env["SOTERIA_MINIMAX_API_STYLE"] = style
+                "MiniMax base URL (optional)",
+                default="https://api.minimax.io",
+            ).strip()
+            if base_url:
+                env["SOTERIA_MINIMAX_BASE_URL"] = base_url
+        elif provider_key == "openai":
+            base_url = _prompt_optional(
+                stdin,
+                stdout,
+                "OpenAI base URL (optional)",
+                default="https://api.openai.com/v1",
+            ).strip()
+            if base_url:
+                env["SOTERIA_OPENAI_BASE_URL"] = base_url
+        elif provider_key == "ollama":
+            base_url = _prompt_optional(
+                stdin,
+                stdout,
+                "Ollama base URL (optional)",
+                default="http://localhost:11434",
+            ).strip()
+            if base_url:
+                env["SOTERIA_OLLAMA_BASE_URL"] = base_url
 
         default_model = str(spec["default_model"])
         model = _prompt_optional(stdin, stdout, "Model", default=default_model).strip()
