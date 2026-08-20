@@ -228,3 +228,6 @@ benchmark/live/results/*
 CLAUDE.md
 project.md 
 NEXT-UPDATE.md
+soteria.db
+soteria_loop.db
+*.db

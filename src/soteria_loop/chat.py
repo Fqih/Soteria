@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import getpass
 import os
 import shlex
@@ -342,6 +343,20 @@ def interactive_first_run_setup(
         env["SOTERIA_MODEL"] = model or default_model
 
         stdout.write(f"\nProvider configured: {provider_label} ({env['SOTERIA_MODEL']})\n")
+        stdout.flush()
+
+        # Offer to persist to the operator's shell rc file. Default NO
+        # so we never silently modify a config file.
+        if _offer_persist_to_shell_rc(stdin, stdout, env):
+            try:
+                rc_path = persist_env_to_shell_rc(env)
+            except OSError as exc:
+                stdout.write(f"warning: could not persist to shell rc: {exc}\n")
+                stdout.flush()
+            else:
+                stdout.write(f"Saved to {rc_path}. New shells will see these variables.\n")
+                stdout.flush()
+
         stdout.write("\nStarting Soteria...\n\n")
         stdout.flush()
         return env
@@ -521,11 +536,119 @@ async def run_repl(
         await ctx.store.close()
 
 
+# ---------------------------------------------------------------------------
+# Shell rc persistence (opt-in)
+# ---------------------------------------------------------------------------
+
+
+_SHELL_RC_MARKER_BEGIN = "# >>> soteria setup >>>"
+_SHELL_RC_MARKER_END = "# <<< soteria setup <<<"
+
+
+def _detect_shell_rc_path() -> Path | None:
+    """Pick the shell rc file to update based on the current ``$SHELL``.
+
+    Returns ``None`` when the shell is neither zsh nor bash, so the
+    operator can opt-out by setting ``SHELL`` explicitly.
+    """
+
+    shell_path = os.environ.get("SHELL", "")
+    home = Path.home()
+    if "zsh" in shell_path:
+        return home / ".zshrc"
+    if "bash" in shell_path:
+        return home / ".bashrc"
+    return None
+
+
+def _offer_persist_to_shell_rc(stdin: TextIO, stdout: TextIO, env: dict[str, str]) -> bool:
+    """Ask the operator whether to write the config to their shell rc file.
+
+    Returns ``True`` only when the operator types ``y`` or ``yes``
+    (case-insensitive). Empty input, EOF, and anything else are NO.
+    """
+
+    rc_path = _detect_shell_rc_path()
+    if rc_path is None:
+        return False
+    if not env:
+        return False
+
+    stdout.write(f"\nPersist these variables to {rc_path} so future shells see them? [y/N]: ")
+    stdout.flush()
+    line = stdin.readline()
+    if not line:
+        return False
+    return line.strip().lower() in ("y", "yes")
+
+
+def _quote_for_shell(value: str) -> str:
+    """Single-quote-escape a value for POSIX shell double-quoted strings."""
+
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def persist_env_to_shell_rc(
+    env: dict[str, str],
+    *,
+    rc_path: Path | None = None,
+) -> Path:
+    """Append (or replace) SOTERIA_* exports in ``rc_path``.
+
+    The export block is delimited by ``# >>> soteria setup >>>`` and
+    ``# <<< soteria setup <<<`` markers so subsequent invocations replace
+    the block in place rather than accumulating duplicates. The block
+    is written with POSIX-sh-compatible double-quoted exports so values
+    containing single quotes survive intact.
+
+    Returns the path that was written. Raises ``OSError`` if the path is
+    not writable.
+    """
+
+    if rc_path is None:
+        rc_path = _detect_shell_rc_path()
+        if rc_path is None:
+            raise OSError("Could not detect a shell rc file: $SHELL is neither zsh nor bash.")
+
+    existing = rc_path.read_text(encoding="utf-8") if rc_path.exists() else ""
+
+    # Drop the previous soteria block if present.
+    start = existing.find(_SHELL_RC_MARKER_BEGIN)
+    end = existing.find(_SHELL_RC_MARKER_END)
+    if start != -1 and end != -1 and end > start:
+        existing = existing[:start] + existing[end + len(_SHELL_RC_MARKER_END) :]
+
+    # Only SOTERIA_* keys are persisted.
+    lines = [f"{_SHELL_RC_MARKER_BEGIN}"]
+    for key in sorted(env):
+        if not key.startswith("SOTERIA_"):
+            continue
+        value = _quote_for_shell(env[key])
+        lines.append(f'export {key}="{value}"')
+    lines.append(_SHELL_RC_MARKER_END)
+    block = "\n".join(lines) + "\n"
+
+    # Append with a leading blank line for readability unless the file
+    # was empty or already ended with one.
+    suffix = block
+    if existing and not existing.endswith("\n\n"):
+        suffix = ("\n" if not existing.endswith("\n") else "") + block
+
+    rc_path.write_text(existing + suffix, encoding="utf-8")
+    # Best-effort restrictive perms on POSIX. We don't fail the run if
+    # chmod does not work (e.g. Windows or non-POSIX filesystem).
+    with contextlib.suppress(OSError):
+        rc_path.chmod(0o600)
+
+    return rc_path
+
+
 __all__ = [
     "REPO_LOGO_PATH",
     "ChatContext",
     "build_chat_context",
     "interactive_first_run_setup",
+    "persist_env_to_shell_rc",
     "render_first_run_message",
     "run_repl",
 ]
