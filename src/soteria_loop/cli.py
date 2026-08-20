@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from soteria_loop.chat import run_repl
 from soteria_loop.exceptions import SoteriaError
 from soteria_loop.providers.fake import FakeProvider
 from soteria_loop.runtime import AgentRuntime
@@ -18,7 +19,7 @@ from soteria_loop.tracing import TraceInspector
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="soteria-loop",
-        description="Inspect and resume Soteria SQLite runs.",
+        description="Inspect, resume, and chat with Soteria SQLite runs.",
     )
     parser.add_argument(
         "--database",
@@ -28,6 +29,7 @@ def _parser() -> argparse.ArgumentParser:
         help="SQLite database path (default: soteria.db).",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+
     runs = commands.add_parser("runs", help="Manage persisted runs.")
     run_commands = runs.add_subparsers(dest="runs_command", required=True)
     run_commands.add_parser("list", help="List runs.")
@@ -35,10 +37,35 @@ def _parser() -> argparse.ArgumentParser:
     inspect_parser.add_argument("run_id")
     resume_parser = run_commands.add_parser("resume", help="Resume a scripted fake-provider run.")
     resume_parser.add_argument("run_id")
+
+    chat = commands.add_parser(
+        "chat",
+        help="Start an interactive chat REPL that drives one AgentRuntime turn per input.",
+    )
+    chat.add_argument(
+        "--database",
+        type=Path,
+        default=None,
+        help="SQLite database path (overrides the global --database).",
+    )
+    chat.add_argument(
+        "--workspace-root",
+        type=Path,
+        default=None,
+        help="Workspace directory file tools are bound to (default: current working directory).",
+    )
+
     return parser
 
 
 async def _execute(args: argparse.Namespace) -> int:
+    if args.command == "chat":
+        workspace_root = (args.workspace_root or Path.cwd()).resolve()
+        return await run_repl(
+            database_path=args.database,
+            workspace_root=workspace_root,
+        )
+
     store = SQLiteEventStore(args.database)
     try:
         if args.runs_command == "list":

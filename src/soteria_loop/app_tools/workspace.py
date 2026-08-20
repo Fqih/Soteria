@@ -20,10 +20,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from soteria_loop.exceptions import SoteriaError
+
 PathLike = str | Path
 
 
-class WorkspacePathError(ValueError):
+class WorkspacePathError(SoteriaError):
     """Raised when a path operation would escape the workspace root."""
 
 
