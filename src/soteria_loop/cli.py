@@ -44,9 +44,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     chat.add_argument(
         "--database",
+        "-d",
         type=Path,
-        default=None,
-        help="SQLite database path (overrides the global --database).",
+        default=Path("soteria.db"),
+        help="SQLite database path (default: soteria.db).",
     )
     chat.add_argument(
         "--workspace-root",
@@ -61,8 +62,9 @@ def _parser() -> argparse.ArgumentParser:
 async def _execute(args: argparse.Namespace) -> int:
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
+        db_path = args.database if args.database is not None else Path("soteria.db")
         return await run_repl(
-            database_path=args.database,
+            database_path=db_path,
             workspace_root=workspace_root,
         )
 
