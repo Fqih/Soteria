@@ -30,6 +30,7 @@ from soteria_loop.exceptions import (
     ToolAlreadyCompletedError,
     UnsafeResumeError,
 )
+from soteria_loop.hooks import HookAction, HookContext, HookEvent
 from soteria_loop.models import ModelRequest, ToolResult, utc_now
 from soteria_loop.state import RunState, StopReason
 from soteria_loop.tools import tool_call_fingerprint
@@ -187,6 +188,17 @@ async def handle_provider_error(
             error=f"Provider failed without a retry path: {exc}",
         )
     elif context.consecutive_errors >= context.policy.consecutive_error_limit:
+        await runtime.hooks.fire(
+            HookContext(
+                event=HookEvent.NOTIFICATION,
+                run_id=context.run.run_id,
+                notification=(
+                    f"consecutive_errors={context.consecutive_errors} hit limit "
+                    f"{context.policy.consecutive_error_limit}"
+                ),
+                extra={"step": step, "consecutive_errors": context.consecutive_errors},
+            )
+        )
         await runtime._trigger_policy(context, StopReason.CONSECUTIVE_ERRORS)
 
 
@@ -237,6 +249,22 @@ async def handle_tool_pending(runtime: AgentRuntime, context: _RunContext) -> No
 
 async def handle_approval_pending(runtime: AgentRuntime, context: _RunContext) -> None:
     call = runtime._require_tool_call(runtime._require_pending_response(context))
+    decision = await runtime.hooks.fire(
+        HookContext(event=HookEvent.PRE_TOOL_USE, run_id=context.run.run_id, tool_call=call)
+    )
+    if decision.action is HookAction.BLOCK:
+        await runtime._append(
+            context,
+            EventType.TOOL_DENIED,
+            {
+                "tool_call_id": call.tool_call_id,
+                "name": call.name,
+                "reason": decision.reason,
+                "blocked_by": "hook",
+            },
+        )
+        await runtime._trigger_policy(context, StopReason.POLICY_DENIED)
+        return
     approved_value = runtime._approval_callback(call)
     approved = await approved_value if inspect.isawaitable(approved_value) else approved_value
     if not approved:
@@ -332,6 +360,17 @@ async def handle_tool_executing(runtime: AgentRuntime, context: _RunContext) -> 
         context.consecutive_errors += 1
         context.run = runtime._active_record(context, error=result.error)
     await runtime._transition(context, RunState.OBSERVATION_RECORDED)
+
+    # PostToolUse is informational only — fire after the tool result is
+    # persisted so observers see the final outcome.
+    await runtime.hooks.fire(
+        HookContext(
+            event=HookEvent.POST_TOOL_USE,
+            run_id=context.run.run_id,
+            tool_call=call,
+            tool_result=result,
+        )
+    )
 
     # A successful or durably recorded tool result always forces a checkpoint.
     await runtime._checkpoint(context)

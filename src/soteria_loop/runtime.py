@@ -24,6 +24,7 @@ from soteria_loop.exceptions import (
     RunAlreadyTerminalError,
     StorageError,
 )
+from soteria_loop.hooks import HookContext, HookEvent, HookRegistry
 from soteria_loop.integrations.lethe import LetheMemoryAdapter
 from soteria_loop.models import (
     Checkpoint,
@@ -90,6 +91,7 @@ class AgentRuntime:
         clock: Clock = utc_now,
         approval_callback: ApprovalCallback | None = None,
         memory: LetheMemoryAdapter | None = None,
+        hooks: HookRegistry | None = None,
     ) -> None:
         self.provider = provider
         self.tools = ToolRegistry(tools)
@@ -98,6 +100,7 @@ class AgentRuntime:
         self._clock = clock
         self._approval_callback = approval_callback or _always_approve
         self.memory = memory
+        self.hooks = hooks if hooks is not None else HookRegistry()
         self._execution_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -286,6 +289,9 @@ class AgentRuntime:
             if handler is None:
                 raise RuntimeError(f"No state handler exists for {context.run.state.value!r}.")
             await handler(self, context)
+        await self.hooks.fire(
+            HookContext(event=HookEvent.STOP, run_id=context.run.run_id, run=context.run)
+        )
         return self._result(context.run)
 
     def _active_record(
