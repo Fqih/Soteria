@@ -30,6 +30,7 @@ from soteria_loop.chat_shell_rc import (  # re-export
 from soteria_loop.config import ConfigError, build_provider_from_env
 from soteria_loop.exceptions import SoteriaError
 from soteria_loop.runtime import AgentRuntime
+from soteria_loop.skills import SkillRegistry
 from soteria_loop.storage.sqlite import SQLiteEventStore
 from soteria_loop.tracing import TraceInspector
 
@@ -65,6 +66,7 @@ class ChatContext:
     workspace: Workspace
     provider_name: str
     model_name: str
+    skills: SkillRegistry
 
 
 def _read_environ() -> dict[str, str]:
@@ -92,7 +94,9 @@ def _print_header(out: TextIO, ctx: ChatContext, workspace_root: Path) -> None:
     out.write(f"Model: {ctx.model_name}\n")
     out.write(f"Workspace: {workspace_root}\n")
     out.write("Logo: " + str(REPO_LOGO_PATH) + "\n")
-    out.write("Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit\n")
+    out.write(
+        "Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /skills, /skill NAME, /quit\n"
+    )
     out.write("Enter a task to run one AgentRuntime turn. Ctrl+D or /quit to exit.\n")
     out.flush()
 
@@ -135,12 +139,18 @@ def build_chat_context(
         event_store=store,
         tools=[read_file_tool(), write_file_tool()],
     )
+    skills_root = workspace_root / ".soteria" / "skills"
+    # Ensure the skills directory exists for first-run use, but the
+    # registry itself walks a path — body lookup happens lazily.
+    skills_root.mkdir(parents=True, exist_ok=True)
+    skills = SkillRegistry(skills_root)
     return ChatContext(
         runtime=runtime,
         store=store,
         workspace=workspace,
         provider_name=provider_name,
         model_name=model_name,
+        skills=skills,
     )
 
 
@@ -201,6 +211,29 @@ async def _run_slash(
         )
         if result.output:
             out.write(f"output: {result.output}\n")
+        return False
+
+    if cmd == "/skills":
+        names = ctx.skills.names()
+        if not names:
+            out.write(f"No skills found under {ctx.skills.root}\n")
+            return False
+        for name in names:
+            out.write(f"  {name}\n")
+        return False
+
+    if cmd == "/skill":
+        if len(args) != 2:
+            err.write("usage: /skill NAME\n")
+            return False
+        try:
+            body = ctx.skills.load(args[1])
+        except SoteriaError as exc:
+            err.write(f"skill load failed: {exc}\n")
+            return False
+        # Skill bodies are injected as a user message so the runtime
+        # treats them like any other turn input — no separate channel.
+        await _run_turn(ctx, body, out, err)
         return False
 
     err.write(f"unknown command: {cmd}\n")

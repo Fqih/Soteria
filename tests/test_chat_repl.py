@@ -576,3 +576,103 @@ def test_existing_runs_subcommands_unchanged(
 
     code = main(["--database", str(db), "runs", "inspect", "nope"])
     assert code == 2  # missing run, but parser + dispatcher ok
+
+
+@pytest.mark.asyncio
+async def test_slash_skills_lists_discovered_names(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _environ_with_ollama()
+    monkeypatch.setattr("os.environ", env)
+    ctx = build_chat_context(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        environ=env,
+    )
+    skills_root = ctx.skills.root
+    (skills_root / "alpha.md").write_text("a body", encoding="utf-8")
+    (skills_root / "zeta.md").write_text("z body", encoding="utf-8")
+
+    from soteria_loop.chat import _run_slash
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    should_exit = await _run_slash(ctx, ["/skills"], stdout, stderr, env)
+
+    assert should_exit is False
+    assert stdout.getvalue().strip().splitlines() == ["alpha", "  zeta"]
+
+
+@pytest.mark.asyncio
+async def test_slash_skill_dispatches_body_to_runtime(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _environ_with_ollama()
+    monkeypatch.setattr("os.environ", env)
+    ctx = build_chat_context(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        environ=env,
+    )
+    ctx.skills.root.mkdir(parents=True, exist_ok=True)
+    (ctx.skills.root / "review.md").write_text("Review the diff.", encoding="utf-8")
+    scripted = _ScriptedProvider([ModelResponse(content="ok")])
+    ctx.runtime.provider = scripted
+
+    from soteria_loop.chat import _run_slash
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with bind_workspace(ctx.workspace):
+        should_exit = await _run_slash(ctx, ["/skill", "review"], stdout, stderr, env)
+
+    assert should_exit is False
+    assert scripted.calls == ["Review the diff."]
+
+
+@pytest.mark.asyncio
+async def test_slash_skill_missing_name_reports_error(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _environ_with_ollama()
+    monkeypatch.setattr("os.environ", env)
+    ctx = build_chat_context(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        environ=env,
+    )
+
+    from soteria_loop.chat import _run_slash
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    should_exit = await _run_slash(ctx, ["/skill", "nope"], stdout, stderr, env)
+
+    assert should_exit is False
+    assert "skill load failed" in stderr.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_slash_skill_without_name_prints_usage(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _environ_with_ollama()
+    monkeypatch.setattr("os.environ", env)
+    ctx = build_chat_context(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        environ=env,
+    )
+
+    from soteria_loop.chat import _run_slash
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    should_exit = await _run_slash(ctx, ["/skill"], stdout, stderr, env)
+
+    assert should_exit is False
+    assert "usage: /skill NAME" in stderr.getvalue()
