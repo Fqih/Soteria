@@ -46,6 +46,13 @@ providers = [
 sandbox = [
   "docker>=7.0",
 ]
+mcp = [
+  # MCP servers are launched as subprocesses that speak JSON-RPC over stdio.
+  # Soteria itself does not depend on the upstream `mcp` SDK — it ships a
+  # minimal JSON-RPC client. Install this extra only when you want the
+  # richer SDK helpers (server authoring, transports beyond stdio).
+  "mcp>=1.0",
+]
 
 [project.scripts]
 soteria-loop = "soteria_loop.cli:main"
@@ -75,6 +82,7 @@ skip_covered = true
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 select = [
