@@ -1,9 +1,14 @@
-"""Interactive chat REPL wiring AgentRuntime + app_tools + SQLite."""
+"""Interactive chat REPL wiring AgentRuntime + app_tools + SQLite.
+
+The setup wizard lives in :mod:`soteria_loop.chat_setup` and the
+shell-rc persistence helpers live in :mod:`soteria_loop.chat_shell_rc`.
+Both modules are re-exported here for backward compatibility with
+existing imports (``from soteria_loop.chat import interactive_first_run_setup``)
+so the public surface stays stable.
+"""
 
 from __future__ import annotations
 
-import contextlib
-import getpass
 import os
 import shlex
 import sys
@@ -12,8 +17,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
+from soteria_loop import runtime as _runtime  # noqa: F401  (typing hook)
 from soteria_loop.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from soteria_loop.app_tools.workspace import Workspace
+from soteria_loop.chat_setup import interactive_first_run_setup  # re-export
+from soteria_loop.chat_shell_rc import (  # re-export
+    _detect_shell_rc_path,
+    _offer_persist_to_shell_rc,
+    _quote_for_shell,
+    persist_env_to_shell_rc,
+)
 from soteria_loop.config import ConfigError, build_provider_from_env
 from soteria_loop.exceptions import SoteriaError
 from soteria_loop.runtime import AgentRuntime
@@ -21,36 +34,6 @@ from soteria_loop.storage.sqlite import SQLiteEventStore
 from soteria_loop.tracing import TraceInspector
 
 REPO_LOGO_PATH = Path(__file__).resolve().parents[3] / "public" / "logo.webp"
-
-
-# Provider catalog used by the interactive first-run setup. Each entry:
-#   key      -> canonical provider name (matches SOTERIA_PROVIDER)
-#   label    -> human-friendly label printed in the menu
-#   default_model -> suggested model if the user accepts the default
-#   needs_api_key  -> True for hosted providers; False for local Ollama
-_PROVIDER_CATALOG: dict[str, dict[str, str | bool]] = {
-    "ollama": {
-        "label": "Ollama",
-        "default_model": "llama3.1",
-        "needs_api_key": False,
-    },
-    "openai": {
-        "label": "OpenAI",
-        "default_model": "gpt-5.6",
-        "needs_api_key": True,
-    },
-    "anthropic": {
-        "label": "Anthropic",
-        "default_model": "claude-sonnet-4-6",
-        "needs_api_key": True,
-    },
-    "minimax": {
-        "label": "MiniMax",
-        "default_model": "MiniMax-M3",
-        "needs_api_key": True,
-    },
-}
-
 
 _FIRST_RUN_MESSAGE = (
     "Soteria is not configured yet.\n"
@@ -168,208 +151,6 @@ def render_first_run_message(out: TextIO) -> None:
     out.flush()
 
 
-# ---------------------------------------------------------------------------
-# Interactive first-run setup
-# ---------------------------------------------------------------------------
-
-
-class _SetupAborted(Exception):
-    """Raised when the operator aborts the interactive first-run setup."""
-
-
-def _prompt_line(in_stream: TextIO, out_stream: TextIO, prompt: str) -> str:
-    """Read one line from ``in_stream`` after printing ``prompt`` to ``out_stream``.
-
-    Strips the trailing newline. Returns an empty string on EOF.
-    Raises :class:`_SetupAborted` on EOF.
-    """
-
-    out_stream.write(prompt)
-    out_stream.flush()
-    line = in_stream.readline()
-    if not line:
-        raise _SetupAborted
-    return line.rstrip("\n").rstrip("\r")
-
-
-def _prompt_choice(in_stream: TextIO, out_stream: TextIO, prompt: str, choices: list[str]) -> str:
-    """Prompt until the operator picks one of ``choices`` (case-insensitive).
-
-    Re-prompts on invalid input. Returns the canonical lowercase choice.
-    """
-
-    lowered = {c.lower(): c for c in choices}
-    while True:
-        raw = _prompt_line(in_stream, out_stream, prompt)
-        if raw.strip().lower() in lowered:
-            return lowered[raw.strip().lower()]
-        out_stream.write(f"please choose one of: {', '.join(choices)}\n")
-        out_stream.flush()
-
-
-def _prompt_optional(
-    in_stream: TextIO,
-    out_stream: TextIO,
-    prompt: str,
-    *,
-    default: str | None = None,
-) -> str:
-    """Prompt with optional default. Empty input -> default (or empty)."""
-
-    suffix = f" [{default}]" if default else ""
-    raw = _prompt_line(in_stream, out_stream, f"{prompt}{suffix}: ").strip()
-    if not raw:
-        return default or ""
-    return raw
-
-
-def _prompt_required(
-    in_stream: TextIO,
-    out_stream: TextIO,
-    prompt: str,
-    *,
-    secret: bool = False,
-    secret_reader: Callable[[str], str] | None = None,
-) -> str:
-    """Prompt until the operator supplies a non-empty value.
-
-    When ``secret=True`` the value is read via ``secret_reader`` (defaults
-    to :func:`getpass.getpass`) so it is never echoed to the terminal.
-    """
-
-    reader = secret_reader or (lambda p: getpass.getpass(p))
-    while True:
-        value = reader(prompt).strip()
-        if value:
-            return value
-        out_stream.write("value cannot be empty\n")
-        out_stream.flush()
-
-
-def interactive_first_run_setup(
-    stdin: TextIO,
-    stdout: TextIO,
-    *,
-    secret_reader: Callable[[str], str] | None = None,
-) -> dict[str, str] | None:
-    """Prompt the operator through provider, API key, and model selection.
-
-    Returns a dict of env-style variables (``SOTERIA_PROVIDER``,
-    ``SOTERIA_<PROVIDER>_API_KEY``, ``SOTERIA_MODEL``, ...) ready to be
-    merged into the chat REPL environment. Returns ``None`` if the
-    operator aborts (Ctrl+C / Ctrl+D).
-
-    The function never persists secrets to disk. The returned dict lives
-    only inside the running process so the API key disappears with the
-    process unless the operator also exports it in their shell.
-    """
-
-    try:
-        stdout.write("\n")
-        stdout.write("Soteria First-Time Setup\n")
-        stdout.write("\n")
-        stdout.write("No AI provider has been configured yet.\n")
-        stdout.write("\n")
-        stdout.write("Select your provider:\n")
-        stdout.write("\n")
-        for index, key in enumerate(_PROVIDER_CATALOG, start=1):
-            label = _PROVIDER_CATALOG[key]["label"]
-            stdout.write(f"  {index}. {label}\n")
-        stdout.write("\n")
-
-        keys = list(_PROVIDER_CATALOG.keys())
-        display_choices = [str(i) for i in range(1, len(keys) + 1)]
-        chosen_display = _prompt_choice(
-            stdin,
-            stdout,
-            f"Select provider [1-{len(keys)}]: ",
-            display_choices,
-        )
-        provider_key = keys[int(chosen_display) - 1]
-        spec = _PROVIDER_CATALOG[provider_key]
-        provider_label = str(spec["label"])
-
-        env: dict[str, str] = {"SOTERIA_PROVIDER": provider_key}
-        uppercase_key = provider_key.upper()
-
-        if spec["needs_api_key"]:
-            api_key = _prompt_required(
-                stdin,
-                stdout,
-                "API Key: ",
-                secret=True,
-                secret_reader=secret_reader,
-            )
-            env[f"SOTERIA_{uppercase_key}_API_KEY"] = api_key
-
-        # Provider-specific optional tweaks. Each field is asked for with
-        # an unambiguous prompt so the operator cannot paste a URL into
-        # the wrong field.
-        if provider_key == "minimax":
-            stdout.write("\nMiniMax API style:\n")
-            stdout.write("  1. Anthropic (default)\n")
-            stdout.write("  2. OpenAI\n")
-            style_choice = _prompt_choice(stdin, stdout, "Select API style [1-2]: ", ["1", "2"])
-            env["SOTERIA_MINIMAX_API_STYLE"] = "anthropic" if style_choice == "1" else "openai"
-            base_url = _prompt_optional(
-                stdin,
-                stdout,
-                "MiniMax base URL (optional)",
-                default="https://api.minimax.io",
-            ).strip()
-            if base_url:
-                env["SOTERIA_MINIMAX_BASE_URL"] = base_url
-        elif provider_key == "openai":
-            base_url = _prompt_optional(
-                stdin,
-                stdout,
-                "OpenAI base URL (optional)",
-                default="https://api.openai.com/v1",
-            ).strip()
-            if base_url:
-                env["SOTERIA_OPENAI_BASE_URL"] = base_url
-        elif provider_key == "ollama":
-            base_url = _prompt_optional(
-                stdin,
-                stdout,
-                "Ollama base URL (optional)",
-                default="http://localhost:11434",
-            ).strip()
-            if base_url:
-                env["SOTERIA_OLLAMA_BASE_URL"] = base_url
-
-        default_model = str(spec["default_model"])
-        model = _prompt_optional(stdin, stdout, "Model", default=default_model).strip()
-        env["SOTERIA_MODEL"] = model or default_model
-
-        stdout.write(f"\nProvider configured: {provider_label} ({env['SOTERIA_MODEL']})\n")
-        stdout.flush()
-
-        # Offer to persist to the operator's shell rc file. Default NO
-        # so we never silently modify a config file.
-        if _offer_persist_to_shell_rc(stdin, stdout, env):
-            try:
-                rc_path = persist_env_to_shell_rc(env)
-            except OSError as exc:
-                stdout.write(f"warning: could not persist to shell rc: {exc}\n")
-                stdout.flush()
-            else:
-                stdout.write(f"Saved to {rc_path}. New shells will see these variables.\n")
-                stdout.flush()
-
-        stdout.write("\nStarting Soteria...\n\n")
-        stdout.flush()
-        return env
-    except _SetupAborted:
-        stdout.write("\nsetup aborted; no changes applied.\n")
-        stdout.flush()
-        return None
-    except KeyboardInterrupt:
-        stdout.write("\nsetup aborted (Ctrl+C); no changes applied.\n")
-        stdout.flush()
-        return None
-
-
 async def _run_slash(
     ctx: ChatContext,
     args: list[str],
@@ -475,9 +256,6 @@ async def run_repl(
             environ=env,
         )
     except ConfigError:
-        # First-run UX: ask the operator to configure a provider
-        # interactively. We never echo the ConfigError text so a
-        # misconfigured SOTERIA_PROVIDER value cannot leak.
         new_env = interactive_first_run_setup(in_stream, out_stream, secret_reader=secret_reader)
         if new_env is None:
             return 2
@@ -536,116 +314,18 @@ async def run_repl(
         await ctx.store.close()
 
 
-# ---------------------------------------------------------------------------
-# Shell rc persistence (opt-in)
-# ---------------------------------------------------------------------------
-
-
-_SHELL_RC_MARKER_BEGIN = "# >>> soteria setup >>>"
-_SHELL_RC_MARKER_END = "# <<< soteria setup <<<"
-
-
-def _detect_shell_rc_path() -> Path | None:
-    """Pick the shell rc file to update based on the current ``$SHELL``.
-
-    Returns ``None`` when the shell is neither zsh nor bash, so the
-    operator can opt-out by setting ``SHELL`` explicitly.
-    """
-
-    shell_path = os.environ.get("SHELL", "")
-    home = Path.home()
-    if "zsh" in shell_path:
-        return home / ".zshrc"
-    if "bash" in shell_path:
-        return home / ".bashrc"
-    return None
-
-
-def _offer_persist_to_shell_rc(stdin: TextIO, stdout: TextIO, env: dict[str, str]) -> bool:
-    """Ask the operator whether to write the config to their shell rc file.
-
-    Returns ``True`` only when the operator types ``y`` or ``yes``
-    (case-insensitive). Empty input, EOF, and anything else are NO.
-    """
-
-    rc_path = _detect_shell_rc_path()
-    if rc_path is None:
-        return False
-    if not env:
-        return False
-
-    stdout.write(f"\nPersist these variables to {rc_path} so future shells see them? [y/N]: ")
-    stdout.flush()
-    line = stdin.readline()
-    if not line:
-        return False
-    return line.strip().lower() in ("y", "yes")
-
-
-def _quote_for_shell(value: str) -> str:
-    """Single-quote-escape a value for POSIX shell double-quoted strings."""
-
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def persist_env_to_shell_rc(
-    env: dict[str, str],
-    *,
-    rc_path: Path | None = None,
-) -> Path:
-    """Append (or replace) SOTERIA_* exports in ``rc_path``.
-
-    The export block is delimited by ``# >>> soteria setup >>>`` and
-    ``# <<< soteria setup <<<`` markers so subsequent invocations replace
-    the block in place rather than accumulating duplicates. The block
-    is written with POSIX-sh-compatible double-quoted exports so values
-    containing single quotes survive intact.
-
-    Returns the path that was written. Raises ``OSError`` if the path is
-    not writable.
-    """
-
-    if rc_path is None:
-        rc_path = _detect_shell_rc_path()
-        if rc_path is None:
-            raise OSError("Could not detect a shell rc file: $SHELL is neither zsh nor bash.")
-
-    existing = rc_path.read_text(encoding="utf-8") if rc_path.exists() else ""
-
-    # Drop the previous soteria block if present.
-    start = existing.find(_SHELL_RC_MARKER_BEGIN)
-    end = existing.find(_SHELL_RC_MARKER_END)
-    if start != -1 and end != -1 and end > start:
-        existing = existing[:start] + existing[end + len(_SHELL_RC_MARKER_END) :]
-
-    # Only SOTERIA_* keys are persisted.
-    lines = [f"{_SHELL_RC_MARKER_BEGIN}"]
-    for key in sorted(env):
-        if not key.startswith("SOTERIA_"):
-            continue
-        value = _quote_for_shell(env[key])
-        lines.append(f'export {key}="{value}"')
-    lines.append(_SHELL_RC_MARKER_END)
-    block = "\n".join(lines) + "\n"
-
-    # Append with a leading blank line for readability unless the file
-    # was empty or already ended with one.
-    suffix = block
-    if existing and not existing.endswith("\n\n"):
-        suffix = ("\n" if not existing.endswith("\n") else "") + block
-
-    rc_path.write_text(existing + suffix, encoding="utf-8")
-    # Best-effort restrictive perms on POSIX. We don't fail the run if
-    # chmod does not work (e.g. Windows or non-POSIX filesystem).
-    with contextlib.suppress(OSError):
-        rc_path.chmod(0o600)
-
-    return rc_path
-
-
 __all__ = [
     "REPO_LOGO_PATH",
     "ChatContext",
+    "_detect_shell_rc_path",
+    "_offer_persist_to_shell_rc",
+    "_print_header",
+    "_print_provider_summary",
+    "_quote_for_shell",
+    "_read_environ",
+    "_resolve_provider_label",
+    "_run_slash",
+    "_run_turn",
     "build_chat_context",
     "interactive_first_run_setup",
     "persist_env_to_shell_rc",
