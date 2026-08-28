@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from soteria_loop.chat import run_repl
+from soteria_loop.doctor import main as doctor_main
 from soteria_loop.exceptions import SoteriaError
 from soteria_loop.providers.fake import FakeProvider
 from soteria_loop.runtime import AgentRuntime
@@ -56,10 +57,21 @@ def _parser() -> argparse.ArgumentParser:
         help="Workspace directory file tools are bound to (default: current working directory).",
     )
 
+    commands.add_parser(
+        "doctor",
+        help="Verify SOTERIA_ provider configuration without making an HTTP call.",
+    )
+
     return parser
 
 
 async def _execute(args: argparse.Namespace) -> int:
+    if args.command == "doctor":
+        # ``doctor_main`` has already-consumed argv; pass an empty list
+        # so the inner argparse does not re-read sys.argv and complain
+        # about the parent command's tail.
+        return doctor_main([])
+
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
         db_path = args.database if args.database is not None else Path("soteria.db")

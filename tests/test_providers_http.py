@@ -234,6 +234,53 @@ async def test_minimax_openai_style_uses_bearer() -> None:
 
 
 # ---------------------------------------------------------------------------
+# MiniMaxConfig.endpoint (regression: no double-suffix when full URL given)
+# ---------------------------------------------------------------------------
+
+
+def _minimax_config(base_url: str, api_style: str = "anthropic") -> MiniMaxConfig:
+    """Construct a MiniMaxConfig without re-running validators."""
+
+    config = MiniMaxConfig.model_construct(
+        model="MiniMax-M3",
+        base_url=base_url,
+        api_style=api_style,  # type: ignore[arg-type]
+    )
+    config._soteria_api_key = "k"
+    return config
+
+
+def test_minimax_endpoint_anthropic_bare_host_appends_suffix() -> None:
+    config = _minimax_config("https://api.minimax.io", "anthropic")
+    assert config.endpoint == "https://api.minimax.io/anthropic/v1/messages"
+
+
+def test_minimax_endpoint_anthropic_full_path_is_returned_verbatim() -> None:
+    config = _minimax_config("https://api.minimax.io/anthropic", "anthropic")
+    assert config.endpoint == "https://api.minimax.io/anthropic/v1/messages"
+
+
+def test_minimax_endpoint_anthropic_full_messages_path_no_double_suffix() -> None:
+    config = _minimax_config("https://api.minimax.io/anthropic/v1/messages", "anthropic")
+    assert config.endpoint == "https://api.minimax.io/anthropic/v1/messages"
+
+
+def test_minimax_endpoint_openai_bare_host_appends_suffix() -> None:
+    config = _minimax_config("https://api.minimax.io", "openai")
+    assert config.endpoint == "https://api.minimax.io/v1/chat/completions"
+
+
+def test_minimax_endpoint_openai_full_chat_path_no_double_suffix() -> None:
+    config = _minimax_config("https://api.minimax.io/v1/chat/completions", "openai")
+    assert config.endpoint == "https://api.minimax.io/v1/chat/completions"
+
+
+def test_minimax_endpoint_strips_trailing_slash() -> None:
+    config = _minimax_config("https://api.minimax.io/", "anthropic")
+    assert config.endpoint == "https://api.minimax.io/anthropic/v1/messages"
+
+
+# ---------------------------------------------------------------------------
 # Anthropic
 # ---------------------------------------------------------------------------
 

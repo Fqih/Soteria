@@ -137,10 +137,30 @@ class MiniMaxConfig(BaseModel):
 
     @property
     def endpoint(self) -> str:
-        """Return the absolute request URL for the configured API style."""
+        """Return the absolute request URL for the configured API style.
 
-        suffix = "/v1/chat/completions" if self.api_style == "openai" else "/anthropic/v1/messages"
-        return f"{self.base_url.rstrip('/')}{suffix}"
+        Accepts both forms of ``base_url``:
+
+        - bare host (``https://api.minimax.io``) -> appends the style-specific
+          path suffix;
+        - full URL with the style-specific path already present
+          (``https://api.minimax.io/anthropic``) -> returns it unchanged.
+
+        The detection avoids the double-suffix bug when an operator
+        pastes a full URL into the env var.
+        """
+
+        base = self.base_url.rstrip("/")
+        if self.api_style == "openai" and base.endswith("/v1/chat/completions"):
+            return base
+        if self.api_style == "anthropic" and base.endswith("/anthropic/v1/messages"):
+            return base
+        if self.api_style == "openai":
+            return f"{base}/v1/chat/completions"
+        # anthropic (default)
+        if base.endswith("/anthropic"):
+            return f"{base}/v1/messages"
+        return f"{base}/anthropic/v1/messages"
 
     def headers(self) -> dict[str, str]:
         """Return only the auth headers for the selected style plus content type."""

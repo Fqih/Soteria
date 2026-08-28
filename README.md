@@ -8,6 +8,8 @@
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
+A Python-based harness agent: configure the `SOTERIA_` environment once, drive it from any Python entry point — the bundled CLI, your own script, or a long-running service.
+
 </div>
 
 Soteria is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Soteria gives you the safety net most agent frameworks leave to chance:
@@ -118,6 +120,69 @@ python -m pip install soteria-loop
 ```
 
 The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
+
+---
+
+## Setup
+
+Soteria is a Python-based harness agent. You configure it once via environment variables (the `SOTERIA_` family), then drive it from any Python entry point — the bundled `soteria-loop` CLI, your own script, or a long-running service.
+
+### 1. Pick a provider
+
+| Provider | Local? | Needs API key | Default style |
+|---|---|---|---|
+| `ollama` | yes | no | `/api/chat` |
+| `minimax` | no | yes | Anthropic-compatible (`/anthropic/v1/messages`) |
+| `anthropic` | no | yes | Anthropic Messages API |
+| `openai` | no | yes | OpenAI Chat Completions |
+
+### 2. Export the variables
+
+Use `getpass` for keys if you put them in scripts. The names follow `SOTERIA_<PROVIDER>_<FIELD>`:
+
+```bash
+# Ollama (local, no key)
+export SOTERIA_PROVIDER=ollama
+export SOTERIA_MODEL=llama3.1
+# optional: export SOTERIA_OLLAMA_BASE_URL=http://localhost:11434
+
+# MiniMax
+export SOTERIA_PROVIDER=minimax
+export SOTERIA_MODEL=MiniMax-M3
+export SOTERIA_MINIMAX_API_KEY='paste-real-key-here'
+# optional: export SOTERIA_MINIMAX_API_STYLE=anthropic  # or "openai"
+# optional: export SOTERIA_MINIMAX_BASE_URL=https://api.minimax.io
+
+# Anthropic
+export SOTERIA_PROVIDER=anthropic
+export SOTERIA_MODEL=claude-sonnet-4-6
+export SOTERIA_ANTHROPIC_API_KEY='paste-real-key-here'
+
+# OpenAI-compatible (any vendor exposing /v1/chat/completions)
+export SOTERIA_PROVIDER=openai
+export SOTERIA_MODEL=gpt-5.6
+export SOTERIA_OPENAI_API_KEY='paste-real-key-here'
+# optional: export SOTERIA_OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+### 3. Verify without burning API credits
+
+```bash
+soteria-loop doctor
+```
+
+This prints the resolved endpoint, the chosen provider/model, and whether the `ConfigError` you would otherwise hit inside `chat` is present — all without sending an HTTP request.
+
+### 4. Smoke-test against the real model
+
+```bash
+SOTERIA_PROVIDER=minimax \
+SOTERIA_MODEL=MiniMax-M3 \
+SOTERIA_MINIMAX_API_KEY='paste-real-key-here' \
+soteria-loop chat --workspace-root .
+```
+
+On a fresh machine with no `SOTERIA_PROVIDER` set, `soteria-loop chat` launches an **interactive first-run wizard** that asks for the provider, hidden-prompt API key, and model. At the end it offers (defaulting to **No**) to persist the variables to `~/.zshrc` or `~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you type `y`/`yes`.
 
 ### Optional Lethe context management
 
@@ -440,6 +505,9 @@ SOTERIA_PROVIDER=ollama \
 SOTERIA_MODEL=llama3.1 \
 SOTERIA_OLLAMA_BASE_URL=http://localhost:11434 \
 soteria-loop chat --workspace-root $(pwd)
+
+# Verify provider config without making an HTTP call
+soteria-loop doctor
 ```
 
 Inside the chat REPL:
@@ -473,6 +541,24 @@ The chat subcommand uses the same `build_provider_from_env`, `Workspace`,
 not introduce a second agent loop.
 
 Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
+
+### `soteria-loop doctor`
+
+`doctor` reads `os.environ` and reports which `SOTERIA_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
+
+```bash
+$ soteria-loop doctor
+SOTERIA provider: MiniMax
+SOTERIA model: MiniMax-M3
+base URL: https://api.minimax.io
+API style: anthropic
+endpoint: https://api.minimax.io/anthropic/v1/messages
+API key configured: True
+
+Result: OK. Provider config is buildable.
+```
+
+If anything is missing, `doctor` lists the missing variable names and exits non-zero so it can be used in CI.
 
 ---
 

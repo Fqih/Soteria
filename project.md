@@ -63,10 +63,10 @@ in place:
   `soteria-loop runs inspect RUN_ID`.
 
 The CLI is currently a database inspector (`soteria-loop runs list /
-inspect / resume`). The next iteration adds a `soteria-loop chat`
-subcommand that wires a runtime + `app_tools/` + the env-driven
-provider into a single interactive REPL — see **§26 Roadmap** at the
-end of this document.
+inspect / resume`) plus a `soteria-loop chat` REPL that wires a
+runtime + `app_tools/` + the env-driven provider into an interactive
+session, and `soteria-loop doctor` that verifies the env without an
+HTTP call. The roadmap below (§26) tracks the remaining slices.
 
 ---
 
@@ -714,6 +714,12 @@ shapes with a `MemoryProvider` fake.
 soteria-loop --database soteria_loop.db runs list
 soteria-loop --database soteria_loop.db runs inspect RUN_ID
 soteria-loop --database soteria_loop.db runs resume RUN_ID
+
+# Interactive REPL — one AgentRuntime turn per line
+soteria-loop chat --workspace-root $(pwd)
+
+# Verify SOTERIA_ provider config without HTTP
+soteria-loop doctor
 ```
 
 The CLI uses only the Python standard library (`argparse`, `sqlite3`,
@@ -721,6 +727,39 @@ The CLI uses only the Python standard library (`argparse`, `sqlite3`,
 one-line summary per row for `list`, prints `trace.to_text()` for
 `inspect`, and tries to recreate a `FakeProvider` from a serialized
 cursor for `resume` (only for runs without a pending application tool).
+
+`chat` drives `AgentRuntime` interactively. On startup, when no
+`SOTERIA_PROVIDER` is set, it launches an interactive first-run wizard
+(numbered menu, hidden API-key prompt via `getpass`) and, on consent,
+persists the resulting `SOTERIA_*` exports to `~/.zshrc` or `~/.bashrc`
+(delimited by `# >>> soteria setup >>>` markers, `chmod 0o600` on POSIX).
+Slash commands inside the REPL: `/provider`, `/inspect RUN_ID`,
+`/resume RUN_ID`, `/quit`.
+
+`doctor` reads `os.environ` (or an injected mapping) and prints which
+`SOTERIA_*` variables are present, which are missing, the resolved
+endpoint URL, and whether `ConfigError` would fire at provider
+construction time. It is purely synchronous and dependency-free, so it
+works on any machine where `soteria-loop` is installed, even without
+network access.
+
+### 15.1 `doctor.py` (`src/soteria_loop/doctor.py`)
+
+Public surface:
+
+- `run_doctor(environ=None) -> DoctorReport` — pure, never raises;
+  missing required vars and `ConfigError` both surface as report fields.
+- `render_report(report, *, out)` — print a human-readable summary that
+  shows provider/model/endpoint/api-style but **never the API key**.
+- `main(argv=None)` — argparse wrapper for the `soteria-loop doctor`
+  entry point. Exits non-zero when the report is not OK so the command
+  is usable in CI.
+
+`DoctorReport.ok` is `True` only when every required variable for the
+resolved provider is set **and** `build_provider_from_env(env)` does
+not raise. The endpoint string is produced by the same `endpoint`
+property each provider uses at runtime, so what `doctor` prints matches
+what `chat` would actually hit.
 
 ---
 
@@ -1034,9 +1073,10 @@ order that keeps each slice shippable and testable.
 | Slice | Scope | Status |
 |---|---|---|
 | **0.1** (released) | Provider-agnostic runtime, deterministic benchmark, live MiniMax M3 case study, 13-stop-reason state machine. | done |
-| **0.2** (current) | `SOTERIA_` env factory + Ollama / Anthropic / OpenAI-compatible adapters; `app_tools/` workspace + approval + read/write; project.md, CHANGELOG, Makefile, .github templates. | done |
+| **0.2** (released) | `SOTERIA_` env factory + Ollama / Anthropic / OpenAI-compatible adapters; `app_tools/` workspace + approval + read/write; project.md, CHANGELOG, Makefile, .github templates. | done |
 | **0.3** | `sandbox.py` + `shell_tool.py` using ephemeral Docker containers (`network_mode="none"`, `mem_limit`, `remove=True`). `SOTERIA_SANDBOX_*` env for image / cpu / mem overrides. | next |
-| **0.4** | `soteria-loop chat` REPL: reads `SOTERIA_*` env, builds the runtime + `app_tools/`, accepts user input, prints streaming tool calls and final answers, persists every turn to SQLite. | planned |
+| **0.4** (released) | `soteria-loop chat` REPL: reads `SOTERIA_*` env, builds the runtime + `app_tools/`, accepts user input, prints streaming tool calls and final answers, persists every turn to SQLite. Interactive first-run wizard with hidden API-key input and opt-in shell-rc persistence (`~/.zshrc` / `~/.bashrc`, `chmod 0o600`). | done |
+| **0.4.1** (released) | `soteria-loop doctor` subcommand: verify `SOTERIA_*` env and resolved endpoint without sending an HTTP call. Exits non-zero when configuration is incomplete, so it doubles as a CI gate. | done |
 | **0.5** | `soteria-loop chat --resume RUN_ID` and `--resume-last` to pick up an interrupted session. The SQLite event store makes this almost free. | planned |
 | **0.6** | MCP adapter (`mcp_tool.py`): bridge between the runtime and any MCP server. Operator drops MCP server URLs into `SOTERIA_MCP_SERVERS`. | planned |
 | **0.7** | Multi-process scheduler for the SQLite store: a `LEASE_ID` column plus a background reaper so two operators can share a workspace without duplicate side effects. | deferred |
