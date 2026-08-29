@@ -56,6 +56,19 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="Workspace directory file tools are bound to (default: current working directory).",
     )
+    chat.add_argument(
+        "--session",
+        type=str,
+        default=None,
+        metavar="SESSION_ID",
+        help="Resume an existing chat session by id (default: start a fresh thread; "
+        "without --session the REPL offers to resume the most recent thread).",
+    )
+    chat.add_argument(
+        "--new-session",
+        action="store_true",
+        help="Always start a fresh chat session, ignoring any prior threads.",
+    )
 
     commands.add_parser(
         "doctor",
@@ -78,6 +91,8 @@ async def _execute(args: argparse.Namespace) -> int:
         return await run_repl(
             database_path=db_path,
             workspace_root=workspace_root,
+            session_id=args.session,
+            force_new_session=args.new_session,
         )
 
     store = SQLiteEventStore(args.database)

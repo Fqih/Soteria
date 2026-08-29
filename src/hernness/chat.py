@@ -5,6 +5,12 @@ shell-rc persistence helpers live in :mod:`hernness.chat_shell_rc`.
 Both modules are re-exported here for backward compatibility with
 existing imports (``from hernness.chat import interactive_first_run_setup``)
 so the public surface stays stable.
+
+Conversation threading lives in :mod:`hernness.chat_session`. The
+REPL persists every user input + assistant reply through
+:class:`hernness.storage.conversations.ConversationStore`, sharing the
+SQLite file with the event store so a single file holds both the run
+history and the chat thread.
 """
 
 from __future__ import annotations
@@ -12,6 +18,7 @@ from __future__ import annotations
 import os
 import shlex
 import sys
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +27,13 @@ from typing import TextIO
 from hernness import runtime as _runtime  # noqa: F401  (typing hook)
 from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from hernness.app_tools.workspace import Workspace
+from hernness.chat_session import (
+    SessionInfo,
+    SessionLifecycle,
+    render_session_picker,
+    render_session_row,
+    resolve_session_id,
+)
 from hernness.chat_setup import interactive_first_run_setup  # re-export
 from hernness.chat_shell_rc import (  # re-export
     _detect_shell_rc_path,
@@ -67,6 +81,9 @@ class ChatContext:
     provider_name: str
     model_name: str
     skills: SkillRegistry
+    session: SessionLifecycle
+    session_id: str
+    pending_preamble: str | None = None
 
 
 def _read_environ() -> dict[str, str]:
@@ -88,14 +105,30 @@ def _resolve_provider_label(environ: dict[str, str]) -> tuple[str, str]:
     return provider, model
 
 
-def _print_header(out: TextIO, ctx: ChatContext, workspace_root: Path) -> None:
+def _new_session_id() -> str:
+    """Generate a short, human-readable session id."""
+
+    return uuid.uuid4().hex[:12]
+
+
+def _print_header(
+    out: TextIO,
+    ctx: ChatContext,
+    workspace_root: Path,
+    *,
+    resumed_from: str | None = None,
+) -> None:
     out.write("Hernness\n")
     out.write(f"Provider: {ctx.provider_name}\n")
     out.write(f"Model: {ctx.model_name}\n")
     out.write(f"Workspace: {workspace_root}\n")
+    out.write(f"Session: {ctx.session_id}\n")
+    if resumed_from:
+        out.write(f"Resumed from: {resumed_from}\n")
     out.write("Logo: " + str(REPO_LOGO_PATH) + "\n")
     out.write(
-        "Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /skills, /skill NAME, /quit\n"
+        "Slash commands: /sessions, /resume [ID], /inspect RUN_ID, /skills, /skill NAME, "
+        "/session, /new, /provider, /quit\n"
     )
     out.write("Enter a task to run one AgentRuntime turn. Ctrl+D or /quit to exit.\n")
     out.flush()
@@ -118,12 +151,17 @@ def build_chat_context(
     database_path: Path,
     workspace_root: Path,
     environ: dict[str, str],
+    session_id: str | None = None,
+    force_new_session: bool = False,
 ) -> ChatContext:
     """Construct the runtime + store + workspace bound together.
 
-    Raises ``HernnessError`` (or a subclass) if ``database_path`` or
-    ``workspace_root`` are unusable. ``ConfigError`` propagates unchanged
-    from :func:`build_provider_from_env`.
+    ``session_id`` optionally binds the chat thread to an existing
+    session (used by ``/resume`` and the ``--session`` CLI flag). When
+    ``force_new_session`` is true the chat always opens a fresh uuid
+    thread even if ``session_id`` was provided. Raises
+    :class:`HernnessError` (or a subclass) on bad paths; ``ConfigError``
+    propagates from :func:`build_provider_from_env`.
     """
 
     if database_path is None:
@@ -144,6 +182,22 @@ def build_chat_context(
     # registry itself walks a path — body lookup happens lazily.
     skills_root.mkdir(parents=True, exist_ok=True)
     skills = SkillRegistry(skills_root)
+    session = SessionLifecycle.open(db_path)
+    if force_new_session or session_id is None:
+        return ChatContext(
+            runtime=runtime,
+            store=store,
+            workspace=workspace,
+            provider_name=provider_name,
+            model_name=model_name,
+            skills=skills,
+            session=session,
+            session_id=_new_session_id(),
+        )
+    if not session.session_exists(session_id):
+        session.close()
+        raise HernnessError(f"session {session_id!r} does not exist; nothing to resume.")
+    preamble = session.build_preamble(session_id)
     return ChatContext(
         runtime=runtime,
         store=store,
@@ -151,6 +205,9 @@ def build_chat_context(
         provider_name=provider_name,
         model_name=model_name,
         skills=skills,
+        session=session,
+        session_id=session_id,
+        pending_preamble=preamble,
     )
 
 
@@ -183,6 +240,27 @@ async def _run_slash(
         _print_provider_summary(out, ctx, environ)
         return False
 
+    if cmd == "/sessions":
+        infos = ctx.session.list_sessions()
+        out.write(render_session_picker(infos))
+        return False
+
+    if cmd == "/session":
+        last = ctx.session.last_turn(ctx.session_id)
+        turn_count = len(ctx.session.turns(ctx.session_id))
+        out.write(f"Current session: {ctx.session_id}\n")
+        out.write(f"Turns so far: {turn_count}\n")
+        if last is not None:
+            out.write(f"Last activity: {last.created_at.isoformat()}\n")
+        return False
+
+    if cmd == "/new":
+        old = ctx.session_id
+        ctx.session_id = _new_session_id()
+        ctx.pending_preamble = None
+        out.write(f"Closed session {old}; started fresh session {ctx.session_id}.\n")
+        return False
+
     if cmd == "/inspect":
         if len(args) != 2:
             err.write("usage: /inspect RUN_ID\n")
@@ -197,20 +275,40 @@ async def _run_slash(
         return False
 
     if cmd == "/resume":
-        if len(args) != 2:
-            err.write("usage: /resume RUN_ID\n")
+        # Two distinct resume shapes coexist here:
+        #   /resume RUN_ID        -- resume a persisted runtime run (existing behaviour)
+        #   /resume SESSION_ID    -- load a chat session thread for the next turn
+        #   /resume (no args)     -- interactive picker over past chat sessions
+        # /resume SESSION_ID wins over /resume RUN_ID when the arg
+        # resolves to a known session — runtime-run ids never collide
+        # with the short hex session ids we mint in ``_new_session_id``.
+        if len(args) == 1:
+            infos = ctx.session.list_sessions()
+            if not infos:
+                err.write("no previous chat sessions to resume.\n")
+                return False
+            out.write(render_session_picker(infos))
             return False
-        try:
-            result = await ctx.runtime.resume(args[1])
-        except HernnessError as exc:
-            err.write(f"resume failed: {exc}\n")
+        if len(args) == 2:
+            arg = args[1]
+            infos = ctx.session.list_sessions()
+            resolved = resolve_session_id(arg, infos)
+            if resolved is not None:
+                return await _resume_chat_session(ctx, resolved, out, err)
+            # Fall back to runtime-run resume (existing behaviour).
+            try:
+                result = await ctx.runtime.resume(arg)
+            except HernnessError as exc:
+                err.write(f"resume failed: {exc}\n")
+                return False
+            out.write(
+                f"Resumed run {result.run_id}: status={result.status.value} "
+                f"stop_reason={result.stop_reason.value} steps={result.steps}\n"
+            )
+            if result.output:
+                out.write(f"output: {result.output}\n")
             return False
-        out.write(
-            f"Resumed run {result.run_id}: status={result.status.value} "
-            f"stop_reason={result.stop_reason.value} steps={result.steps}\n"
-        )
-        if result.output:
-            out.write(f"output: {result.output}\n")
+        err.write("usage: /resume [SESSION_ID|RUN_ID]\n")
         return False
 
     if cmd == "/skills":
@@ -240,18 +338,66 @@ async def _run_slash(
     return False
 
 
+async def _resume_chat_session(
+    ctx: ChatContext,
+    session_id: str,
+    out: TextIO,
+    err: TextIO,
+) -> bool:
+    """Switch the current thread to ``session_id`` and stage its preamble."""
+
+    if session_id == ctx.session_id:
+        out.write(f"Already on session {session_id}.\n")
+        return False
+    if not ctx.session.session_exists(session_id):
+        err.write(f"session {session_id!r} does not exist.\n")
+        return False
+    try:
+        preamble = ctx.session.build_preamble(session_id)
+    except HernnessError as exc:
+        err.write(f"could not build resume preamble: {exc}\n")
+        return False
+    ctx.session_id = session_id
+    ctx.pending_preamble = preamble
+    turns = ctx.session.turns(session_id)
+    out.write(
+        f"Resumed session {session_id} with {len(turns)} prior turn(s). "
+        "Next user message will be sent as a continuation.\n"
+    )
+    return False
+
+
 async def _run_turn(ctx: ChatContext, task: str, out: TextIO, err: TextIO) -> None:
     """Execute one user turn against ``ctx.runtime``."""
 
+    ctx.session.record_user_turn(ctx.session_id, task)
+    effective_task = task
+    if ctx.pending_preamble is not None:
+        effective_task = (
+            f"{ctx.pending_preamble}\n\n"
+            f"---\n"
+            f"User's current message (continue directly without greeting):\n{task}"
+        )
+        ctx.pending_preamble = None
+
     with bind_workspace(ctx.workspace):
         try:
-            result = await ctx.runtime.run(task)
+            result = await ctx.runtime.run(effective_task)
         except HernnessError as exc:
             err.write(f"runtime error: {exc}\n")
             return
         except Exception as exc:
             err.write(f"unexpected error: {type(exc).__name__}: {exc}\n")
             return
+
+    assistant_content = result.output or ""
+    ctx.session.record_assistant_turn(
+        ctx.session_id,
+        assistant_content,
+        run_id=result.run_id,
+        status=result.status.value,
+        stop_reason=result.stop_reason.value,
+    )
 
     out.write(
         f"Hernness [{result.status.value}/{result.stop_reason.value}] "
@@ -264,6 +410,34 @@ async def _run_turn(ctx: ChatContext, task: str, out: TextIO, err: TextIO) -> No
     out.flush()
 
 
+def _maybe_offer_resume_prompt(
+    session: SessionLifecycle,
+    out: TextIO,
+    in_stream: TextIO,
+) -> SessionInfo | None:
+    """If the last session is recent, offer to resume it. Return the chosen row.
+
+    Used as a best-effort UX hook on REPL startup. Returns ``None``
+    when there are no recent sessions or the operator declines. Does
+    not block on EOF.
+    """
+
+    recent = session.find_resumable(limit=1)
+    if not recent:
+        return None
+    info = recent[0]
+    out.write(f"Resume session {info.session_id} from {render_session_row(info)}? [Y/n/custom] ")
+    out.flush()
+    try:
+        answer = in_stream.readline().strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        out.write("\n")
+        return None
+    if answer in ("", "y", "yes"):
+        return info
+    return None
+
+
 async def run_repl(
     *,
     database_path: Path,
@@ -274,8 +448,15 @@ async def run_repl(
     environ: dict[str, str] | None = None,
     prompt: str = "You > ",
     secret_reader: Callable[[str], str] | None = None,
+    session_id: str | None = None,
+    force_new_session: bool = False,
 ) -> int:
-    """Run the interactive chat REPL until EOF, /quit, or fatal init error."""
+    """Run the interactive chat REPL until EOF, /quit, or fatal init error.
+
+    ``session_id`` and ``force_new_session`` mirror the ``--session``
+    and ``--new-session`` CLI flags. When both are ``None``/``False``
+    the REPL offers to resume the most-recent session before booting.
+    """
 
     in_stream = stdin or sys.stdin
     out_stream = stdout or sys.stdout
@@ -287,6 +468,8 @@ async def run_repl(
             database_path=database_path,
             workspace_root=workspace_root,
             environ=env,
+            session_id=session_id,
+            force_new_session=force_new_session,
         )
     except ConfigError:
         new_env = interactive_first_run_setup(in_stream, out_stream, secret_reader=secret_reader)
@@ -298,6 +481,8 @@ async def run_repl(
                 database_path=database_path,
                 workspace_root=workspace_root,
                 environ=env,
+                session_id=session_id,
+                force_new_session=force_new_session,
             )
         except (HernnessError, OSError) as exc:
             err_stream.write(f"hernness chat: {exc}\n")
@@ -309,7 +494,20 @@ async def run_repl(
         err_stream.write(f"hernness chat: {exc}\n")
         return 2
 
-    _print_header(out_stream, ctx, workspace_root)
+    resumed_from: str | None = None
+    if session_id is not None and not force_new_session:
+        resumed_from = session_id
+    elif session_id is None and not force_new_session:
+        offered = _maybe_offer_resume_prompt(ctx.session, out_stream, in_stream)
+        if offered is not None:
+            ctx.session_id = offered.session_id
+            try:
+                ctx.pending_preamble = ctx.session.build_preamble(offered.session_id)
+            except HernnessError:
+                ctx.pending_preamble = None
+            resumed_from = offered.session_id
+
+    _print_header(out_stream, ctx, workspace_root, resumed_from=resumed_from)
     out_stream.write("\n")
     out_stream.flush()
 
@@ -345,6 +543,7 @@ async def run_repl(
             await _run_turn(ctx, stripped, out_stream, err_stream)
     finally:
         await ctx.store.close()
+        ctx.session.close()
 
 
 __all__ = [
