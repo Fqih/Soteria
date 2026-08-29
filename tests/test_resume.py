@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop import (
+from hernness import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -17,14 +17,14 @@ from soteria_loop import (
     TokenUsage,
     ToolCall,
 )
-from soteria_loop.exceptions import (
+from hernness.exceptions import (
     CheckpointNotFoundError,
     RunAlreadyTerminalError,
     RunNotFoundError,
     UnsafeResumeError,
 )
-from soteria_loop.providers import FakeProvider
-from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
+from hernness.providers import FakeProvider
+from hernness.storage import InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run, value_tool
 
 

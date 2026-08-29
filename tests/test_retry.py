@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from soteria_loop.retry import RetryPolicy, call_with_retry, is_transient_error
+from hernness.retry import RetryPolicy, call_with_retry, is_transient_error
 
 
 def test_policy_rejects_zero_attempts() -> None:

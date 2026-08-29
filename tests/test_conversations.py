@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.storage.conversations import (
+from hernness.storage.conversations import (
     ConversationStore,
     HistoryError,
 )

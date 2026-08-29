@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.events import AgentEvent, EventType
-from soteria_loop.exceptions import RunNotFoundError, StorageError
-from soteria_loop.models import Checkpoint, RunRecord
-from soteria_loop.policies import LoopPolicy
-from soteria_loop.state import RunState, StopReason
-from soteria_loop.storage import EventStore, InMemoryEventStore, SQLiteEventStore
+from hernness.events import AgentEvent, EventType
+from hernness.exceptions import RunNotFoundError, StorageError
+from hernness.models import Checkpoint, RunRecord
+from hernness.policies import LoopPolicy
+from hernness.state import RunState, StopReason
+from hernness.storage import EventStore, InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run
 
 

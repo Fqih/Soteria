@@ -6,8 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from soteria_loop.models import TokenUsage
-from soteria_loop.usage import UsageRecord, UsageTracker, estimate_cost, merge
+from hernness.models import TokenUsage
+from hernness.usage import UsageRecord, UsageTracker, estimate_cost, merge
 
 
 def _record(step: int, *, inp: int = 0, outp: int = 0, model: str | None = None) -> UsageRecord:
@@ -88,8 +88,8 @@ def test_estimate_cost_handles_zero_tokens() -> None:
 def test_estimate_cost_uses_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SOTERIA_USAGE_RATES_INPUT_PER_1K", "0.005")
-    monkeypatch.setenv("SOTERIA_USAGE_RATES_OUTPUT_PER_1K", "0.015")
+    monkeypatch.setenv("HERNNESS_USAGE_RATES_INPUT_PER_1K", "0.005")
+    monkeypatch.setenv("HERNNESS_USAGE_RATES_OUTPUT_PER_1K", "0.015")
     cost = estimate_cost(TokenUsage(input_tokens=2000, output_tokens=1000))
     assert cost == Decimal("0.025000")
 
@@ -97,8 +97,8 @@ def test_estimate_cost_uses_env(
 def test_estimate_cost_handles_bad_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SOTERIA_USAGE_RATES_INPUT_PER_1K", "not-a-number")
-    monkeypatch.setenv("SOTERIA_USAGE_RATES_OUTPUT_PER_1K", "")
+    monkeypatch.setenv("HERNNESS_USAGE_RATES_INPUT_PER_1K", "not-a-number")
+    monkeypatch.setenv("HERNNESS_USAGE_RATES_OUTPUT_PER_1K", "")
     assert estimate_cost(TokenUsage(input_tokens=10)) is None
 
 

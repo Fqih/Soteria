@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, Field
 
-from soteria_loop.schemas import (
+from hernness.schemas import (
     SchemaError,
     SchemaRegistry,
     ValidationFailure,

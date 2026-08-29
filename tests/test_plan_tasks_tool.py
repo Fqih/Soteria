@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from soteria_loop.app_tools.plan_tasks import PlanTasksArguments, plan_tasks_tool
-from soteria_loop.planning import SubTask, Task
+from hernness.app_tools.plan_tasks import PlanTasksArguments, plan_tasks_tool
+from hernness.planning import SubTask, Task
 
 
 @pytest.fixture(autouse=True)
 def _reset_plan_state() -> None:
-    from soteria_loop.app_tools.plan_tasks import reset_active_plan
+    from hernness.app_tools.plan_tasks import reset_active_plan
 
     reset_active_plan()
 
@@ -58,7 +58,7 @@ async def test_plan_tasks_no_state_returns_empty() -> None:
 
 async def test_plan_tasks_complete_without_plan_raises() -> None:
     tool = plan_tasks_tool()
-    from soteria_loop.planning import PlanError
+    from hernness.planning import PlanError
 
     with pytest.raises(PlanError, match="no active plan"):
         await tool._function(PlanTasksArguments(complete="a"))

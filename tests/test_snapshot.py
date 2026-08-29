@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.checkpoint import CheckpointStore
-from soteria_loop.snapshot import ResumeError, ResumePlan, require_resume, resume
+from hernness.checkpoint import CheckpointStore
+from hernness.snapshot import ResumeError, ResumePlan, require_resume, resume
 
 
 def test_resume_returns_none_for_missing_run(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import pytest
 
-from soteria_loop.audit import AuditError, AuditEvent, AuditLog, redact
+from hernness.audit import AuditError, AuditEvent, AuditLog, redact
 
 
 def test_redact_replaces_known_secret_keys() -> None:

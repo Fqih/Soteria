@@ -1,4 +1,4 @@
-"""Shared deterministic helpers for Soteria tests."""
+"""Shared deterministic helpers for Hernness tests."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
-from soteria_loop.events import AgentEvent, EventType
-from soteria_loop.models import RunRecord
-from soteria_loop.storage.base import EventStore
-from soteria_loop.tools import FunctionTool
+from hernness.events import AgentEvent, EventType
+from hernness.models import RunRecord
+from hernness.storage.base import EventStore
+from hernness.tools import FunctionTool
 
 
 class ValueArguments(BaseModel):

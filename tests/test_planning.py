@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from soteria_loop.planning import (
+from hernness.planning import (
     ExecutionPlan,
     PlanError,
     SubTask,

@@ -1,7 +1,7 @@
 """Tests for the sandbox executor and the ``run_shell`` tool.
 
 The docker client is mocked so the suite stays offline (matching the
-Soteria principle: tests never depend on real services). The mock
+Hernness principle: tests never depend on real services). The mock
 records the kwargs passed to ``containers().create(...)`` so we can
 verify the security-relevant settings (``network_mode``, ``mem_limit``,
 ``remove=True``, working directory) made it through to docker.
@@ -13,15 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.app_tools.file_tools import WorkspaceNotBoundError, bind_workspace
-from soteria_loop.app_tools.sandbox import SandboxExecutor, SandboxResult
-from soteria_loop.app_tools.shell_tool import (
+from hernness.app_tools.file_tools import WorkspaceNotBoundError, bind_workspace
+from hernness.app_tools.sandbox import SandboxExecutor, SandboxResult
+from hernness.app_tools.shell_tool import (
     RunShellArguments,
     SandboxNotBoundError,
     bind_sandbox,
     run_shell_tool,
 )
-from soteria_loop.app_tools.workspace import Workspace
+from hernness.app_tools.workspace import Workspace
 
 
 class FakeContainer:

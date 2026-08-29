@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from soteria_loop.eval import (
+from hernness.eval import (
     EvalCase,
     EvalError,
     EvalReport,

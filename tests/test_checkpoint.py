@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.checkpoint import CheckpointError, CheckpointStore
+from hernness.checkpoint import CheckpointError, CheckpointStore
 
 
 def test_save_returns_first_checkpoint_with_sequence_one(tmp_path: Path) -> None:

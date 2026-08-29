@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-from soteria_loop.concurrency import ConcurrencyError, ConcurrencyLimiter
-from soteria_loop.metrics import MetricsRegistry
+from hernness.concurrency import ConcurrencyError, ConcurrencyLimiter
+from hernness.metrics import MetricsRegistry
 
 
 def test_max_in_flight_must_be_positive() -> None:

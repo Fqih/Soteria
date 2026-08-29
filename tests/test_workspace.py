@@ -1,4 +1,4 @@
-"""Path-traversal tests for ``soteria_loop.app_tools.workspace``.
+"""Path-traversal tests for ``hernness.app_tools.workspace``.
 
 These are the most security-sensitive tests in the runtime: a single missed
 escape vector turns the agent into a path-traversal primitive. Read every
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.app_tools.workspace import (
+from hernness.app_tools.workspace import (
     Workspace,
     WorkspacePathError,
     validate_path,

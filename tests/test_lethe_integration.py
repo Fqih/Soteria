@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from soteria_loop.integrations import LetheMemoryAdapter
+from hernness.integrations import LetheMemoryAdapter
 
 
 @dataclass

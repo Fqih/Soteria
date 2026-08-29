@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.checkpoint import CheckpointStore
-from soteria_loop.subagent import (
+from hernness.checkpoint import CheckpointStore
+from hernness.subagent import (
     SubAgentError,
     SubAgentResult,
     SubAgentRunner,

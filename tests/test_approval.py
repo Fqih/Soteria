@@ -1,15 +1,15 @@
-"""Tests for the ``SOTERIA_TOOLS_REQUIRE_APPROVAL`` callback."""
+"""Tests for the ``HERNNESS_TOOLS_REQUIRE_APPROVAL`` callback."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import cast
 
-from soteria_loop.app_tools.approval import (
+from hernness.app_tools.approval import (
     build_approval_callback,
     required_tool_names,
 )
-from soteria_loop.models import ToolCall
+from hernness.models import ToolCall
 
 
 def _call(name: str, tool_call_id: str = "id-1") -> ToolCall:
@@ -23,13 +23,13 @@ def test_empty_env_auto_approves() -> None:
 
 
 def test_env_with_one_tool_requires_approval() -> None:
-    callback = build_approval_callback({"SOTERIA_TOOLS_REQUIRE_APPROVAL": "run_shell"})
+    callback = build_approval_callback({"HERNNESS_TOOLS_REQUIRE_APPROVAL": "run_shell"})
     assert callback(_call("run_shell")) is False
     assert callback(_call("read_file")) is True
 
 
 def test_env_with_multiple_tools() -> None:
-    callback = build_approval_callback({"SOTERIA_TOOLS_REQUIRE_APPROVAL": "run_shell,write_file"})
+    callback = build_approval_callback({"HERNNESS_TOOLS_REQUIRE_APPROVAL": "run_shell,write_file"})
     assert callback(_call("run_shell")) is False
     assert callback(_call("write_file")) is False
     assert callback(_call("read_file")) is True
@@ -37,7 +37,7 @@ def test_env_with_multiple_tools() -> None:
 
 def test_env_with_whitespace_and_newlines() -> None:
     callback = build_approval_callback(
-        {"SOTERIA_TOOLS_REQUIRE_APPROVAL": "run_shell\n write_file  read_file "}
+        {"HERNNESS_TOOLS_REQUIRE_APPROVAL": "run_shell\n write_file  read_file "}
     )
     assert callback(_call("run_shell")) is False
     assert callback(_call("write_file")) is False
@@ -45,7 +45,7 @@ def test_env_with_whitespace_and_newlines() -> None:
 
 
 def test_empty_token_ignored() -> None:
-    callback = build_approval_callback({"SOTERIA_TOOLS_REQUIRE_APPROVAL": ",,,"})
+    callback = build_approval_callback({"HERNNESS_TOOLS_REQUIRE_APPROVAL": ",,,"})
     assert callback(_call("run_shell")) is True
 
 
@@ -56,7 +56,7 @@ def test_on_require_called_for_required_tool() -> None:
         seen.append(call.name)
 
     callback = build_approval_callback(
-        {"SOTERIA_TOOLS_REQUIRE_APPROVAL": "run_shell"}, on_require=on_require
+        {"HERNNESS_TOOLS_REQUIRE_APPROVAL": "run_shell"}, on_require=on_require
     )
     callback(_call("run_shell"))
     callback(_call("read_file"))
@@ -65,8 +65,8 @@ def test_on_require_called_for_required_tool() -> None:
 
 def test_required_tool_names_helper() -> None:
     assert required_tool_names({}) == set()
-    assert required_tool_names({"SOTERIA_TOOLS_REQUIRE_APPROVAL": "a,b,c"}) == {"a", "b", "c"}
-    assert required_tool_names({"SOTERIA_TOOLS_REQUIRE_APPROVAL": " a , b ,c "}) == {
+    assert required_tool_names({"HERNNESS_TOOLS_REQUIRE_APPROVAL": "a,b,c"}) == {"a", "b", "c"}
+    assert required_tool_names({"HERNNESS_TOOLS_REQUIRE_APPROVAL": " a , b ,c "}) == {
         "a",
         "b",
         "c",
@@ -74,7 +74,7 @@ def test_required_tool_names_helper() -> None:
 
 
 def test_callback_signature_returns_bool() -> None:
-    callback = build_approval_callback({"SOTERIA_TOOLS_REQUIRE_APPROVAL": "run_shell"})
+    callback = build_approval_callback({"HERNNESS_TOOLS_REQUIRE_APPROVAL": "run_shell"})
     result = callback(_call("run_shell"))
     assert isinstance(result, bool)
     # Auto-approve branch returns True.

@@ -8,7 +8,7 @@ from importlib import metadata
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
 
-from soteria_loop.plugins import (
+from hernness.plugins import (
     ALL_GROUPS,
     NOTIFIER_GROUP,
     PROVIDER_GROUP,
@@ -119,7 +119,7 @@ def test_discover_wraps_load_failure_as_plugin_error(
         def select(self, *, group: str) -> list[BadEntryPoint]:
             return [self] if group == self.group else []
 
-    import soteria_loop.plugins as mod
+    import hernness.plugins as mod
 
     mp = MonkeyPatch()
     mp.setattr(mod.metadata, "entry_points", lambda: BadEntryPoint())

@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.app_tools.file_tools import (
+from hernness.app_tools.file_tools import (
     ReadFileArguments,
     WriteFileArguments,
     bind_workspace,
     read_file_tool,
     write_file_tool,
 )
-from soteria_loop.app_tools.workspace import Workspace
-from soteria_loop.models import ToolCall
+from hernness.app_tools.workspace import Workspace
+from hernness.models import ToolCall
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ async def test_write_file_refuses_to_follow_symlink_at_leaf(
 ) -> None:
     """A symlink whose leaf is the file must not be silently followed."""
 
-    from soteria_loop.exceptions import ToolExecutionError
+    from hernness.exceptions import ToolExecutionError
 
     target = tmp_path / "external.txt"
     target.write_text("external", encoding="utf-8")
@@ -114,7 +114,7 @@ async def test_write_file_refuses_to_follow_symlink_at_leaf(
 async def test_read_file_no_binding_raises() -> None:
     """Setup errors propagate as ToolExecutionError per the registry contract."""
 
-    from soteria_loop.exceptions import ToolExecutionError
+    from hernness.exceptions import ToolExecutionError
 
     tool = read_file_tool()
     with pytest.raises(ToolExecutionError, match="WorkspaceNotBoundError"):
@@ -123,7 +123,7 @@ async def test_read_file_no_binding_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_write_file_no_binding_raises() -> None:
-    from soteria_loop.exceptions import ToolExecutionError
+    from hernness.exceptions import ToolExecutionError
 
     tool = write_file_tool()
     with pytest.raises(ToolExecutionError, match="WorkspaceNotBoundError"):
@@ -131,7 +131,7 @@ async def test_write_file_no_binding_raises() -> None:
 
 
 def test_bind_workspace_restores_state() -> None:
-    from soteria_loop.app_tools import file_tools as module
+    from hernness.app_tools import file_tools as module
 
     ws1 = Workspace(Path("/tmp"))
     ws2 = Workspace(Path("/var"))
@@ -170,7 +170,7 @@ async def test_via_tool_registry_uses_bound_workspace(
 ) -> None:
     """Exercise the same path through ToolRegistry.invoke to confirm integration."""
 
-    from soteria_loop.tools import ToolRegistry
+    from hernness.tools import ToolRegistry
 
     registry = ToolRegistry([read_file_tool(), write_file_tool()])
     with bind_workspace(workspace_tree):

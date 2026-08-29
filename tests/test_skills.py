@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.skills import SkillError, SkillRegistry, load_skills
+from hernness.skills import SkillError, SkillRegistry, load_skills
 
 
 def _write_skill(root: Path, name: str, body: str) -> Path:

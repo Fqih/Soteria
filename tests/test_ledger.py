@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from soteria_loop.ledger import LedgerError, TokenLedger
-from soteria_loop.models import TokenUsage
+from hernness.ledger import LedgerError, TokenLedger
+from hernness.models import TokenUsage
 
 
 def test_record_returns_entry_with_id(tmp_path: Path) -> None:

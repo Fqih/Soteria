@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from soteria_loop.models import ModelRequest, ModelResponse
-from soteria_loop.providers.base import ModelProvider
-from soteria_loop.providers.streaming import (
+from hernness.models import ModelRequest, ModelResponse
+from hernness.providers.base import ModelProvider
+from hernness.providers.streaming import (
     ModelChunk,
     StreamingModelProvider,
     collect_stream,

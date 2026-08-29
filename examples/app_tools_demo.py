@@ -20,9 +20,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from soteria_loop import AgentRuntime, FakeProvider, ModelResponse, ToolCall
-from soteria_loop.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
-from soteria_loop.app_tools.workspace import Workspace
+from hernness import AgentRuntime, FakeProvider, ModelResponse, ToolCall
+from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
+from hernness.app_tools.workspace import Workspace
 
 
 class WriteArgs(BaseModel):

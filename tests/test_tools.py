@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from soteria_loop.exceptions import (
+from hernness.exceptions import (
     DuplicateToolError,
     ToolAlreadyCompletedError,
     ToolValidationError,
 )
-from soteria_loop.models import ToolCall
-from soteria_loop.tools import FunctionTool, ToolRegistry
+from hernness.models import ToolCall
+from hernness.tools import FunctionTool, ToolRegistry
 from tests.helpers import value_tool
 
 

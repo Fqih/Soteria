@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from soteria_loop.app_tools.file_tools import read_file_tool, write_file_tool
-from soteria_loop.app_tools.task_tool import AgentType, TaskArguments, task_tool
-from soteria_loop.models import ModelResponse, ToolCall
-from soteria_loop.policies import LoopPolicy
-from soteria_loop.providers.fake import FakeProvider
-from soteria_loop.runtime import AgentRuntime
-from soteria_loop.storage.memory import InMemoryEventStore
+from hernness.app_tools.file_tools import read_file_tool, write_file_tool
+from hernness.app_tools.task_tool import AgentType, TaskArguments, task_tool
+from hernness.models import ModelResponse, ToolCall
+from hernness.policies import LoopPolicy
+from hernness.providers.fake import FakeProvider
+from hernness.runtime import AgentRuntime
+from hernness.storage.memory import InMemoryEventStore
 
 
 def _parent(

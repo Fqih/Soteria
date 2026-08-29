@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from soteria_loop.compact import compact_messages, estimate_message_count
+from hernness.compact import compact_messages, estimate_message_count
 
 
 def _messages(n: int) -> list[dict[str, object]]:

@@ -12,13 +12,13 @@ from typing import Any
 
 import pytest
 
-from soteria_loop import ModelRequest, ToolMetadata
-from soteria_loop.exceptions import ProviderError
-from soteria_loop.models import TokenUsage
-from soteria_loop.providers.anthropic import AnthropicConfig, AnthropicProvider
-from soteria_loop.providers.minimax import MiniMaxConfig, MiniMaxProvider
-from soteria_loop.providers.ollama import OllamaConfig, OllamaProvider
-from soteria_loop.providers.openai_compatible import (
+from hernness import ModelRequest, ToolMetadata
+from hernness.exceptions import ProviderError
+from hernness.models import TokenUsage
+from hernness.providers.anthropic import AnthropicConfig, AnthropicProvider
+from hernness.providers.minimax import MiniMaxConfig, MiniMaxProvider
+from hernness.providers.ollama import OllamaConfig, OllamaProvider
+from hernness.providers.openai_compatible import (
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,
 )

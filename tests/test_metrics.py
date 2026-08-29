@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from soteria_loop.metrics import (
+from hernness.metrics import (
     MetricsError,
     MetricsRegistry,
     MetricsSnapshot,

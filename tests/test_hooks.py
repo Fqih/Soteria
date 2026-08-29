@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from soteria_loop.hooks import (
+from hernness.hooks import (
     HookAction,
     HookContext,
     HookDecision,
@@ -13,11 +13,11 @@ from soteria_loop.hooks import (
     make_blocking_hook,
     make_logging_hook,
 )
-from soteria_loop.models import ModelResponse, ToolCall
-from soteria_loop.policies import LoopPolicy
-from soteria_loop.providers.fake import FakeProvider
-from soteria_loop.runtime import AgentRuntime
-from soteria_loop.storage.memory import InMemoryEventStore
+from hernness.models import ModelResponse, ToolCall
+from hernness.policies import LoopPolicy
+from hernness.providers.fake import FakeProvider
+from hernness.runtime import AgentRuntime
+from hernness.storage.memory import InMemoryEventStore
 
 
 def _runtime_with_hooks(

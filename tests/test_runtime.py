@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from soteria_loop import (
+from hernness import (
     AgentRuntime,
     EventType,
     LoopPolicy,
@@ -17,10 +17,10 @@ from soteria_loop import (
     TokenUsage,
     ToolCall,
 )
-from soteria_loop.events import TERMINAL_EVENT_TYPES
-from soteria_loop.models import ModelRequest
-from soteria_loop.providers import FakeProvider
-from soteria_loop.storage import InMemoryEventStore
+from hernness.events import TERMINAL_EVENT_TYPES
+from hernness.models import ModelRequest
+from hernness.providers import FakeProvider
+from hernness.storage import InMemoryEventStore
 from tests.helpers import value_tool
 
 

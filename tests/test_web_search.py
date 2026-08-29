@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from soteria_loop.app_tools.web_search import (
+from hernness.app_tools.web_search import (
     DuckDuckGoClient,
     WebSearchArguments,
     WebSearchError,
@@ -111,7 +111,7 @@ def test_search_tool_metadata_describes_contract() -> None:
 
 
 def test_duckduckgo_client_rejects_when_httpx_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    import soteria_loop.app_tools.web_search as mod
+    import hernness.app_tools.web_search as mod
 
     monkeypatch.setattr(mod, "_httpx", None)
     client = DuckDuckGoClient()

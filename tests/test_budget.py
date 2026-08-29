@@ -6,8 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from soteria_loop.budget import BudgetChecker, BudgetConfig, BudgetError
-from soteria_loop.models import TokenUsage
+from hernness.budget import BudgetChecker, BudgetConfig, BudgetError
+from hernness.models import TokenUsage
 
 
 def test_config_defaults_to_no_limits() -> None:
