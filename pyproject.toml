@@ -62,13 +62,21 @@ Homepage = "https://github.com/Fqih/Soteria"
 Repository = "https://github.com/Fqih/Soteria"
 Issues = "https://github.com/Fqih/Soteria/issues"
 
+[project.entry-points.pytest11]
+hernness-live = "hernness._pytest_plugin"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/hernness"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-config --strict-markers"
+# Skip the live integration tests by default so the offline suite stays
+# free of paid API traffic. Run them with `pytest --run-live tests/integration`.
+addopts = "--strict-config --strict-markers --ignore=tests/integration"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+  "live: opt-in tests that hit real HTTP endpoints; require --run-live",
+]
 
 [tool.coverage.run]
 branch = true

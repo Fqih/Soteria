@@ -59,6 +59,7 @@ def build_openai_payload(
         "model": model,
         "messages": messages,
         "stream": False,
+        "max_tokens": max_completion_tokens,
         "max_completion_tokens": max_completion_tokens,
     }
     if tools:
