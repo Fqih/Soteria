@@ -122,7 +122,7 @@ async def test_call_uses_custom_predicate() -> None:
             raise RuntimeError("retryable")
         return "done"
 
-    async def retryable(exc: BaseException) -> bool:
+    def retryable(exc: BaseException) -> bool:
         return isinstance(exc, RuntimeError)
 
     result = await call_with_retry(

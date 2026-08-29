@@ -142,9 +142,7 @@ class MetricsRegistry:
 
     def _check_cardinality(self, store: Mapping[Any, Any]) -> None:
         if len(store) >= self._max_cardinality:
-            raise MetricsError(
-                f"metric exceeded cardinality cap ({self._max_cardinality})"
-            )
+            raise MetricsError(f"metric exceeded cardinality cap ({self._max_cardinality})")
 
     @staticmethod
     def _label_key(labels: Mapping[str, str]) -> frozenset[tuple[str, str]]:
