@@ -16,113 +16,21 @@ environment variables configure.
 
 ---
 
-## What is Soteria?
+## What is Soteria, what is hernness?
 
-Soteria wraps a tool-using agent loop in a strict state machine, an append-only event
-history, configurable safety policies, a provider-neutral interface, and a sandboxed
-application-tools layer for file and shell work. Whether you build a coding agent, an ops
-agent, a research agent, or long-running automation, Soteria answers the questions most
-agent frameworks leave to chance:
+- **Soteria** is the product: an open-source reliability layer for tool-using AI agents.
+  It packages a strict state machine, an append-only event history, configurable safety
+  policies, a provider-neutral interface, and a sandboxed application-tools layer.
+- **hernness** is the runtime inside Soteria. It is what you install, what the `hernness`
+  CLI runs, what the `HERNNESS_*` environment variables configure, and what Python code
+  imports as `import hernness`.
 
-1. What is the agent doing *right now*?
-2. Why did this run stop?
-3. Did it repeat itself without making progress?
-4. Can an interrupted run continue safely?
-5. Which tool calls actually executed?
-6. Can the run be reproduced without calling a paid model again?
+When you read this README, "Soteria" and "hernness" refer to the same engine — Soteria
+is the brand, hernness is the artifact. To use it you only ever install hernness and set
+`HERNNESS_*` variables.
 
-> �️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
+> ⚠️ Hernness 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
 > testing, and local prototypes; it is **not production-ready**.
-
-<div align="center">
-
-[`Install`](#install) · [Quickstart](#quickstart) · [Configuration](#configuration) ·
-[Providers](#providers) · [Application tools](#application-tools) · [CLI](#cli) ·
-[Examples](#examples)
-
-</div>
-
----
-
-## Two names, one runtime
-
-| Name | What it is | Where you see it |
-|---|---|---|
-| **Soteria** | The product / umbrella project | This README, the GitHub repo, the brand |
-| **hernness** | The agent runtime you install | `pip install hernness`, `import hernness`, `hernness` CLI |
-| **`HERNNESS_*`** | The runtime's environment variables | `HERNNESS_PROVIDER`, `HERNNESS_MODEL`, `HERNNESS_TOOLS_REQUIRE_APPROVAL`, … |
-| **`hernness` command** | The runtime's CLI | `hernness doctor`, `hernness chat`, `hernness runs inspect …` |
-
-Soteria is the product you evaluate; hernness is the runtime you install and run.
-
----
-
-## Why a runtime for AI agents?
-
-Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. Fast to
-demo, brittle in production:
-
-| Pain in a typical agent | What actually breaks | How hernness handles it |
-|---|---|---|
-| Repeated tool calls | `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run citing `StopReason.REPEATED_ACTION`. |
-| Runaway token usage | Loop spins, bill surprises. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; missing usage is flagged. |
-| Provider lock-in | Switching vendors rewrites the agent. | `HERNNESS_PROVIDER` chooses `ollama` / `minimax` / `anthropic` / `openai` with no agent code change. |
-| Process restart loses state | Restart, model re-asks, external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` skips already-completed tool-call IDs. |
-| No audit trail | "What did the agent actually do?" is unanswerable. | Every transition, call, and policy trigger is an immutable append-only event. |
-| Stop reason is folklore | "Why did it stop?" has no answer. | One `StopReason` from a 13-value enum per terminal run. |
-| Lost tool side effects | Crash between `TOOL_STARTED` and `TOOL_COMPLETED` replays or hides the call. | Resume refuses to proceed if a started tool has no durable result; you decide. |
-
-The motivating incident timeline:
-
-```mermaid
-flowchart LR
-    A[Tool call sent] --> B[Process killed mid-flight]
-    B --> C[Operator restarts and runs again]
-    C --> D[Tool fires a SECOND time]
-    D --> E[Billing double-charge + customer impact]
-```
-
-Hernness turns that into:
-
-```mermaid
-flowchart LR
-    A[Tool call sent] --> B[TOOL_COMPLETED event persisted to SQLite]
-    B --> C[Process killed mid-flight]
-    C --> D[Operator resumes via runtime.resume&#40;run_id&#41;]
-    D --> E[Already-completed tool-call ID skipped]
-    E --> F[Tool fires exactly ONCE]
-```
-
-Proven by `tests/test_resume.py::test_interrupt_after_tool_result_resumes_without_duplicate_side_effect`.
-
----
-
-## What you get
-
-```mermaid
-flowchart LR
-    Task[User task] --> Runtime[AgentRuntime state machine]
-    Runtime --> Provider[ModelProvider]
-    Runtime --> Registry[ToolRegistry]
-    Runtime --> Policy[LoopPolicy]
-    Runtime --> Progress[ProgressDetector]
-    Runtime --> Store[EventStore]
-    Store --> Memory[In-memory]
-    Store --> SQLite[SQLite]
-    Store --> Trace[TraceInspector]
-```
-
-- **State machine**: 12 explicit states, 4 terminal (COMPLETED, FAILED, STOPPED, CANCELLED), every transition validated.
-- **Event history**: append-only per-run log with sequence invariants.
-- **Policies**: step, runtime, token, repetition, consecutive-error, no-progress, plus provider and tool timeouts.
-- **Stores**: in-memory (tests) and SQLite (production runs).
-- **Checkpoints** + `resume(run_id)` with completed-tool-call-ID tracking.
-- **Provider-neutral** `ModelProvider` Protocol with built-in adapters for **Ollama**, **MiniMax**, **Anthropic**, and any **OpenAI-compatible** endpoint.
-- **Deterministic** `FakeProvider` so tests never need an API key.
-- **Traces** in chronological text or structured JSON.
-- **Stop reason**: one of 13 enum values, persisted with every terminal run.
-- **Optional long-term memory** via `LetheMemoryAdapter`.
-- **Application tools**: workspace-scoped `read_file` / `write_file` / `edit_file` / `glob` / `grep` / `workspace_map` / `git_status`, sandboxed `run_shell`, planning, sub-agent `task`, and `web_fetch` / `web_search`.
 
 ---
 
@@ -175,20 +83,48 @@ wizard) and every run picks them up.
 
 ### Environment variables
 
+Every variable the runtime reads is `HERNNESS_*`-prefixed. Set them in your shell or via
+a `.env` file.
+
+#### Provider selection
+
 | Variable | Required | Purpose |
 |---|---|---|
 | `HERNNESS_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
 | `HERNNESS_MODEL` | yes | Default model name for the active provider |
-| `HERNNESS_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
-| `HERNNESS_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
-| `HERNNESS_<PROVIDER>_MODEL` | no | Provider-specific model override |
+| `HERNNESS_OLLAMA_BASE_URL` | no | Ollama endpoint (default `http://localhost:11434`) |
+| `HERNNESS_OLLAMA_MODEL` | no | Ollama-specific model override |
+| `HERNNESS_OLLAMA_API_KEY` | no | Ollama auth header (rarely needed) |
+| `HERNNESS_MINIMAX_API_KEY` | yes for minimax | API key |
+| `HERNNESS_MINIMAX_BASE_URL` | no | Default `https://api.minimax.io` |
+| `HERNNESS_MINIMAX_MODEL` | no | MiniMax-specific model override |
 | `HERNNESS_MINIMAX_API_STYLE` | no | `anthropic` (default) or `openai` |
-| `HERNNESS_DATABASE_PATH` | no | SQLite path; empty = in-memory |
-| `HERNNESS_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
-| `HERNNESS_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
-| `HERNNESS_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
-| `HERNNESS_PERMISSION_MODE` | no | `default` / `accept_edits` / `plan` / `bypass` |
-| `HERNNESS_TOOLS_REQUIRE_APPROVAL` | no | Comma-separated tool names that gate on the approval callback |
+| `HERNNESS_ANTHROPIC_API_KEY` | yes for anthropic | API key |
+| `HERNNESS_ANTHROPIC_BASE_URL` | no | Default `https://api.anthropic.com` |
+| `HERNNESS_ANTHROPIC_MODEL` | no | Anthropic-specific model override |
+| `HERNNESS_OPENAI_API_KEY` | yes for openai | API key |
+| `HERNNESS_OPENAI_BASE_URL` | no | Default `https://api.openai.com/v1` |
+| `HERNNESS_OPENAI_MODEL` | no | OpenAI-specific model override |
+
+#### Runtime and policy overrides
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HERNNESS_DATABASE_PATH` | empty (in-memory) | SQLite path for the run/event store |
+| `HERNNESS_MAX_TOTAL_TOKENS` | unlimited | Override `LoopPolicy.max_total_tokens` |
+| `HERNNESS_MAX_RUNTIME_SECONDS` | `300` | Override `LoopPolicy.max_runtime_seconds` |
+| `HERNNESS_REPEATED_ACTION_LIMIT` | `3` | Override `LoopPolicy.repeated_action_limit` |
+| `HERNNESS_PERMISSION_MODE` | `default` | `default` / `accept_edits` / `plan` / `bypass` |
+| `HERNNESS_TOOLS_REQUIRE_APPROVAL` | empty | Comma-separated tool names that gate on `approval_callback` |
+| `HERNNESS_USAGE_RATES_INPUT_PER_1K` | unset | Cost rate for input tokens (for ledger) |
+| `HERNNESS_USAGE_RATES_OUTPUT_PER_1K` | unset | Cost rate for output tokens (for ledger) |
+
+#### Notifications
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HERNNESS_NOTIFY_WEBHOOK` | unset | URL to POST run lifecycle events to |
+| `HERNNESS_NOTIFY_DESKTOP` | `0` | Set to `1` to enable desktop notifications |
 
 ### Pick a provider and export
 
