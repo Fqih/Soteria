@@ -8,7 +8,9 @@
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
-Soteria is the product. The agent runtime inside is called **hernness** — that is what you `pip install`, what the CLI is named, and what the `HERNNESS_*` environment variables configure. This README explains both names and how they fit together.
+**Soteria** is the open-source product. The agent runtime inside it is called **hernness** —
+that is what you `pip install`, what the `hernness` CLI runs, and what the `HERNNESS_*`
+environment variables configure.
 
 </div>
 
@@ -16,7 +18,11 @@ Soteria is the product. The agent runtime inside is called **hernness** — that
 
 ## What is Soteria?
 
-Soteria is an open-source Python **product** built around the **hernness agent runtime**. Hernness wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, a provider-neutral interface, and a sandboxed application-tools layer for file and shell work. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Soteria gives you the safety net most agent frameworks leave to chance:
+Soteria wraps a tool-using agent loop in a strict state machine, an append-only event
+history, configurable safety policies, a provider-neutral interface, and a sandboxed
+application-tools layer for file and shell work. Whether you build a coding agent, an ops
+agent, a research agent, or long-running automation, Soteria answers the questions most
+agent frameworks leave to chance:
 
 1. What is the agent doing *right now*?
 2. Why did this run stop?
@@ -25,65 +31,69 @@ Soteria is an open-source Python **product** built around the **hernness agent r
 5. Which tool calls actually executed?
 6. Can the run be reproduced without calling a paid model again?
 
-> ⚠️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
+> �️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
+> testing, and local prototypes; it is **not production-ready**.
 
 <div align="center">
 
-[`pip install hernness`](#install) · [Quickstart](#quickstart) · [Configuration](#configuration) · [Providers](#providers) · [Application tools](#application-tools) · [CLI](#cli)
+[`Install`](#install) · [Quickstart](#quickstart) · [Configuration](#configuration) ·
+[Providers](#providers) · [Application tools](#application-tools) · [CLI](#cli) ·
+[Examples](#examples)
 
 </div>
 
 ---
 
-## Naming cheat-sheet
+## Two names, one runtime
 
 | Name | What it is | Where you see it |
 |---|---|---|
-| **Soteria** | The product / umbrella project | This README, the GitHub repo name, the brand |
-| **hernness** | The agent runtime inside Soteria | `pip install hernness`, `import hernness`, `hernness` CLI |
-| **HERNNESS\_\*** | The agent's environment variables | `HERNNESS_PROVIDER`, `HERNNESS_MODEL`, `HERNNESS_TOOLS_REQUIRE_APPROVAL`, … |
-| **`hernness` command** | The agent's CLI | `hernness doctor`, `hernness chat`, `hernness runs inspect …` |
+| **Soteria** | The product / umbrella project | This README, the GitHub repo, the brand |
+| **hernness** | The agent runtime you install | `pip install hernness`, `import hernness`, `hernness` CLI |
+| **`HERNNESS_*`** | The runtime's environment variables | `HERNNESS_PROVIDER`, `HERNNESS_MODEL`, `HERNNESS_TOOLS_REQUIRE_APPROVAL`, … |
+| **`hernness` command** | The runtime's CLI | `hernness doctor`, `hernness chat`, `hernness runs inspect …` |
 
-In short: Soteria is the product you evaluate; hernness is the runtime you install and run.
+Soteria is the product you evaluate; hernness is the runtime you install and run.
 
 ---
 
 ## Why a runtime for AI agents?
 
-Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. They are fast to demo and brittle in production:
+Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. Fast to
+demo, brittle in production:
 
-| Pain in a typical agent | What actually breaks | How the hernness agent handles it |
+| Pain in a typical agent | What actually breaks | How hernness handles it |
 |---|---|---|
-| Repeated tool calls | The model asks `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run before the third duplicate, citing `StopReason.REPEATED_ACTION`. |
-| Runaway token usage | The loop spins into oblivion and the bill surprises you. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; `token_accounting_available` flags responses that omit usage. |
-| Provider lock-in | Switching from one vendor to another means rewriting the agent. | `HERNNESS_PROVIDER` chooses `ollama`, `minimax`, `anthropic`, or `openai` without touching agent code. |
-| Process restart loses state | You restart, the model re-asks, the external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` re-uses completed tool-call IDs so duplicates are impossible. |
-| No audit trail | "What did the agent actually do?" is unanswerable. | Every state transition, tool call, and policy trigger is an immutable event in an append-only log. |
-| Stop reason is a guess | "Why did it stop?" produces folklore. | Every terminal run records one `StopReason` from a 13-value enum. |
-| Lost tool side effects | A crash between `TOOL_STARTED` and `TOOL_COMPLETED` either replays or hides the call. | Resume refuses to proceed if a started tool has no durable result; you decide, not the runtime. |
+| Repeated tool calls | `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run citing `StopReason.REPEATED_ACTION`. |
+| Runaway token usage | Loop spins, bill surprises. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; missing usage is flagged. |
+| Provider lock-in | Switching vendors rewrites the agent. | `HERNNESS_PROVIDER` chooses `ollama` / `minimax` / `anthropic` / `openai` with no agent code change. |
+| Process restart loses state | Restart, model re-asks, external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` skips already-completed tool-call IDs. |
+| No audit trail | "What did the agent actually do?" is unanswerable. | Every transition, call, and policy trigger is an immutable append-only event. |
+| Stop reason is folklore | "Why did it stop?" has no answer. | One `StopReason` from a 13-value enum per terminal run. |
+| Lost tool side effects | Crash between `TOOL_STARTED` and `TOOL_COMPLETED` replays or hides the call. | Resume refuses to proceed if a started tool has no durable result; you decide. |
 
-A real incident timeline that motivates the design:
-
-```mermaid
-flowchart LR
-    A[Tool call sent] --> B[Process killed<br/>mid-flight]
-    B --> C[Operator restarts<br/>& runs again]
-    C --> D[Tool fires<br/>a SECOND time]
-    D --> E[Billing double-charge<br/>+ customer impact]
-```
-
-The hernness agent turns that into:
+The motivating incident timeline:
 
 ```mermaid
 flowchart LR
-    A[Tool call sent] --> B[TOOL_COMPLETED event<br/>persisted to SQLite]
-    B --> C[Process killed<br/>mid-flight]
-    C --> D[Operator resumes<br/>via runtime.resume&#40;run_id&#41;]
-    D --> E[Already-completed<br/>tool-call ID skipped]
-    E --> F[Tool fires<br/>exactly ONCE]
+    A[Tool call sent] --> B[Process killed mid-flight]
+    B --> C[Operator restarts and runs again]
+    C --> D[Tool fires a SECOND time]
+    D --> E[Billing double-charge + customer impact]
 ```
 
-The integrity tests prove this — see `tests/test_resume.py::test_interrupt_after_tool_result_resumes_without_duplicate_side_effect`.
+Hernness turns that into:
+
+```mermaid
+flowchart LR
+    A[Tool call sent] --> B[TOOL_COMPLETED event persisted to SQLite]
+    B --> C[Process killed mid-flight]
+    C --> D[Operator resumes via runtime.resume&#40;run_id&#41;]
+    D --> E[Already-completed tool-call ID skipped]
+    E --> F[Tool fires exactly ONCE]
+```
+
+Proven by `tests/test_resume.py::test_interrupt_after_tool_result_resumes_without_duplicate_side_effect`.
 
 ---
 
@@ -102,36 +112,25 @@ flowchart LR
     Store --> Trace[TraceInspector]
 ```
 
-- An explicit, validated execution state machine (8 states, 4 terminal).
-- An append-only, per-run event history with sequence invariants.
-- Step, runtime, token, repetition, error, and no-progress policies.
-- Configurable provider request timeouts (checked between operations, not preemptive mid-call).
-- In-memory and durable SQLite event stores.
-- Checkpoints and `resume(run_id)` with completed tool-call ID tracking.
-- A provider-neutral `ModelProvider` Protocol with built-in adapters for **Ollama** (local), **MiniMax**, **Anthropic**, and any **OpenAI-compatible** endpoint.
-- Deterministic `FakeProvider` so tests never need an API key.
-- Chronological text and structured traces.
-- One explicit `StopReason` per terminal run (13 enum values).
-- Optional long-term memory via the `LetheMemoryAdapter`.
-- **Application tools** — `read_file`, `write_file`, `run_shell` — scoped to a fixed workspace root and a docker sandbox by default.
+- **State machine**: 12 explicit states, 4 terminal (COMPLETED, FAILED, STOPPED, CANCELLED), every transition validated.
+- **Event history**: append-only per-run log with sequence invariants.
+- **Policies**: step, runtime, token, repetition, consecutive-error, no-progress, plus provider and tool timeouts.
+- **Stores**: in-memory (tests) and SQLite (production runs).
+- **Checkpoints** + `resume(run_id)` with completed-tool-call-ID tracking.
+- **Provider-neutral** `ModelProvider` Protocol with built-in adapters for **Ollama**, **MiniMax**, **Anthropic**, and any **OpenAI-compatible** endpoint.
+- **Deterministic** `FakeProvider` so tests never need an API key.
+- **Traces** in chronological text or structured JSON.
+- **Stop reason**: one of 13 enum values, persisted with every terminal run.
+- **Optional long-term memory** via `LetheMemoryAdapter`.
+- **Application tools**: workspace-scoped `read_file` / `write_file` / `edit_file` / `glob` / `grep` / `workspace_map` / `git_status`, sandboxed `run_shell`, planning, sub-agent `task`, and `web_fetch` / `web_search`.
 
 ---
 
 ## Install
 
-You install the **hernness agent runtime**, not Soteria itself. The runtime is the installable artifact; Soteria is the product name around it.
+Requires **Python 3.11+**. The core runtime depends only on **Pydantic**.
 
-Requires **Python 3.11** or newer.
-
-### Stable install (when published)
-
-```bash
-python -m pip install hernness
-```
-
-The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
-
-### From this repository (development)
+### From this repository
 
 ```bash
 git clone https://github.com/Fqih/Soteria.git
@@ -143,23 +142,36 @@ python -m pip install -e ".[dev]"
 
 | Extra | Adds | When you need it |
 |---|---|---|
-| `[live-benchmark]` | `httpx`, `matplotlib` | Running `python benchmark/run_benchmark.py` and live case-study charts |
-| `[providers]` | `httpx` | Talking to MiniMax, Anthropic, or OpenAI-compatible endpoints |
-| `[sandbox]` | `docker` (docker-py) | Using the `run_shell` application tool against a real Docker daemon |
-| `[mcp]` | `mcp` | Authoring MCP servers or using SDK transports beyond stdio |
+| `[dev]` | pytest, mypy, ruff, coverage | Local development + test runs |
+| `[providers]` | `httpx` | Talking to MiniMax, Anthropic, or any OpenAI-compatible endpoint |
+| `[sandbox]` | `docker` (docker-py) | Using `run_shell` against a real Docker daemon |
+| `[live-benchmark]` | `httpx`, `matplotlib` | Running `python benchmark/run_benchmark.py` and reproducing case-study charts |
+| `[mcp]` | `mcp` SDK | Authoring MCP servers or using SDK transports beyond stdio |
 
 ```bash
 # Most common: providers + sandbox + dev tooling
 python -m pip install -e ".[dev,providers,sandbox]"
 ```
 
-The `[sandbox]` extra is required only for `run_shell`; everything else (chat, `FakeProvider`, SQLite event store, file tools) works without Docker.
+`[sandbox]` is required only for the `run_shell` tool. Everything else (chat REPL,
+`FakeProvider`, SQLite store, file tools) works without Docker.
+
+### Verify the install
+
+```bash
+hernness doctor
+```
+
+This prints the resolved provider / model / endpoint without sending any HTTP request —
+the cheapest possible smoke test.
 
 ---
 
 ## Configuration
 
-The hernness agent is configured through the `HERNNESS_` environment-variable family. Set these once per shell (or persist to `~/.zshrc` / `~/.bashrc` via the `hernness chat` first-run wizard) and every agent run picks them up.
+Hernness is configured through the `HERNNESS_*` environment-variable family. Set them
+once per shell (or persist to `~/.zshrc` / `~/.bashrc` via the `hernness chat` first-run
+wizard) and every run picks them up.
 
 ### Environment variables
 
@@ -170,26 +182,22 @@ The hernness agent is configured through the `HERNNESS_` environment-variable fa
 | `HERNNESS_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
 | `HERNNESS_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
 | `HERNNESS_<PROVIDER>_MODEL` | no | Provider-specific model override |
+| `HERNNESS_MINIMAX_API_STYLE` | no | `anthropic` (default) or `openai` |
 | `HERNNESS_DATABASE_PATH` | no | SQLite path; empty = in-memory |
 | `HERNNESS_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
 | `HERNNESS_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
 | `HERNNESS_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
-| `HERNNESS_TOOLS_REQUIRE_APPROVAL` | no | Comma-separated tool names that gate on `approval_callback` |
+| `HERNNESS_PERMISSION_MODE` | no | `default` / `accept_edits` / `plan` / `bypass` |
+| `HERNNESS_TOOLS_REQUIRE_APPROVAL` | no | Comma-separated tool names that gate on the approval callback |
 
-### Setup in four steps
-
-**1. Pick a provider.**
+### Pick a provider and export
 
 | Provider | Local? | Needs API key | Default style |
 |---|---|---|---|
 | `ollama` | yes | no | `/api/chat` |
-| `minimax` | no | yes | Anthropic-compatible (`/anthropic/v1/messages`) |
+| `minimax` | no | yes | Anthropic-compatible |
 | `anthropic` | no | yes | Anthropic Messages API |
 | `openai` | no | yes | OpenAI Chat Completions |
-
-**2. Export the variables.**
-
-Use `getpass` for keys if you put them in scripts. The names follow `HERNNESS_<PROVIDER>_<FIELD>`:
 
 ```bash
 # Ollama (local, no key)
@@ -201,7 +209,7 @@ export HERNNESS_MODEL=llama3.1
 export HERNNESS_PROVIDER=minimax
 export HERNNESS_MODEL=MiniMax-M3
 export HERNNESS_MINIMAX_API_KEY='paste-real-key-here'
-# optional: export HERNNESS_MINIMAX_API_STYLE=anthropic  # or "openai"
+# optional: export HERNNESS_MINIMAX_API_STYLE=anthropic   # or "openai"
 # optional: export HERNNESS_MINIMAX_BASE_URL=https://api.minimax.io
 
 # Anthropic
@@ -216,26 +224,21 @@ export HERNNESS_OPENAI_API_KEY='paste-real-key-here'
 # optional: export HERNNESS_OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-`HERNNESS_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
+Use `getpass` if you script the export. See [`.env.example`](.env.example) for a full
+template — placeholders only, never commit real keys.
 
-**3. Verify without burning API credits.**
-
-```bash
-hernness doctor
-```
-
-This prints the resolved endpoint, the chosen provider/model, and whether `ConfigError` would be raised at provider construction — all without sending an HTTP request.
-
-**4. Smoke-test against the real model.**
+### Smoke-test
 
 ```bash
-HERNNESS_PROVIDER=minimax \
-HERNNESS_MODEL=MiniMax-M3 \
-HERNNESS_MINIMAX_API_KEY='paste-real-key-here' \
-hernness chat --workspace-root .
+hernness doctor                       # verifies config without an HTTP call
+hernness chat --workspace-root .      # interactive REPL, drives one run per input
 ```
 
-On a fresh machine with no `HERNNESS_PROVIDER` set, `hernness chat` launches an **interactive first-run wizard** that asks for the provider, hidden-prompt API key, and model. At the end it offers (defaulting to **No**) to persist the variables to `~/.zshrc` or `~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you type `y`/`yes`.
+On a fresh machine with no `HERNNESS_PROVIDER` set, `hernness chat` launches an
+**interactive first-run wizard** that asks for the provider, hidden-prompt API key, and
+model. At the end it offers (default **No**) to persist the variables to `~/.zshrc` or
+`~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you
+type `y`/`yes`.
 
 A single factory builds the right provider from the environment:
 
@@ -249,16 +252,19 @@ provider = build_provider_from_env()  # raises ConfigError if anything required 
 
 ## Providers
 
-The hernness agent ships with four built-in provider adapters. All four read configuration through the `HERNNESS_`-prefixed environment; agent code never touches URLs or keys directly.
+Hernness ships with four built-in adapters. All read configuration through the
+`HERNNESS_`-prefixed environment; agent code never touches URLs or keys directly.
 
 | Provider | Adapter | Notes |
 |---|---|---|
-| Ollama | `OllamaProvider` | Local HTTP at `http://localhost:11434`, no key. Default for offline testing. |
-| MiniMax | `MiniMaxProvider` | Anthropic-compatible or OpenAI-compatible style. URL/key configurable. |
-| Anthropic | `AnthropicProvider` | Native Messages API. |
-| OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — works for OpenAI, vLLM, llama.cpp, etc. |
+| Ollama | `OllamaProvider` | Local HTTP, no key. Default for offline development. |
+| MiniMax | `MiniMaxProvider` | Anthropic-compatible (default) or OpenAI-compatible style. |
+| Anthropic | `AnthropicProvider` | Native Anthropic Messages API. |
+| OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — OpenAI, vLLM, llama.cpp, etc. |
 
-Each adapter exposes the same `ModelProvider` Protocol, so swapping providers is a one-line change. The deterministic `FakeProvider` records scripted `ModelResponse`s so tests never need an API key.
+Every adapter implements the same `ModelProvider` Protocol, so swapping providers is a
+one-line change. `FakeProvider` records scripted `ModelResponse`s so tests never need an
+API key:
 
 ```python
 from hernness import AgentRuntime, FakeProvider, ModelResponse
@@ -274,12 +280,15 @@ runtime = AgentRuntime(
 
 ## Quickstart
 
-This example makes one typed tool call and then completes without an API key:
+One typed tool call, then a final reply, no API key required:
 
 ```python
 import asyncio
 from pydantic import BaseModel
-from hernness import AgentRuntime, FunctionTool, ModelResponse, ToolCall
+
+from hernness import (
+    AgentRuntime, FunctionTool, ModelResponse, TokenUsage, ToolCall,
+)
 from hernness.providers import FakeProvider
 
 
@@ -293,19 +302,24 @@ async def add(arguments: AddArguments) -> object:
 
 
 async def main() -> None:
-    runtime = AgentRuntime(
-        provider=FakeProvider(
-            [
-                ModelResponse(
-                    tool_call=ToolCall(
-                        tool_call_id="add-1",
-                        name="add",
-                        arguments={"left": 2, "right": 3},
-                    )
+    provider = FakeProvider(
+        [
+            ModelResponse(
+                tool_call=ToolCall(
+                    tool_call_id="addition-1", name="add",
+                    arguments={"left": 2, "right": 3},
                 ),
-                ModelResponse(content="The sum is 5."),
-            ]
-        ),
+                usage=TokenUsage(input_tokens=12, output_tokens=5),
+            ),
+            ModelResponse(
+                content="The sum is 5.",
+                usage=TokenUsage(input_tokens=18, output_tokens=6),
+            ),
+        ]
+    )
+
+    runtime = AgentRuntime(
+        provider=provider,
         tools=[
             FunctionTool(
                 name="add",
@@ -315,424 +329,181 @@ async def main() -> None:
             )
         ],
     )
-    result = await runtime.run("Add 2 and 3.")
-    trace = await runtime.inspect(result.run_id)
-    print(result.status, result.stop_reason, result.output)
-    print(trace.to_text())
+    result = await runtime.run("What is 2 + 3?")
+    print(result.status.value, result.stop_reason.value, result.output)
 
 
 asyncio.run(main())
 ```
 
-The complete runnable version is [examples/basic_agent.py](examples/basic_agent.py).
-
-### Switching to a real LLM
-
-Replace the `FakeProvider` with one of the built-in adapters and let the factory pick it up from the environment:
-
-```python
-from hernness.config import build_provider_from_env
-from hernness import AgentRuntime
-
-provider = build_provider_from_env()  # reads HERNNESS_PROVIDER + HERNNESS_MODEL
-runtime = AgentRuntime(provider=provider, tools=[...])
-result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
-```
+`examples/basic_agent.py` ships this runnable end-to-end.
 
 ---
 
 ## Application tools
 
-Beyond user-defined `FunctionTool`s, the hernness agent ships ready-to-use tools for the two things every coding/ops agent needs: **reading/writing files** and **running shell commands**. Both are scoped to a single workspace root per run; shell execution runs in an ephemeral docker container by default.
+`hernness.app_tools` is the optional-but-default toolkit for code-writing and ops agents.
+All tools plug in via the existing `FunctionTool` / `ToolRegistry` contract — no change
+to the runtime, the state machine, or the event log.
 
-```bash
-python -m pip install -e ".[sandbox]"   # adds docker-py for run_shell
-```
+| Tool | Module | What it does |
+|---|---|---|
+| `read_file` | `file_tools.read_file_tool` | Read a file inside the active workspace. |
+| `write_file` | `file_tools.write_file_tool` | Write (overwrite) a file inside the active workspace. |
+| `edit_file` | `edit_file.edit_file_tool` | Surgical string replacement (requires unique match unless `replace_all=True`). |
+| `glob` | `glob_tool.glob_tool` | Enumerate files matching a glob, paths returned relative to workspace root. |
+| `grep` | `grep_tool.grep_tool` | Regex search with optional `include_glob` and `context_lines`. |
+| `workspace_map` | `workspace_map.workspace_map_tool` | Compact file map + recently-modified files. |
+| `git_status` | `git_status.git_status_tool` | Branch, modified files, optional untracked files. |
+| `run_shell` | `shell_tool.run_shell_tool` | One shell command inside an ephemeral Docker container. |
+| `plan_tasks` | `plan_tasks.plan_tasks_tool` | Declare / update / complete a structured execution plan. |
+| `submit_plan` | `plan_tool.submit_plan_tool` | Record the active run's plan for `permission_mode=plan`. |
+| `task` | `task_tool.task_tool` | Dispatch an isolated sub-agent run (`explore` or `general`). |
+| `web_fetch` | `web_fetch.web_fetch_tool` | HTTP GET with a hard `max_bytes` cap; http/https only. |
+| `web_search` | `web_search.web_search_tool` | Web search via DuckDuckGo HTML; no API key required. |
 
-### File tools — `read_file`, `write_file`
+### Workspace safety
 
-Bind a workspace once per run, then hand the tools to `AgentRuntime`:
+`Workspace(root).validate_path(...)` rejects `../`, symlink escapes, absolute-path
+escapes, and null bytes **before** any I/O. `validate_for_write` also refuses to follow
+symlinks at the leaf or any parent; `write_file` and `edit_file` open with `O_NOFOLLOW`
+on POSIX as a second line of defense. There is no path the model can ask for that exits
+the workspace root.
+
+### Shell sandbox
+
+`SandboxExecutor` wraps docker-py. Each `run_shell` call:
+
+- creates a fresh container (`remove=True`),
+- runs with `network_mode="none"` (default — fully offline),
+- applies a `mem_limit` (default `256m`) and `cpu_quota` (default `50000`),
+- times out via the runtime's `LoopPolicy.tool_timeout_seconds`,
+- removes the container before returning.
+
+`run_shell` **never** calls `subprocess` on the host. The sandbox is the only path to
+the shell.
+
+### Wiring tools into the runtime
 
 ```python
-from pathlib import Path
-from hernness import AgentRuntime
-from hernness.app_tools.workspace import Workspace
-from hernness.app_tools.file_tools import (
-    bind_workspace,
-    read_file_tool,
-    write_file_tool,
-)
+from contextlib import contextmanager
 
-workspace = Workspace(Path("./project"), create=True)
-provider = build_provider_from_env()
-
-with bind_workspace(workspace):
-    runtime = AgentRuntime(
-        provider=provider,
-        tools=[read_file_tool(), write_file_tool()],
-    )
-    result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
-```
-
-`Workspace.validate_path()` rejects every `../`, absolute-path, and symlink-escape attempt **before** the file is opened. The `write_file` tool opens with `O_NOFOLLOW` on POSIX so a symlink inside the workspace cannot redirect a write to an external target after validation.
-
-### Shell tool — `run_shell`
-
-The shell tool **never** calls `subprocess` on the host. Every invocation goes through `SandboxExecutor`, which spawns a fresh docker container with `remove=True`, `network_mode="none"` (configurable), a memory cap, and a CPU quota. The container is removed as soon as the command exits.
-
-```python
-from hernness.app_tools.sandbox import SandboxExecutor
-from hernness.app_tools.file_tools import bind_workspace
+from hernness import AgentRuntime, FunctionTool
+from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from hernness.app_tools.shell_tool import bind_sandbox, run_shell_tool
+from hernness.app_tools.sandbox import SandboxExecutor
 from hernness.app_tools.workspace import Workspace
 
-workspace = Workspace(Path("./project"), create=True)
-executor = SandboxExecutor(
-    image="python:3.12-slim",
-    mem_limit="256m",
-    network_mode="none",
-    timeout_seconds=30.0,
-)
+workspace = Workspace("/srv/agent-workspace")
+sandbox = SandboxExecutor(network_mode="none", mem_limit="256m")
 
-with bind_workspace(workspace), bind_sandbox(executor):
+with bind_workspace(workspace), bind_sandbox(sandbox):
     runtime = AgentRuntime(
         provider=provider,
         tools=[read_file_tool(), write_file_tool(), run_shell_tool()],
     )
-    result = await runtime.run("Run the test suite and report failures.")
+    result = await runtime.run("Add a Makefile to the workspace root.")
 ```
 
-The container's working directory is fixed to `/workspace` so the agent cannot reach the host filesystem outside what the operator explicitly mounts. The docker client is injectable — production code passes `docker.from_env()`; tests pass a fake client that records the container config.
+The workspace binding is required — calling `read_file` / `write_file` / `run_shell`
+outside a `bind_workspace(...)` block raises `WorkspaceNotBoundError` /
+`SandboxNotBoundError`. This prevents the runtime from ever reaching the host filesystem
+without an explicit workspace decision.
 
-### Approval gating
+### Approval policy
 
-For tools that should never run without an explicit operator check (e.g. `run_shell` in production), set `HERNNESS_TOOLS_REQUIRE_APPROVAL`:
-
-```bash
-export HERNNESS_TOOLS_REQUIRE_APPROVAL=run_shell,write_file
-```
-
-Then wire the policy into `AgentRuntime`:
+`HERNNESS_TOOLS_REQUIRE_APPROVAL` is a comma- or whitespace-separated list of tool
+names that must wait for explicit operator approval before the runtime executes them.
+Tools not in the list are auto-approved without invoking any callback. For 0.1 the
+built-in callback denies listed tools (returning `False` so the runtime stops with
+`StopReason.POLICY_DENIED`); wrap with `on_require=...` to escalate to an interactive
+prompter:
 
 ```python
 from hernness.app_tools.approval import build_approval_callback
-from hernness import AgentRuntime
 
-runtime = AgentRuntime(
-    provider=provider,
-    tools=[run_shell_tool(), write_file_tool()],
-    approval_callback=build_approval_callback(),
+callback = build_approval_callback(
+    on_require=lambda call: print(f"approving {call.name}({call.arguments})"),
 )
+runtime = AgentRuntime(provider=provider, tools=[...], approval_callback=callback)
 ```
-
-Tool names in the list trigger the approval callback before invocation; tools outside the list auto-approve without any callback. Wrap `build_approval_callback()` with your own `on_require` hook to escalate to an interactive prompt.
-
----
-
-## Optional Lethe context management
-
-Lethe is a separate package that holds long-term memories outside the hernness agent's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Soteria's tests ship a local fake.
-
-```python
-from lethe import MemoryStore
-from hernness import AgentRuntime, FakeProvider, ModelResponse
-from hernness.integrations.lethe import LetheMemoryAdapter
-
-memory = LetheMemoryAdapter(MemoryStore(), recall_k=5)
-
-async def main() -> None:
-    runtime = AgentRuntime(
-        provider=FakeProvider([ModelResponse(content="ok")]),
-        memory=memory,
-    )
-    result = await runtime.run("Continue the previous plan.")
-```
-
-Install Lethe separately in the application environment:
-
-```bash
-python -m pip install lethe
-```
-
-If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/hernness/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
 
 ---
 
 ## CLI
 
-The `hernness` command reads a SQLite database path and exposes four subcommands:
+```bash
+hernness [-d DATABASE] <command> [args]
+```
+
+| Command | What it does |
+|---|---|
+| `hernness doctor` | Verify `HERNNESS_*` configuration without an HTTP call. |
+| `hernness chat [-d DATABASE] [--workspace-root PATH]` | Interactive REPL; one `AgentRuntime.run` per input. First run with no provider triggers the setup wizard. |
+| `hernness runs list` | Print one line per run: `RUN_ID`, `STATE`, `STOP_REASON`, `STEPS`. |
+| `hernness runs inspect RUN_ID` | Render the chronological trace (text). |
+| `hernness runs resume RUN_ID` | Resume a persisted run whose latest checkpoint uses the built-in `FakeProvider` and has no pending tool call. |
+
+The chat REPL accepts slash commands:
+
+| Slash command | Action |
+|---|---|
+| `/provider` | Print provider / model / base URL / key-presence. |
+| `/inspect RUN_ID` | Render a stored trace. |
+| `/resume RUN_ID` | Resume a stored run. |
+| `/skills` | List skills under `<workspace>/.soteria/skills`. |
+| `/skill NAME` | Inject a skill body as the next user turn. |
+| `/quit` / `/exit` | Exit the REPL. |
+
+---
+
+## Examples
+
+`examples/` ships runnable Python files, all offline (no API key needed):
+
+| File | Demonstrates |
+|---|---|
+| `examples/basic_agent.py` | One typed tool call followed by a final response. |
+| `examples/repeated_action.py` | Deterministic repeated-action containment before the third side effect. |
+| `examples/resume_after_interrupt.py` | Interrupt mid-flight, reopen SQLite, resume without replaying side effects. |
+| `examples/app_tools_demo.py` | Workspace + file tools + permissive approval; walks the runtime through a one-step file edit. |
+| `examples/live_providers/` | Real-API smoke tests for each provider (require `HERNNESS_*` keys). |
+
+Run any of them:
 
 ```bash
-# Inspect the persisted event log
-hernness --database hernness.db runs list
-hernness --database hernness.db runs inspect RUN_ID
-hernness --database hernness.db runs resume RUN_ID
-
-# Interactive REPL — one AgentRuntime turn per line
-HERNNESS_PROVIDER=ollama \
-HERNNESS_MODEL=llama3.1 \
-HERNNESS_OLLAMA_BASE_URL=http://localhost:11434 \
-hernness chat --workspace-root $(pwd)
-
-# Verify provider config without making an HTTP call
-hernness doctor
+python examples/basic_agent.py
+python examples/repeated_action.py
+python examples/resume_after_interrupt.py
+python examples/app_tools_demo.py
 ```
-
-Inside the chat REPL:
-
-```text
-Hernness
-Provider: ollama
-Model: llama3.1
-Workspace: /home/user/project
-Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit
-You > Explain this repository
-Hernness [completed/completed] steps=2 run_id=01HK…
-> …answer…
-You > /provider
-Provider: ollama
-Model: llama3.1
-Base URL: http://localhost:11434
-API key configured: False
-You > /quit
-```
-
-Slash commands:
-
-- `/provider` — print provider / model / base URL / key presence (never the key itself).
-- `/inspect RUN_ID` — reuse `TraceInspector` to render a run.
-- `/resume RUN_ID` — reuse `AgentRuntime.resume`.
-- `/quit` / `/exit` — exit cleanly; the SQLite store is closed in `finally`.
-
-The chat subcommand uses the same `build_provider_from_env`, `Workspace`, `bind_workspace`, and `AgentRuntime` that application code uses; it does not introduce a second agent loop.
-
-Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
-
-### `hernness doctor`
-
-`doctor` reads `os.environ` and reports which `HERNNESS_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
-
-```bash
-$ hernness doctor
-HERNNESS provider: MiniMax
-HERNNESS model: MiniMax-M3
-base URL: https://api.minimax.io
-API style: anthropic
-endpoint: https://api.minimax.io/anthropic/v1/messages
-API key configured: True
-
-Result: OK. Provider config is buildable.
-```
-
-If anything is missing, `doctor` lists the missing variable names and exits non-zero so it can be used in CI.
-
----
-
-## Deterministic benchmark
-
-The included benchmark compares a minimal raw loop with the hernness agent across **eight scripted scenarios**. On the latest local run:
-
-| Metric | Minimal raw loop | Hernness |
-|---|---:|---:|
-| Loop containment rate | 0.0% | 100.0% |
-| Resume success rate | 0.0% | 100.0% |
-| Duplicate side-effect count | 6 | 0 |
-| Terminal completeness | 0.0% | 100.0% |
-| Mean steps | 5.00 | 1.88 |
-
-These fake-provider results measure **runtime behavior**, not model intelligence. An external six-step harness stops runaway raw-loop scenarios and is not counted as containment. Wall-clock timings vary by machine. See [benchmark/RESULTS.md](benchmark/RESULTS.md) for the complete results and methodology.
-
-Regenerate them with:
-
-```bash
-python benchmark/run_benchmark.py
-```
-
-### What the benchmark proves
-
-```mermaid
-flowchart TB
-    subgraph "Raw loop"
-        R1[Tool call] --> R2{No policy}
-        R2 -->|spins| R3[Duplicate side effects]
-        R2 -->|runs out| R4[External cap stops it]
-    end
-    subgraph "Hernness"
-        L1[Tool call] --> L2{Policy fingerprint check}
-        L2 -->|new| L3[Execute]
-        L2 -->|duplicate x3| L4[Stop: REPEATED_ACTION]
-        L3 --> L5[Checkpoint + persist]
-    end
-    R3 -.is NOT.-> X[Runtime containment]
-    L4 --> X
-    X --> Y[100% Hernness containment, 0% raw]
-```
-
----
-
-## Live agent case study (MiniMax M3)
-
-> **Small, non-reproducible, illustrative run against a real model — not a benchmark claim.**
-
-The checked-in artifacts come from a **single real run** against `MiniMax-M3` (provider `minimax`, api_style `anthropic`, endpoint `https://api.minimax.io/anthropic/v1/messages`). The JSON source for the charts is [`benchmark/live/example_output/example_results.json`](benchmark/live/example_output/example_results.json); numbers below are derived from that file, not hand-entered.
-
-### Why bother running this at all?
-
-The deterministic benchmark uses `FakeProvider` — it measures the runtime, not the model. The live case study answers a complementary question: **does the hernness agent's policy machinery still fire when a real model is making real mistakes?** Three scenarios, three runs each, two approaches (raw vs. Hernness), one model. Snapshot, not statistic.
-
-### Repetition containment (n=3 runs per approach)
-
-![Repetition containment — minimax / MiniMax-M3 (n=3 runs per approach)](benchmark/live/example_output/repetition_containment.png)
-
-| Approach | Contained runs (n=3) | Stop reason | Outcome |
-|---|---:|---|---|
-| **Raw loop** | 0/3 | manual cap (external fence, not Hernness containment) | tool fired multiple times until manual safety cap |
-| **Hernness** | **3/3** | `REPEATED_ACTION` | policy stopped before the duplicate became a side effect |
-
-### Normal completion comparison (n=3 runs per approach)
-
-![Normal completion comparison — minimax / MiniMax-M3 (n=3 runs per approach)](benchmark/live/example_output/normal_completion_comparison.png)
-
-| Approach | Mean steps (n=3) | Mean wall-clock (n=3) | Token accounting |
-|---|---:|---:|---|
-| Raw loop | 1.67 | 4.09 s | available |
-| Hernness | 1.67 | 5.08 s | available |
-
-### Cost vs. estimate
-
-| Quantity | Value |
-|---|---:|
-| Pre-flight upper-bound estimate (CLI) | **$0.3318 USD** for 108 steps |
-| Actual input tokens (all 15 records) | 7,327 |
-| Actual output tokens (all 15 records) | 1,830 |
-| Actual cost at MiniMax M3 standard rates ($0.30 / M input, $1.20 / M output) | **$0.0044 USD** |
-| Records with `token_accounting_available=False` | **0 / 15** |
-
-Real spend landed ~75× below the upper bound because model responses were short and `--input-tokens-per-step 2048` was conservative. The CLI explicitly labels the estimate as "upper-bound estimate, not a bill."
-
-### Why this isn't a benchmark
-
-- **n=3** is a snapshot, not statistical evidence.
-- One model, one style, one timestamp.
-- Real provider behaviour changes; the JSON in this repo is from the run captured at commit `0d8b984`.
-- The raw loop's manual safety cap is **not** runtime containment.
-
-A second, genuinely OpenAI API run with `--provider openai` is also supported. See [benchmark/live/README.md](benchmark/live/README.md) for provider-specific environment variables, explicit cost-consent flag, pricing requirements, and reproduction commands.
-
----
-
-## Repeated-action containment
-
-Tool fingerprints include the normalized tool name and canonical JSON arguments, but exclude the tool-call ID. With `repeated_action_limit=3`, the third consecutive identical request triggers `POLICY_TRIGGERED` and stops before that third invocation:
-
-```python
-policy = LoopPolicy(
-    repeated_action_limit=3,
-    no_progress_window=10,
-)
-```
-
-Run [examples/repeated_action.py](examples/repeated_action.py) to see the full trace and side-effect count.
-
----
-
-## Durable resume
-
-Use `SQLiteEventStore` when a run must survive process restart:
-
-```python
-store = SQLiteEventStore("hernness.db")
-runtime = AgentRuntime(
-    provider=provider,
-    tools=[tool],
-    event_store=store,
-)
-
-result = await runtime.resume("existing-run-id")
-await store.close()
-```
-
-If interruption occurs after a `TOOL_COMPLETED` event but before its next checkpoint, resume reconciles the event tail and does **not** execute that completed tool-call ID again. See [examples/resume_after_interrupt.py](examples/resume_after_interrupt.py).
-
----
-
-## Architecture in one picture
-
-```mermaid
-flowchart LR
-    Task[User task] --> Runtime[AgentRuntime state machine]
-    Runtime --> Provider[ModelProvider]
-    Runtime --> Registry[ToolRegistry]
-    Runtime --> Policy[LoopPolicy]
-    Runtime --> Progress[ProgressDetector]
-    Runtime --> Store[EventStore]
-    Store --> Memory[In-memory]
-    Store --> SQLite[SQLite]
-    Store --> Trace[TraceInspector]
-```
-
-The runtime dispatches one handler per state. State changes pass through a central validator and are persisted. SQLite transactions group run creation, state metadata updates, checkpoints, and terminalization with their associated events.
-
----
-
-## Stop reasons
-
-`StopReason` distinguishes successful completion, policy containment, caller cancellation, and operational failure:
-
-- **Limits:** `MAX_STEPS`, `MAX_RUNTIME`, `TOKEN_BUDGET_EXCEEDED`
-- **Heuristics:** `REPEATED_ACTION`, `NO_PROGRESS`
-- **Errors / policy:** `CONSECUTIVE_ERRORS`, `POLICY_DENIED`, `PROVIDER_ERROR`, `TOOL_ERROR`, `INVALID_MODEL_RESPONSE`, `INTERNAL_ERROR`
-- **Lifecycle:** `COMPLETED`, `USER_CANCELLED`
-
-Exact enum values are lowercase when serialized.
-
----
-
-## Important limitations
-
-- Repetition and no-progress detection are exact deterministic heuristics, not semantic loop detection.
-- Runtime limits are checked between model and tool operations. The hernness agent does **not** preempt a tool already in flight.
-- If any provider response omits usage, token accounting is marked unavailable; the runtime never treats missing usage as zero.
-- SQLite v0.1 assumes normal single-process use. There is no distributed lease or multi-process scheduler.
-- Tool calls execute serially. Parallel calls, MCP, OpenTelemetry, approval UIs, and replay are deferred.
-- A `TOOL_STARTED` event without a durable result is intentionally treated as **unsafe** to resume automatically because the external side effect is uncertain.
-- The event schema has no migration system yet.
 
 ---
 
 ## Development
 
 ```bash
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,providers,sandbox]"
 ruff check .
 ruff format --check .
 mypy src/hernness
 pytest
-python -m build
 ```
 
-Run the offline examples and benchmark:
+Quality gates (from `pyproject.toml`):
 
-```bash
-python examples/basic_agent.py
-python examples/repeated_action.py
-python examples/resume_after_interrupt.py
-python benchmark/run_benchmark.py
-```
+- **ruff** lint + format — line-length 100, strict per-file ignores for `examples/`, `benchmark/`.
+- **mypy** strict on `src/hernness` (Pydantic plugin enabled).
+- **pytest** `--strict-config --strict-markers`, asyncio mode auto.
+- **coverage** branch coverage, fail-under 90%.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [DESIGN.md](DESIGN.md), and the deep
-technical reference in [project.md](project.md) for module-by-module
-documentation covering every public type, the state machine, the event
-log, providers, the live benchmark harness, and the quality gates.
-
----
-
-## Project status
-
-Version 0.1.0 is under active development. The state and event schemas should be treated as unstable until a compatibility and migration policy is published. Production provider adapters and multi-process safety are deliberately out of scope for this release.
+The `pytest` suite does not require Docker — `SandboxExecutor` accepts an injectable
+client so the suite injects a fake and asserts the container configuration that would
+be sent to docker. Live Docker integration is opt-in, same pattern as
+`benchmark/live/tests/`.
 
 ---
 
 ## License
 
-Soteria and the hernness agent runtime are available under the [MIT License](LICENSE).
+MIT — see [`LICENSE`](LICENSE).
