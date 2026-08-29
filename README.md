@@ -1,22 +1,22 @@
 <div align="center">
 
-![Hernness logo](logo.png)
+![Soteria logo](logo.png)
 
-# Hernness
+# Soteria
 
 **A provider-agnostic reliability runtime for bounded, observable, resumable, and replayable AI agent loops.**
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
-Configure the `HERNNESS_` environment once, drive it from any Python entry point — the bundled `hernness` CLI, your own script, or a long-running service.
+Soteria is the product. The agent runtime inside is called **hernness** — that is what you `pip install`, what the CLI is named, and what the `HERNNESS_*` environment variables configure. This README explains both names and how they fit together.
 
 </div>
 
 ---
 
-## About
+## What is Soteria?
 
-Hernness is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Hernness gives you the safety net most agent frameworks leave to chance:
+Soteria is an open-source Python **product** built around the **hernness agent runtime**. Hernness wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, a provider-neutral interface, and a sandboxed application-tools layer for file and shell work. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Soteria gives you the safety net most agent frameworks leave to chance:
 
 1. What is the agent doing *right now*?
 2. Why did this run stop?
@@ -25,7 +25,7 @@ Hernness is an open-source Python runtime that wraps your tool-using agent loop 
 5. Which tool calls actually executed?
 6. Can the run be reproduced without calling a paid model again?
 
-> ⚠️ Hernness 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
+> ⚠️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
 
 <div align="center">
 
@@ -35,11 +35,24 @@ Hernness is an open-source Python runtime that wraps your tool-using agent loop 
 
 ---
 
-## Why a Python runtime for AI agents?
+## Naming cheat-sheet
+
+| Name | What it is | Where you see it |
+|---|---|---|
+| **Soteria** | The product / umbrella project | This README, the GitHub repo name, the brand |
+| **hernness** | The agent runtime inside Soteria | `pip install hernness`, `import hernness`, `hernness` CLI |
+| **HERNNESS\_\*** | The agent's environment variables | `HERNNESS_PROVIDER`, `HERNNESS_MODEL`, `HERNNESS_TOOLS_REQUIRE_APPROVAL`, … |
+| **`hernness` command** | The agent's CLI | `hernness doctor`, `hernness chat`, `hernness runs inspect …` |
+
+In short: Soteria is the product you evaluate; hernness is the runtime you install and run.
+
+---
+
+## Why a runtime for AI agents?
 
 Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. They are fast to demo and brittle in production:
 
-| Pain in a typical agent | What actually breaks | How Hernness handles it |
+| Pain in a typical agent | What actually breaks | How the hernness agent handles it |
 |---|---|---|
 | Repeated tool calls | The model asks `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run before the third duplicate, citing `StopReason.REPEATED_ACTION`. |
 | Runaway token usage | The loop spins into oblivion and the bill surprises you. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; `token_accounting_available` flags responses that omit usage. |
@@ -59,7 +72,7 @@ flowchart LR
     D --> E[Billing double-charge<br/>+ customer impact]
 ```
 
-Hernness turns that into:
+The hernness agent turns that into:
 
 ```mermaid
 flowchart LR
@@ -106,31 +119,47 @@ flowchart LR
 
 ## Install
 
-Python 3.11 or newer. For development from this repository:
+You install the **hernness agent runtime**, not Soteria itself. The runtime is the installable artifact; Soteria is the product name around it.
 
-```bash
-python -m pip install -e ".[dev]"
-```
+Requires **Python 3.11** or newer.
 
-For the optional live provider, sandbox, and benchmark extras:
-
-```bash
-python -m pip install -e ".[live-benchmark,providers,sandbox]"
-```
-
-When the 0.1 package is published, the runtime-only installation will be:
+### Stable install (when published)
 
 ```bash
 python -m pip install hernness
 ```
 
-The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies. The `docker` extra is required only for `run_shell`; everything else works without it.
+The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
+
+### From this repository (development)
+
+```bash
+git clone https://github.com/Fqih/Soteria.git
+cd Soteria
+python -m pip install -e ".[dev]"
+```
+
+### Optional extras
+
+| Extra | Adds | When you need it |
+|---|---|---|
+| `[live-benchmark]` | `httpx`, `matplotlib` | Running `python benchmark/run_benchmark.py` and live case-study charts |
+| `[providers]` | `httpx` | Talking to MiniMax, Anthropic, or OpenAI-compatible endpoints |
+| `[sandbox]` | `docker` (docker-py) | Using the `run_shell` application tool against a real Docker daemon |
+| `[mcp]` | `mcp` | Authoring MCP servers or using SDK transports beyond stdio |
+
+```bash
+# Most common: providers + sandbox + dev tooling
+python -m pip install -e ".[dev,providers,sandbox]"
+```
+
+The `[sandbox]` extra is required only for `run_shell`; everything else (chat, `FakeProvider`, SQLite event store, file tools) works without Docker.
 
 ---
 
 ## Configuration
 
-Hernness is a Python-based harness agent. You configure it once via environment variables (the `HERNNESS_` family), then drive it from any Python entry point — the bundled `hernness` CLI, your own script, or a long-running service.
+The hernness agent is configured through the `HERNNESS_` environment-variable family. Set these once per shell (or persist to `~/.zshrc` / `~/.bashrc` via the `hernness chat` first-run wizard) and every agent run picks them up.
 
 ### Environment variables
 
@@ -220,7 +249,7 @@ provider = build_provider_from_env()  # raises ConfigError if anything required 
 
 ## Providers
 
-Hernness ships with four built-in provider adapters. All four read configuration through the `HERNNESS_`-prefixed environment; agent code never touches URLs or keys directly.
+The hernness agent ships with four built-in provider adapters. All four read configuration through the `HERNNESS_`-prefixed environment; agent code never touches URLs or keys directly.
 
 | Provider | Adapter | Notes |
 |---|---|---|
@@ -314,7 +343,7 @@ result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
 
 ## Application tools
 
-Beyond user-defined `FunctionTool`s, Hernness ships ready-to-use tools for the two things every coding/ops agent needs: **reading/writing files** and **running shell commands**. Both are scoped to a single workspace root per run; shell execution runs in an ephemeral docker container by default.
+Beyond user-defined `FunctionTool`s, the hernness agent ships ready-to-use tools for the two things every coding/ops agent needs: **reading/writing files** and **running shell commands**. Both are scoped to a single workspace root per run; shell execution runs in an ephemeral docker container by default.
 
 ```bash
 python -m pip install -e ".[sandbox]"   # adds docker-py for run_shell
@@ -402,7 +431,7 @@ Tool names in the list trigger the approval callback before invocation; tools ou
 
 ## Optional Lethe context management
 
-Lethe is a separate package that holds long-term memories outside Hernness's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Hernness's tests ship a local fake.
+Lethe is a separate package that holds long-term memories outside the hernness agent's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Soteria's tests ship a local fake.
 
 ```python
 from lethe import MemoryStore
@@ -501,7 +530,7 @@ If anything is missing, `doctor` lists the missing variable names and exits non-
 
 ## Deterministic benchmark
 
-The included benchmark compares a minimal raw loop with Hernness across **eight scripted scenarios**. On the latest local run:
+The included benchmark compares a minimal raw loop with the hernness agent across **eight scripted scenarios**. On the latest local run:
 
 | Metric | Minimal raw loop | Hernness |
 |---|---:|---:|
@@ -549,7 +578,7 @@ The checked-in artifacts come from a **single real run** against `MiniMax-M3` (p
 
 ### Why bother running this at all?
 
-The deterministic benchmark uses `FakeProvider` — it measures the runtime, not the model. The live case study answers a complementary question: **does Hernness's policy machinery still fire when a real model is making real mistakes?** Three scenarios, three runs each, two approaches (raw vs. Hernness), one model. Snapshot, not statistic.
+The deterministic benchmark uses `FakeProvider` — it measures the runtime, not the model. The live case study answers a complementary question: **does the hernness agent's policy machinery still fire when a real model is making real mistakes?** Three scenarios, three runs each, two approaches (raw vs. Hernness), one model. Snapshot, not statistic.
 
 ### Repetition containment (n=3 runs per approach)
 
@@ -662,8 +691,8 @@ Exact enum values are lowercase when serialized.
 ## Important limitations
 
 - Repetition and no-progress detection are exact deterministic heuristics, not semantic loop detection.
-- Runtime limits are checked between model and tool operations. Hernness does **not** preempt a tool already in flight.
-- If any provider response omits usage, token accounting is marked unavailable; Hernness never treats missing usage as zero.
+- Runtime limits are checked between model and tool operations. The hernness agent does **not** preempt a tool already in flight.
+- If any provider response omits usage, token accounting is marked unavailable; the runtime never treats missing usage as zero.
 - SQLite v0.1 assumes normal single-process use. There is no distributed lease or multi-process scheduler.
 - Tool calls execute serially. Parallel calls, MCP, OpenTelemetry, approval UIs, and replay are deferred.
 - A `TOOL_STARTED` event without a durable result is intentionally treated as **unsafe** to resume automatically because the external side effect is uncertain.
@@ -706,4 +735,4 @@ Version 0.1.0 is under active development. The state and event schemas should be
 
 ## License
 
-Hernness is available under the [MIT License](LICENSE).
+Soteria and the hernness agent runtime are available under the [MIT License](LICENSE).
