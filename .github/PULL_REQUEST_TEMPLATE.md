@@ -1,6 +1,6 @@
 ---
 name: Pull request
-about: Propose changes to the Soteria runtime or its tooling
+about: Propose changes to the Hernness runtime or its tooling
 title: ""
 labels:---
 
@@ -23,12 +23,12 @@ labels:---
 
 ## Provider or state-machine changes
 
-If your PR touches `src/soteria_loop/providers/` or
-`src/soteria_loop/runtime.py`, confirm:
+If your PR touches `src/hernness/providers/` or
+`src/hernness/runtime.py`, confirm:
 
 - [ ] No change to the public `ModelProvider` Protocol contract
 - [ ] No change to the `STOP_REASONS_BY_STATE` mapping without
-  updating `src/soteria_loop/state.py` and the README stop-reasons list
+  updating `src/hernness/state.py` and the README stop-reasons list
 - [ ] No change to event ordering or sequence invariants
 
 ## Docs

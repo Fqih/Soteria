@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Soteria are recorded here. Versions follow
+All notable changes to Hernness are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/). The first public release
 is **0.1.0**.
 
@@ -8,27 +8,27 @@ is **0.1.0**.
 
 ### Added
 
-- `src/soteria_loop/config.py` — single-entry `build_provider_from_env`
-  factory that dispatches `SOTERIA_PROVIDER` to the right provider
+- `src/hernness/config.py` — single-entry `build_provider_from_env`
+  factory that dispatches `HERNNESS_PROVIDER` to the right provider
   config (`ollama`, | `minimax`, | `anthropic`, | `openai`).
-- `src/soteria_loop/providers/ollama.py` — native `/api/chat` adapter.
-- `src/soteria_loop/providers/anthropic.py` — Messages API adapter
+- `src/hernness/providers/ollama.py` — native `/api/chat` adapter.
+- `src/hernness/providers/anthropic.py` — Messages API adapter
   with `tool_use` block parsing.
-- `src/soteria_loop/providers/openai_compatible.py` — OpenAI
+- `src/hernness/providers/openai_compatible.py` — OpenAI
   Chat-Completions adapter that also covers self-hosted gateways.
-- `src/soteria_loop/providers/minimax.py` — new `from_soteria_env`
+- `src/hernness/providers/minimax.py` — new `from_soteria_env`
   constructor alongside the legacy benchmark `from_env` path.
-- `src/soteria_loop/app_tools/workspace.py` — `Workspace` class and
+- `src/hernness/app_tools/workspace.py` — `Workspace` class and
   `validate_path` helper. Rejects `..`, absolute escapes, symlink
   leaves, null bytes, and empty strings.
-- `src/soteria_loop/app_tools/approval.py` — `build_approval_callback`
-  reading `SOTERIA_TOOLS_REQUIRE_APPROVAL`.
-- `src/soteria_loop/app_tools/file_tools.py` — `read_file_tool` and
+- `src/hernness/app_tools/approval.py` — `build_approval_callback`
+  reading `HERNNESS_TOOLS_REQUIRE_APPROVAL`.
+- `src/hernness/app_tools/file_tools.py` — `read_file_tool` and
   `write_file_tool` bound through `bind_workspace`.
-- `src/soteria_loop/chat.py` — interactive REPL that drives one
+- `src/hernness/chat.py` — interactive REPL that drives one
   `AgentRuntime.run(...)` invocation per user line. Slash commands:
   `/provider`, / `/inspect RUN_ID`, / `/resume RUN_ID`, / `/quit`.
-- `soteria-loop chat` — new CLI subcommand (slice 0.4 of the
+- `hernness chat` — new CLI subcommand (slice 0.4 of the
   roadmap). Delegates to existing `build_provider_from_env`,
   `Workspace`, `bind_workspace`, file tools, and `SQLiteEventStore`.
 - `.env.example` — empty placeholder template.

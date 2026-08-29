@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "soteria-loop"
+name = "hernness"
 version = "0.1.0"
 description = "Reliable execution infrastructure for long-running AI agents."
 readme = "README.md"
@@ -48,14 +48,14 @@ sandbox = [
 ]
 mcp = [
   # MCP servers are launched as subprocesses that speak JSON-RPC over stdio.
-  # Soteria itself does not depend on the upstream `mcp` SDK — it ships a
+  # Hernness itself does not depend on the upstream `mcp` SDK — it ships a
   # minimal JSON-RPC client. Install this extra only when you want the
   # richer SDK helpers (server authoring, transports beyond stdio).
   "mcp>=1.0",
 ]
 
 [project.scripts]
-soteria-loop = "soteria_loop.cli:main"
+hernness = "hernness.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Fqih/Soteria"
@@ -63,7 +63,7 @@ Repository = "https://github.com/Fqih/Soteria"
 Issues = "https://github.com/Fqih/Soteria/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/soteria_loop"]
+packages = ["src/hernness"]
 
 [tool.pytest.ini_options]
 addopts = "--strict-config --strict-markers"
@@ -72,7 +72,7 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["soteria_loop"]
+source = ["hernness"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -103,7 +103,7 @@ select = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["soteria_loop"]
+packages = ["hernness"]
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 

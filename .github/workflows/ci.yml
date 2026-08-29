@@ -28,7 +28,7 @@ jobs:
       - name: Ruff format
         run: ruff format --check .
       - name: Mypy
-        run: mypy src/soteria_loop
+        run: mypy src/hernness
       - name: Tests
         run: pytest
       - name: Build

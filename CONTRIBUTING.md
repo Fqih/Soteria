@@ -1,6 +1,6 @@
-# Contributing to Soteria
+# Contributing to Hernness
 
-Soteria welcomes focused changes that improve boundedness, observability,
+Hernness welcomes focused changes that improve boundedness, observability,
 recovery, or safety without expanding the project into a general agent
 framework.
 
@@ -25,7 +25,7 @@ Run the same gates used by CI:
 ```bash
 ruff check .
 ruff format --check .
-mypy src/soteria_loop
+mypy src/hernness
 pytest
 python -m build
 ```

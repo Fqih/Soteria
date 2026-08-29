@@ -1,4 +1,4 @@
-# Soteria — project reference
+# Hernness — project reference
 
 A Python runtime for safe, observable AI agents. This document is the deep
 technical reference for contributors and operators. The README stays short
@@ -9,7 +9,7 @@ every state-machine invariant, and every CLI / API surface.
 
 ## 1. Mission and scope
 
-Soteria answers the six questions every agent operator eventually asks:
+Hernness answers the six questions every agent operator eventually asks:
 
 1. What is the agent doing *right now*?
 2. Why did this run stop?
@@ -27,7 +27,7 @@ It does so by wrapping a tool-using agent loop in:
 - A **provider-neutral `ModelProvider` Protocol** with built-in adapters for
   `FakeProvider`, `OllamaProvider`, `MiniMaxProvider`, `AnthropicProvider`,
   and `OpenAICompatibleProvider`.
-- A **`SOTERIA_`-prefixed env-var factory** (`config.build_provider_from_env`)
+- A **`HERNNESS_`-prefixed env-var factory** (`config.build_provider_from_env`)
   that dispatches a single env block to the right provider without touching
   agent code.
 - A **pluggable event store** with in-memory and SQLite implementations.
@@ -36,7 +36,7 @@ It does so by wrapping a tool-using agent loop in:
 - A **`LetheMemoryAdapter`** for long-term context recall outside the
   operational event log.
 - A **`app_tools/` package** of safe-by-construction file and shell tools
-  bound to a fixed workspace, plus an `SOTERIA_TOOLS_REQUIRE_APPROVAL`
+  bound to a fixed workspace, plus an `HERNNESS_TOOLS_REQUIRE_APPROVAL`
   approval policy read from the environment.
 
 The core runtime depends only on Pydantic. `httpx` is an optional
@@ -47,33 +47,33 @@ renderer; `docker` is an optional dependency reserved for the next
 
 ### 1.1 Direction: model-agnostic CLI assistant
 
-Soteria is positioned to grow into a **terminal-based AI assistant** that
+Hernness is positioned to grow into a **terminal-based AI assistant** that
 plugs into any provider the operator chooses — local Ollama for offline
 work, Anthropic or OpenAI for hosted quality, MiniMax for vendor
 flexibility. The pieces that make that direction viable are already
 in place:
 
-- Provider selection is one env var (`SOTERIA_PROVIDER`), not a code edit.
+- Provider selection is one env var (`HERNNESS_PROVIDER`), not a code edit.
 - Every provider shares the same `ModelProvider` Protocol contract, so
   the CLI / runtime code is identical regardless of backend.
 - `app_tools/` gives the assistant a safe-by-construction toolbox
   (read_file, write_file, future run_shell through a sandbox).
 - The SQLite event store means a long assistant session can be paused
   and resumed, and the operator can inspect its history with
-  `soteria-loop runs inspect RUN_ID`.
+  `hernness runs inspect RUN_ID`.
 
-The CLI is currently a database inspector (`soteria-loop runs list /
-inspect / resume`) plus a `soteria-loop chat` REPL that wires a
+The CLI is currently a database inspector (`hernness runs list /
+inspect / resume`) plus a `hernness chat` REPL that wires a
 runtime + `app_tools/` + the env-driven provider into an interactive
-session, and `soteria-loop doctor` that verifies the env without an
+session, and `hernness doctor` that verifies the env without an
 HTTP call. The roadmap below (§26) tracks the remaining slices.
 
 ---
 
-## 2. Public API surface (`src/soteria_loop/__init__.py`)
+## 2. Public API surface (`src/hernness/__init__.py`)
 
 ```python
-from soteria_loop import (
+from hernness import (
     AgentEvent,
     AgentRuntime,
     Checkpoint,
@@ -105,13 +105,13 @@ from soteria_loop import (
 __version__ = "0.1.0"
 ```
 
-The distribution name is `soteria-loop` (PyPI-friendly hyphen); the Python
-package name is `soteria_loop` (hyphens are illegal in module names).
-The CLI entry point is `soteria-loop`.
+The distribution name is `hernness` (PyPI-friendly hyphen); the Python
+package name is `hernness` (hyphens are illegal in module names).
+The CLI entry point is `hernness`.
 
 ---
 
-## 3. Core runtime (`src/soteria_loop/runtime.py`)
+## 3. Core runtime (`src/hernness/runtime.py`)
 
 `AgentRuntime` owns the lifecycle of one run at a time. A single runtime
 instance serializes its own runs because a provider may maintain cursor
@@ -235,7 +235,7 @@ or after every tool call. `resume(run_id)`:
 
 ---
 
-## 4. Domain models (`src/soteria_loop/models.py`)
+## 4. Domain models (`src/hernness/models.py`)
 
 `SoteriaModel` is the strict base:
 
@@ -261,7 +261,7 @@ model.
 
 ---
 
-## 5. State machine (`src/soteria_loop/state.py`)
+## 5. State machine (`src/hernness/state.py`)
 
 Eight states, four terminal:
 
@@ -312,7 +312,7 @@ map to `FAILED`. `COMPLETED` maps to `COMPLETED`. `USER_CANCELLED` maps to
 
 ---
 
-## 6. Event log (`src/soteria_loop/events.py`)
+## 6. Event log (`src/hernness/events.py`)
 
 | EventType | When | Key payload |
 |---|---|---|
@@ -339,7 +339,7 @@ map to `FAILED`. `COMPLETED` maps to `COMPLETED`. `USER_CANCELLED` maps to
 
 ---
 
-## 7. Policies (`src/soteria_loop/policies.py`)
+## 7. Policies (`src/hernness/policies.py`)
 
 ```python
 @dataclass(frozen=True)
@@ -362,7 +362,7 @@ accounting is available; otherwise `None`.
 
 ---
 
-## 8. Progress detection (`src/soteria_loop/progress.py`)
+## 8. Progress detection (`src/hernness/progress.py`)
 
 `ProgressDetector` records three histories:
 
@@ -377,7 +377,7 @@ immediately preceding `limit` actions. `no_progress(window)` returns
 
 ---
 
-## 9. Tools (`src/soteria_loop/tools.py`)
+## 9. Tools (`src/hernness/tools.py`)
 
 `ToolRegistry` rejects duplicate names (`DuplicateToolError`) and unknown
 tools (`ToolNotFoundError`). `FunctionTool` wraps a `BaseModel`
@@ -403,7 +403,7 @@ detector and the `TOOL_REQUESTED` event.
 
 ---
 
-## 10. Event stores (`src/soteria_loop/storage/`)
+## 10. Event stores (`src/hernness/storage/`)
 
 `EventStore` is a Protocol with:
 
@@ -473,7 +473,7 @@ pending application tool are recoverable.
 
 ---
 
-## 11. Tracing (`src/soteria_loop/tracing.py`)
+## 11. Tracing (`src/hernness/tracing.py`)
 
 `TraceInspector` walks a stored run's events and emits one `TraceEntry`
 per row:
@@ -492,7 +492,7 @@ view suitable for `runs inspect`. The CLI prints it after the summary.
 
 ---
 
-## 12. Provider adapters (`src/soteria_loop/providers/`)
+## 12. Provider adapters (`src/hernness/providers/`)
 
 ### 12.1 Protocol
 
@@ -520,7 +520,7 @@ Native `/api/chat` endpoint (default `http://localhost:11434`). Tool
 schema follows the OpenAI-compat shape (`type=function` blocks). Usage
 fields `prompt_eval_count` and `eval_count` are returned only when the
 response is finished; when absent, `usage` is left as `None`. The
-optional `SOTERIA_OLLAMA_API_KEY` adds a Bearer header for setups that
+optional `HERNNESS_OLLAMA_API_KEY` adds a Bearer header for setups that
 front the server with a reverse proxy.
 
 ### 12.4 `MiniMaxProvider` (`providers/minimax.py`)
@@ -530,10 +530,10 @@ Supports both `openai` and `anthropic` API styles. Two env conventions:
 - **Live-benchmark (legacy)**: `MODEL_MINIMAX`, `BASE_URL`,
   `MINIMAX_API_STYLE`, and a style-dependent `OPENAI_AUTH_TOKEN` (openai)
   or `AUTH_TOKEN` (anthropic). Read via `MiniMaxConfig.from_env`.
-- **`SOTERIA_` (official)**: `SOTERIA_MINIMAX_API_KEY` (required),
-  `SOTERIA_MINIMAX_BASE_URL` (default `https://api.minimax.io`),
-  `SOTERIA_MINIMAX_MODEL` (fallback to `SOTERIA_MODEL`),
-  `SOTERIA_MINIMAX_API_STYLE` (default `anthropic`). Read via
+- **`HERNNESS_` (official)**: `HERNNESS_MINIMAX_API_KEY` (required),
+  `HERNNESS_MINIMAX_BASE_URL` (default `https://api.minimax.io`),
+  `HERNNESS_MINIMAX_MODEL` (fallback to `HERNNESS_MODEL`),
+  `HERNNESS_MINIMAX_API_STYLE` (default `anthropic`). Read via
   `MiniMaxConfig.from_soteria_env`.
 
 The private token attribute `_soteria_api_key` takes precedence over the
@@ -549,7 +549,7 @@ joined into a top-level `system` field. `tool_use` blocks become
 ### 12.6 `OpenAICompatibleProvider` (`providers/openai_compatible.py`)
 
 `POST <base_url>/chat/completions` with Bearer auth. Default base URL
-`https://api.openai.com/v1`. Override `SOTERIA_OPENAI_BASE_URL` for
+`https://api.openai.com/v1`. Override `HERNNESS_OPENAI_BASE_URL` for
 self-hosted gateways (vLLM, llama.cpp server, Together, ...). Parses via
 the shared `parse_openai_response` helper.
 
@@ -574,46 +574,46 @@ live benchmark stay verbatim.
 
 ---
 
-## 13. Config loader (`src/soteria_loop/config.py`)
+## 13. Config loader (`src/hernness/config.py`)
 
 ```python
 build_provider_from_env(environ=None, *, max_completion_tokens=1024,
                         request_timeout_seconds=30.0) -> Any
 ```
 
-Reads `SOTERIA_PROVIDER` (`ollama | minimax | anthropic | openai`) and
-`SOTERIA_MODEL`, then delegates to the matching
+Reads `HERNNESS_PROVIDER` (`ollama | minimax | anthropic | openai`) and
+`HERNNESS_MODEL`, then delegates to the matching
 `<Provider>Config.from_soteria_env`. Raises `ConfigError(ValueError)`
 with one actionable message per missing required variable.
 
 | Variable | Required | Default |
 |---|:---:|---|
-| `SOTERIA_PROVIDER` | yes | – |
-| `SOTERIA_MODEL` | yes | – |
-| `SOTERIA_<PROVIDER>_API_KEY` | per provider | – |
-| `SOTERIA_<PROVIDER>_BASE_URL` | no | provider-specific |
-| `SOTERIA_<PROVIDER>_MODEL` | no | falls back to `SOTERIA_MODEL` |
-| `SOTERIA_DATABASE_PATH` | no | in-memory |
-| `SOTERIA_MAX_TOTAL_TOKENS` | no | `50000` |
-| `SOTERIA_MAX_RUNTIME_SECONDS` | no | `120.0` |
-| `SOTERIA_REPEATED_ACTION_LIMIT` | no | `3` |
+| `HERNNESS_PROVIDER` | yes | – |
+| `HERNNESS_MODEL` | yes | – |
+| `HERNNESS_<PROVIDER>_API_KEY` | per provider | – |
+| `HERNNESS_<PROVIDER>_BASE_URL` | no | provider-specific |
+| `HERNNESS_<PROVIDER>_MODEL` | no | falls back to `HERNNESS_MODEL` |
+| `HERNNESS_DATABASE_PATH` | no | in-memory |
+| `HERNNESS_MAX_TOTAL_TOKENS` | no | `50000` |
+| `HERNNESS_MAX_RUNTIME_SECONDS` | no | `120.0` |
+| `HERNNESS_REPEATED_ACTION_LIMIT` | no | `3` |
 
 `apply_runtime_overrides(policy_kwargs, environ)` populates
 `max_total_tokens`, `max_runtime_seconds`, and `repeated_action_limit`
-from `SOTERIA_MAX_TOTAL_TOKENS`, `SOTERIA_MAX_RUNTIME_SECONDS`, and
-`SOTERIA_REPEATED_ACTION_LIMIT`. Garbage raises immediately.
+from `HERNNESS_MAX_TOTAL_TOKENS`, `HERNNESS_MAX_RUNTIME_SECONDS`, and
+`HERNNESS_REPEATED_ACTION_LIMIT`. Garbage raises immediately.
 
-`database_path_from_env(environ)` returns the `SOTERIA_DATABASE_PATH`
+`database_path_from_env(environ)` returns the `HERNNESS_DATABASE_PATH`
 value (stripped) or `None` for in-memory storage.
 
 This is the single entry point the CLI uses to build its provider. The
 contract — never read provider config in two places — keeps the
-runtime, the live benchmark, and the upcoming `soteria-loop chat`
+runtime, the live benchmark, and the upcoming `hernness chat`
 subcommand all pointing at the same auth surface.
 
 ---
 
-## 13.b Application tools (`src/soteria_loop/app_tools/`)
+## 13.b Application tools (`src/hernness/app_tools/`)
 
 The `app_tools/` package is the safe-by-construction toolbox that the
 runtime hands to the model. It plugs into the existing
@@ -651,13 +651,13 @@ not closed by this module; `file_tools.py` uses `O_NOFOLLOW` on POSIX.
 ### 13.b.2 Approval policy (`app_tools/approval.py`)
 
 ```python
-from soteria_loop.app_tools.approval import build_approval_callback
+from hernness.app_tools.approval import build_approval_callback
 
-callback = build_approval_callback()   # reads SOTERIA_TOOLS_REQUIRE_APPROVAL
+callback = build_approval_callback()   # reads HERNNESS_TOOLS_REQUIRE_APPROVAL
 runtime = AgentRuntime(..., approval_callback=callback)
 ```
 
-Reads `SOTERIA_TOOLS_REQUIRE_APPROVAL` (comma- or whitespace-separated
+Reads `HERNNESS_TOOLS_REQUIRE_APPROVAL` (comma- or whitespace-separated
 list of tool names). Tools in the list → `False` (the runtime stops
 with `StopReason.POLICY_DENIED`). Tools not in the list → `True`
 (auto-approve, no callback invoked). Optional `on_require` hook lets
@@ -667,7 +667,7 @@ decision.
 ### 13.b.3 File tools (`app_tools/file_tools.py`)
 
 ```python
-from soteria_loop.app_tools.file_tools import (
+from hernness.app_tools.file_tools import (
     bind_workspace, read_file_tool, write_file_tool,
 )
 
@@ -687,7 +687,7 @@ tool is invoked outside a `bind_workspace` block, the call raises
 
 ---
 
-## 14. Lethe integration (`src/soteria_loop/integrations/lethe.py`)
+## 14. Lethe integration (`src/hernness/integrations/lethe.py`)
 
 ```python
 class MemoryProvider(Protocol):
@@ -708,18 +708,18 @@ shapes with a `MemoryProvider` fake.
 
 ---
 
-## 15. CLI (`src/soteria_loop/cli.py`)
+## 15. CLI (`src/hernness/cli.py`)
 
 ```bash
-soteria-loop --database soteria_loop.db runs list
-soteria-loop --database soteria_loop.db runs inspect RUN_ID
-soteria-loop --database soteria_loop.db runs resume RUN_ID
+hernness --database hernness.db runs list
+hernness --database hernness.db runs inspect RUN_ID
+hernness --database hernness.db runs resume RUN_ID
 
 # Interactive REPL — one AgentRuntime turn per line
-soteria-loop chat --workspace-root $(pwd)
+hernness chat --workspace-root $(pwd)
 
-# Verify SOTERIA_ provider config without HTTP
-soteria-loop doctor
+# Verify HERNNESS_ provider config without HTTP
+hernness doctor
 ```
 
 The CLI uses only the Python standard library (`argparse`, `sqlite3`,
@@ -729,21 +729,21 @@ one-line summary per row for `list`, prints `trace.to_text()` for
 cursor for `resume` (only for runs without a pending application tool).
 
 `chat` drives `AgentRuntime` interactively. On startup, when no
-`SOTERIA_PROVIDER` is set, it launches an interactive first-run wizard
+`HERNNESS_PROVIDER` is set, it launches an interactive first-run wizard
 (numbered menu, hidden API-key prompt via `getpass`) and, on consent,
-persists the resulting `SOTERIA_*` exports to `~/.zshrc` or `~/.bashrc`
+persists the resulting `HERNNESS_*` exports to `~/.zshrc` or `~/.bashrc`
 (delimited by `# >>> soteria setup >>>` markers, `chmod 0o600` on POSIX).
 Slash commands inside the REPL: `/provider`, `/inspect RUN_ID`,
 `/resume RUN_ID`, `/quit`.
 
 `doctor` reads `os.environ` (or an injected mapping) and prints which
-`SOTERIA_*` variables are present, which are missing, the resolved
+`HERNNESS_*` variables are present, which are missing, the resolved
 endpoint URL, and whether `ConfigError` would fire at provider
 construction time. It is purely synchronous and dependency-free, so it
-works on any machine where `soteria-loop` is installed, even without
+works on any machine where `hernness` is installed, even without
 network access.
 
-### 15.1 `doctor.py` (`src/soteria_loop/doctor.py`)
+### 15.1 `doctor.py` (`src/hernness/doctor.py`)
 
 Public surface:
 
@@ -751,7 +751,7 @@ Public surface:
   missing required vars and `ConfigError` both surface as report fields.
 - `render_report(report, *, out)` — print a human-readable summary that
   shows provider/model/endpoint/api-style but **never the API key**.
-- `main(argv=None)` — argparse wrapper for the `soteria-loop doctor`
+- `main(argv=None)` — argparse wrapper for the `hernness doctor`
   entry point. Exits non-zero when the report is not OK so the command
   is usable in CI.
 
@@ -763,7 +763,7 @@ what `chat` would actually hit.
 
 ---
 
-## 16. Exception hierarchy (`src/soteria_loop/exceptions.py`)
+## 16. Exception hierarchy (`src/hernness/exceptions.py`)
 
 ```
 SoteriaError
@@ -792,15 +792,15 @@ between `CONSECUTIVE_ERRORS` (retryable, count toward limit) and
 ## 17. Live benchmark (`benchmark/live/`)
 
 The live benchmark is opt-in and **spends real money**. It exists to
-exercise Soteria's policy machinery against a real model, not as a
+exercise Hernness's policy machinery against a real model, not as a
 performance claim.
 
 ### 17.1 Scenarios (`benchmark/live/scenarios.py`)
 
-Three scenarios, each with metadata about whether raw / Soteria / resume
+Three scenarios, each with metadata about whether raw / Hernness / resume
 are supported:
 
-| Scenario | Raw | Soteria | Resume |
+| Scenario | Raw | Hernness | Resume |
 |---|:---:|:---:|:---:|
 | `normal_completion` | ✓ | ✓ | – |
 | `repetition_prone` | ✓ | ✓ | – |
@@ -811,7 +811,7 @@ are supported:
 Two equivalent channels grant consent:
 
 - CLI flag `--i-understand-this-costs-money`.
-- Env var `SOTERIA_I_UNDERSTAND_THIS_COSTS_MONEY` set to `1`, `true`, or
+- Env var `HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY` set to `1`, `true`, or
   `yes` (case-insensitive).
 
 Missing both → exit code `2`, no provider module imported, no HTTP call.
@@ -824,7 +824,7 @@ Missing both → exit code `2`, no provider module imported, no HTTP call.
   and `OPENAI_OUTPUT_USD_PER_MILLION` are required.
 
 `estimate_upper_bound()` deliberately **over**-estimates by assuming both
-raw and Soteria approaches run for every (scenario, run_index) pair at
+raw and Hernness approaches run for every (scenario, run_index) pair at
 the configured token caps. The CLI prints it as
 `"~$X.XXXX USD across n=Y run(s) (Z steps total) — upper-bound
 estimate, not a bill"`.
@@ -833,9 +833,9 @@ estimate, not a bill"`.
 
 - `run_raw_loop(provider, scenario, manual_step_cap, max_completion_tokens)`
   — minimal `while True` loop, no policies, capped externally.
-- `run_soteria(provider, scenario, run_index)` — full runtime with
+- `run_hernness(provider, scenario, run_index)` — full runtime with
   repeated-action and token-budget policies.
-- `run_soteria_interrupted(provider_factory, scenario, run_index_inner)` —
+- `run_hernness_interrupted(provider_factory, scenario, run_index_inner)` —
   splits a run across two SQLite sessions to exercise the resume path.
 
 ### 17.5 Renderer (`benchmark/live/render.py`)
@@ -864,10 +864,10 @@ two PNGs exist with non-trivial size and a real PNG signature.
 
 ## 18. Deterministic benchmark (`benchmark/run_benchmark.py`)
 
-Eight scenarios compare a minimal raw loop with Soteria using
+Eight scenarios compare a minimal raw loop with Hernness using
 `FakeProvider`. Latest run (Linux, local):
 
-| Metric | Raw loop | Soteria |
+| Metric | Raw loop | Hernness |
 |---|---:|---:|
 | Loop containment rate | 0.0% | 100.0% |
 | Resume success rate | 0.0% | 100.0% |
@@ -901,7 +901,7 @@ containment. Wall-clock timings vary by machine. See
 | `test_tracing.py` | `RunTrace.to_text()` ordering and content. |
 | `test_lethe_integration.py` | Recall injection, answer persistence, no-memory default. |
 | `test_cli.py` | argparse, SQLite path handling, trace printing. |
-| `test_config.py` | `ConfigError` on missing required vars; per-provider SOTERIA_ wiring; `apply_runtime_overrides` integer/float parsing; `database_path_from_env` defaults. |
+| `test_config.py` | `ConfigError` on missing required vars; per-provider HERNNESS_ wiring; `apply_runtime_overrides` integer/float parsing; `database_path_from_env` defaults. |
 | `test_providers_http.py` | httpx-shaped fake client covering normal text, tool calls, HTTP 5xx, transport errors, missing usage, and `aclose` ownership. |
 
 `benchmark/live/tests/` adds offline coverage for the opt-in CLI:
@@ -916,26 +916,26 @@ containment. Wall-clock timings vary by machine. See
 
 | Variable | Required | Default | Notes |
 |---|:---:|---|---|
-| `SOTERIA_PROVIDER` | yes | – | `ollama` \| `minimax` \| `anthropic` \| `openai` |
-| `SOTERIA_MODEL` | yes | – | Default model name |
-| `SOTERIA_OLLAMA_BASE_URL` | no | `http://localhost:11434` | Native `/api/chat` |
-| `SOTERIA_OLLAMA_MODEL` | no | `SOTERIA_MODEL` | Override |
-| `SOTERIA_OLLAMA_API_KEY` | no | empty | Bearer header for reverse-proxy setups |
-| `SOTERIA_MINIMAX_API_KEY` | yes (minimax) | – | One key for both API styles |
-| `SOTERIA_MINIMAX_BASE_URL` | no | `https://api.minimax.io` | Bare host; suffix added per style |
-| `SOTERIA_MINIMAX_MODEL` | no | `SOTERIA_MODEL` | Override |
-| `SOTERIA_MINIMAX_API_STYLE` | no | `anthropic` | `anthropic` \| `openai` |
-| `SOTERIA_ANTHROPIC_API_KEY` | yes (anthropic) | – | |
-| `SOTERIA_ANTHROPIC_MODEL` | no | `claude-sonnet-4-6` | |
-| `SOTERIA_ANTHROPIC_BASE_URL` | no | `https://api.anthropic.com` | |
-| `SOTERIA_OPENAI_API_KEY` | yes (openai) | – | |
-| `SOTERIA_OPENAI_MODEL` | no | `SOTERIA_MODEL` | |
-| `SOTERIA_OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Override for self-hosted gateways |
-| `SOTERIA_DATABASE_PATH` | no | in-memory | Empty = `InMemoryEventStore` |
-| `SOTERIA_MAX_TOTAL_TOKENS` | no | `50000` | `LoopPolicy.max_total_tokens` |
-| `SOTERIA_MAX_RUNTIME_SECONDS` | no | `120.0` | `LoopPolicy.max_runtime_seconds` |
-| `SOTERIA_REPEATED_ACTION_LIMIT` | no | `3` | `LoopPolicy.repeated_action_limit` |
-| `SOTERIA_I_UNDERSTAND_THIS_COSTS_MONEY` | for live bench | – | `1` \| `true` \| `yes` (case-insensitive) |
+| `HERNNESS_PROVIDER` | yes | – | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `HERNNESS_MODEL` | yes | – | Default model name |
+| `HERNNESS_OLLAMA_BASE_URL` | no | `http://localhost:11434` | Native `/api/chat` |
+| `HERNNESS_OLLAMA_MODEL` | no | `HERNNESS_MODEL` | Override |
+| `HERNNESS_OLLAMA_API_KEY` | no | empty | Bearer header for reverse-proxy setups |
+| `HERNNESS_MINIMAX_API_KEY` | yes (minimax) | – | One key for both API styles |
+| `HERNNESS_MINIMAX_BASE_URL` | no | `https://api.minimax.io` | Bare host; suffix added per style |
+| `HERNNESS_MINIMAX_MODEL` | no | `HERNNESS_MODEL` | Override |
+| `HERNNESS_MINIMAX_API_STYLE` | no | `anthropic` | `anthropic` \| `openai` |
+| `HERNNESS_ANTHROPIC_API_KEY` | yes (anthropic) | – | |
+| `HERNNESS_ANTHROPIC_MODEL` | no | `claude-sonnet-4-6` | |
+| `HERNNESS_ANTHROPIC_BASE_URL` | no | `https://api.anthropic.com` | |
+| `HERNNESS_OPENAI_API_KEY` | yes (openai) | – | |
+| `HERNNESS_OPENAI_MODEL` | no | `HERNNESS_MODEL` | |
+| `HERNNESS_OPENAI_BASE_URL` | no | `https://api.openai.com/v1` | Override for self-hosted gateways |
+| `HERNNESS_DATABASE_PATH` | no | in-memory | Empty = `InMemoryEventStore` |
+| `HERNNESS_MAX_TOTAL_TOKENS` | no | `50000` | `LoopPolicy.max_total_tokens` |
+| `HERNNESS_MAX_RUNTIME_SECONDS` | no | `120.0` | `LoopPolicy.max_runtime_seconds` |
+| `HERNNESS_REPEATED_ACTION_LIMIT` | no | `3` | `LoopPolicy.repeated_action_limit` |
+| `HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY` | for live bench | – | `1` \| `true` \| `yes` (case-insensitive) |
 | `MODEL_MINIMAX` / `BASE_URL` / `AUTH_TOKEN` / `OPENAI_AUTH_TOKEN` | live bench (legacy) | – | Kept verbatim for reproduction |
 | `OPENAI_MODEL` / `OPENAI_API_KEY` / `OPENAI_BASE_URL` | live bench (legacy) | – | Kept verbatim for reproduction |
 | `OPENAI_INPUT_USD_PER_MILLION` / `OPENAI_OUTPUT_USD_PER_MILLION` | live bench (openai) | – | Required for OpenAI cost estimate |
@@ -981,7 +981,7 @@ responses were short and `--input-tokens-per-step 2048` was conservative.
 python -m pip install -e ".[dev]"
 ruff check .
 ruff format --check .
-mypy src/soteria_loop
+mypy src/hernness
 pytest
 python -m build
 ```
@@ -990,11 +990,11 @@ Current state (offline):
 
 | Gate | Result |
 |---|---|
-| `ruff check src/soteria_loop tests` | All checks passed |
-| `ruff format --check src/soteria_loop tests` | 43 files already formatted |
-| `mypy src/soteria_loop` (strict) | 27 files, no issues |
+| `ruff check src/hernness tests` | All checks passed |
+| `ruff format --check src/hernness tests` | 43 files already formatted |
+| `mypy src/hernness` (strict) | 27 files, no issues |
 | `pytest` | 163 passed in ~0.6 s |
-| `python -m build` | `soteria_loop-0.1.0-py3-none-any.whl` + `.tar.gz` |
+| `python -m build` | `hernness-0.1.0-py3-none-any.whl` + `.tar.gz` |
 
 ---
 
@@ -1002,9 +1002,9 @@ Current state (offline):
 
 - Repetition and no-progress detection are exact deterministic heuristics,
   not semantic loop detection.
-- Runtime limits are checked between operations; Soteria does **not**
+- Runtime limits are checked between operations; Hernness does **not**
   preempt a tool already in flight.
-- Missing provider usage leaves `token_accounting_available=False`; Soteria
+- Missing provider usage leaves `token_accounting_available=False`; Hernness
   never fabricates zeros.
 - SQLite v0.1 assumes normal single-process use. No distributed lease or
   multi-process scheduler.
@@ -1020,16 +1020,16 @@ Current state (offline):
 
 `pyproject.toml`:
 
-- Distribution name: `soteria-loop` (PyPI-friendly hyphen).
-- Python package: `soteria_loop` (hyphens are illegal in module names).
+- Distribution name: `hernness` (PyPI-friendly hyphen).
+- Python package: `hernness` (hyphens are illegal in module names).
 - Version: `0.1.0`.
-- Console script: `soteria-loop = soteria_loop.cli:main`.
+- Console script: `hernness = hernness.cli:main`.
 - Core dependency: `pydantic >= 2.8, < 3`.
 - Optional `[live-benchmark,providers]` extras pull `httpx >= 0.27`.
 - Optional `[live-benchmark]` extra additionally pulls `matplotlib >= 3.8`.
-- Hatchling build backend, wheel packages `src/soteria_loop`.
+- Hatchling build backend, wheel packages `src/hernness`.
 - mypy strict with `pydantic.mypy` plugin.
-- Coverage gate `fail_under = 90` on `soteria_loop`.
+- Coverage gate `fail_under = 90` on `hernness`.
 
 ---
 
@@ -1042,8 +1042,8 @@ Current state (offline):
 | **Checkpoint** | A snapshot of the runtime context (messages, detector history, completed tool-call IDs, user state, policy, provider metadata). The latest checkpoint is sufficient to continue a non-terminal run safely. |
 | **StopReason** | A 13-value enum describing why a run terminated. Always set on terminal `RunRecord`. |
 | **Fingerprint** | A canonical-JSON hash of the tool name + arguments (no tool_call_id) for repeated-action detection; or of the tool result for no-progress detection. |
-| **Token accounting** | Whether `ModelResponse.usage` was present. Soteria never invents zeros; `token_accounting_available=False` propagates to `RunResult`. |
-| **Containment** | A run that stopped due to a Soteria policy (e.g. `REPEATED_ACTION`). Distinct from "external safety cap" (a non-runtime fence). |
+| **Token accounting** | Whether `ModelResponse.usage` was present. Hernness never invents zeros; `token_accounting_available=False` propagates to `RunResult`. |
+| **Containment** | A run that stopped due to a Hernness policy (e.g. `REPEATED_ACTION`). Distinct from "external safety cap" (a non-runtime fence). |
 | **Idempotency key** | The tool-call fingerprint at the time of request. Used to skip already-completed tool-call IDs on resume. |
 
 ---
@@ -1057,7 +1057,7 @@ order that keeps each slice shippable and testable.
 
 ### 26.1 Why this direction
 
-- Operator's choice of model is one env var (`SOTERIA_PROVIDER`), not
+- Operator's choice of model is one env var (`HERNNESS_PROVIDER`), not
   a code change. The assistant binary stays identical whether the
   backend is Ollama on a developer laptop, Anthropic in a CI runner, or
   MiniMax behind a vendor proxy.
@@ -1073,28 +1073,28 @@ order that keeps each slice shippable and testable.
 | Slice | Scope | Status |
 |---|---|---|
 | **0.1** (released) | Provider-agnostic runtime, deterministic benchmark, live MiniMax M3 case study, 13-stop-reason state machine. | done |
-| **0.2** (released) | `SOTERIA_` env factory + Ollama / Anthropic / OpenAI-compatible adapters; `app_tools/` workspace + approval + read/write; project.md, CHANGELOG, Makefile, .github templates. | done |
-| **0.3** | `sandbox.py` + `shell_tool.py` using ephemeral Docker containers (`network_mode="none"`, `mem_limit`, `remove=True`). `SOTERIA_SANDBOX_*` env for image / cpu / mem overrides. | next |
-| **0.4** (released) | `soteria-loop chat` REPL: reads `SOTERIA_*` env, builds the runtime + `app_tools/`, accepts user input, prints streaming tool calls and final answers, persists every turn to SQLite. Interactive first-run wizard with hidden API-key input and opt-in shell-rc persistence (`~/.zshrc` / `~/.bashrc`, `chmod 0o600`). | done |
-| **0.4.1** (released) | `soteria-loop doctor` subcommand: verify `SOTERIA_*` env and resolved endpoint without sending an HTTP call. Exits non-zero when configuration is incomplete, so it doubles as a CI gate. | done |
-| **0.5** | `soteria-loop chat --resume RUN_ID` and `--resume-last` to pick up an interrupted session. The SQLite event store makes this almost free. | planned |
-| **0.6** | MCP adapter (`mcp_tool.py`): bridge between the runtime and any MCP server. Operator drops MCP server URLs into `SOTERIA_MCP_SERVERS`. | planned |
+| **0.2** (released) | `HERNNESS_` env factory + Ollama / Anthropic / OpenAI-compatible adapters; `app_tools/` workspace + approval + read/write; project.md, CHANGELOG, Makefile, .github templates. | done |
+| **0.3** | `sandbox.py` + `shell_tool.py` using ephemeral Docker containers (`network_mode="none"`, `mem_limit`, `remove=True`). `HERNNESS_SANDBOX_*` env for image / cpu / mem overrides. | next |
+| **0.4** (released) | `hernness chat` REPL: reads `HERNNESS_*` env, builds the runtime + `app_tools/`, accepts user input, prints streaming tool calls and final answers, persists every turn to SQLite. Interactive first-run wizard with hidden API-key input and opt-in shell-rc persistence (`~/.zshrc` / `~/.bashrc`, `chmod 0o600`). | done |
+| **0.4.1** (released) | `hernness doctor` subcommand: verify `HERNNESS_*` env and resolved endpoint without sending an HTTP call. Exits non-zero when configuration is incomplete, so it doubles as a CI gate. | done |
+| **0.5** | `hernness chat --resume RUN_ID` and `--resume-last` to pick up an interrupted session. The SQLite event store makes this almost free. | planned |
+| **0.6** | MCP adapter (`mcp_tool.py`): bridge between the runtime and any MCP server. Operator drops MCP server URLs into `HERNNESS_MCP_SERVERS`. | planned |
 | **0.7** | Multi-process scheduler for the SQLite store: a `LEASE_ID` column plus a background reaper so two operators can share a workspace without duplicate side effects. | deferred |
 
-### 26.3 `soteria-loop chat` — target shape
+### 26.3 `hernness chat` — target shape
 
 ```bash
 # 0.4 prototype: pick provider from env, open a chat run, persist every turn.
-SOTERIA_PROVIDER=ollama SOTERIA_MODEL=llama3.1 \
-SOTERIA_DATABASE_PATH=~/.soteria/chat.db \
-SOTERIA_WORKSPACE_ROOT=$(pwd) \
-soteria-loop chat
+HERNNESS_PROVIDER=ollama HERNNESS_MODEL=llama3.1 \
+HERNNESS_DATABASE_PATH=~/.soteria/chat.db \
+HERNNESS_WORKSPACE_ROOT=$(pwd) \
+hernness chat
 ```
 
 ```
-> Add a docstring to src/soteria_loop/foo.py.
-   ⟶ tool_call read_file(path="src/soteria_loop/foo.py")
-   ⟶ tool_call write_file(path="src/soteria_loop/foo.py", content="...")
+> Add a docstring to src/hernness/foo.py.
+   ⟶ tool_call read_file(path="src/hernness/foo.py")
+   ⟶ tool_call write_file(path="src/hernness/foo.py", content="...")
    ⟶ stop_reason=completed
 > /inspect
    run_id=01HK...  steps=3  duration=2.1s  tokens=482  status=COMPLETED
@@ -1110,7 +1110,7 @@ previous turn with `runs inspect RUN_ID`.
 ### 26.4 Decisions already locked in
 
 - **Provider neutrality stays at the runtime layer.** The CLI assistant
-  is a thin shell; it never branches on `SOTERIA_PROVIDER`. New
+  is a thin shell; it never branches on `HERNNESS_PROVIDER`. New
   providers join the same `ModelProvider` Protocol without code in
   `chat.py`.
 - **Tools are bound at runtime construction, not per turn.** The
@@ -1118,7 +1118,7 @@ previous turn with `runs inspect RUN_ID`.
   before the first model call and torn down after the last.
 - **Approval is a synchronous boolean callback.** The CLI assistant
   prints `tool_call` details to the terminal and asks the operator to
-  approve / deny. `SOTERIA_TOOLS_REQUIRE_APPROVAL` sets which tools
+  approve / deny. `HERNNESS_TOOLS_REQUIRE_APPROVAL` sets which tools
   always ask; everything else auto-approves (default) or runs through
   a registered interactive handler.
 - **The event store is the source of truth.** The REPL never holds

@@ -1,18 +1,18 @@
 <div align="center">
 
-![Soteria logo](logo.png)
+![Hernness logo](logo.png)
 
-# Soteria
+# Hernness
 
-**A Python runtime for safe, observable AI agents.**
+**A provider-agnostic reliability runtime for bounded, observable, resumable, and replayable AI agent loops.**
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
-A Python-based harness agent: configure the `SOTERIA_` environment once, drive it from any Python entry point — the bundled CLI, your own script, or a long-running service.
+A Python-based harness agent: configure the `HERNNESS_` environment once, drive it from any Python entry point — the bundled CLI, your own script, or a long-running service.
 
 </div>
 
-Soteria is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Soteria gives you the safety net most agent frameworks leave to chance:
+Hernness is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Hernness gives you the safety net most agent frameworks leave to chance:
 
 1. What is the agent doing *right now*?
 2. Why did this run stop?
@@ -21,11 +21,11 @@ Soteria is an open-source Python runtime that wraps your tool-using agent loop i
 5. Which tool calls actually executed?
 6. Can the run be reproduced without calling a paid model again?
 
-> ⚠️ Soteria 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
+> ⚠️ Hernness 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic testing, and local prototypes; it is **not production-ready**.
 
 <div align="center">
 
-[`pip install soteria-loop`](#install) · [Quickstart](#quickstart) · [Deterministic benchmark](#deterministic-benchmark) · [Live case study](#live-agent-case-study-minimax-m3) · [CLI](#cli)
+[`pip install hernness`](#install) · [Quickstart](#quickstart) · [Deterministic benchmark](#deterministic-benchmark) · [Live case study](#live-agent-case-study-minimax-m3) · [CLI](#cli)
 
 </div>
 
@@ -35,11 +35,11 @@ Soteria is an open-source Python runtime that wraps your tool-using agent loop i
 
 Most "agent frameworks" ship as a thin `while True` loop around a vendor SDK. They are fast to demo and brittle in production:
 
-| Pain in a typical agent | What actually breaks | How Soteria handles it |
+| Pain in a typical agent | What actually breaks | How Hernness handles it |
 |---|---|---|
 | Repeated tool calls | The model asks `get_weather("Tokyo")` five times. | `repeated_action_limit=3` stops the run before the third duplicate, citing `StopReason.REPEATED_ACTION`. |
 | Runaway token usage | The loop spins into oblivion and the bill surprises you. | `max_total_tokens` + `max_runtime_seconds` enforce a hard upper bound; `token_accounting_available` flags responses that omit usage. |
-| Provider lock-in | Switching from one vendor to another means rewriting the agent. | `SOTERIA_PROVIDER` chooses `ollama`, `minimax`, `anthropic`, or `openai` without touching agent code. |
+| Provider lock-in | Switching from one vendor to another means rewriting the agent. | `HERNNESS_PROVIDER` chooses `ollama`, `minimax`, `anthropic`, or `openai` without touching agent code. |
 | Process restart loses state | You restart, the model re-asks, the external tool fires twice. | `SQLiteEventStore` + `resume(run_id)` re-uses completed tool-call IDs so duplicates are impossible. |
 | No audit trail | "What did the agent actually do?" is unanswerable. | Every state transition, tool call, and policy trigger is an immutable event in an append-only log. |
 | Stop reason is a guess | "Why did it stop?" produces folklore. | Every terminal run records one `StopReason` from a 13-value enum. |
@@ -55,7 +55,7 @@ flowchart LR
     D --> E[Billing double-charge<br/>+ customer impact]
 ```
 
-Soteria turns that into:
+Hernness turns that into:
 
 ```mermaid
 flowchart LR
@@ -116,7 +116,7 @@ python -m pip install -e ".[live-benchmark,providers]"
 When the 0.1 package is published, the runtime-only installation will be:
 
 ```bash
-python -m pip install soteria-loop
+python -m pip install hernness
 ```
 
 The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
@@ -125,7 +125,7 @@ The core runtime depends only on **Pydantic**. The CLI uses the Python standard 
 
 ## Setup
 
-Soteria is a Python-based harness agent. You configure it once via environment variables (the `SOTERIA_` family), then drive it from any Python entry point — the bundled `soteria-loop` CLI, your own script, or a long-running service.
+Hernness is a Python-based harness agent. You configure it once via environment variables (the `HERNNESS_` family), then drive it from any Python entry point — the bundled `hernness` CLI, your own script, or a long-running service.
 
 ### 1. Pick a provider
 
@@ -138,37 +138,37 @@ Soteria is a Python-based harness agent. You configure it once via environment v
 
 ### 2. Export the variables
 
-Use `getpass` for keys if you put them in scripts. The names follow `SOTERIA_<PROVIDER>_<FIELD>`:
+Use `getpass` for keys if you put them in scripts. The names follow `HERNNESS_<PROVIDER>_<FIELD>`:
 
 ```bash
 # Ollama (local, no key)
-export SOTERIA_PROVIDER=ollama
-export SOTERIA_MODEL=llama3.1
-# optional: export SOTERIA_OLLAMA_BASE_URL=http://localhost:11434
+export HERNNESS_PROVIDER=ollama
+export HERNNESS_MODEL=llama3.1
+# optional: export HERNNESS_OLLAMA_BASE_URL=http://localhost:11434
 
 # MiniMax
-export SOTERIA_PROVIDER=minimax
-export SOTERIA_MODEL=MiniMax-M3
-export SOTERIA_MINIMAX_API_KEY='paste-real-key-here'
-# optional: export SOTERIA_MINIMAX_API_STYLE=anthropic  # or "openai"
-# optional: export SOTERIA_MINIMAX_BASE_URL=https://api.minimax.io
+export HERNNESS_PROVIDER=minimax
+export HERNNESS_MODEL=MiniMax-M3
+export HERNNESS_MINIMAX_API_KEY='paste-real-key-here'
+# optional: export HERNNESS_MINIMAX_API_STYLE=anthropic  # or "openai"
+# optional: export HERNNESS_MINIMAX_BASE_URL=https://api.minimax.io
 
 # Anthropic
-export SOTERIA_PROVIDER=anthropic
-export SOTERIA_MODEL=claude-sonnet-4-6
-export SOTERIA_ANTHROPIC_API_KEY='paste-real-key-here'
+export HERNNESS_PROVIDER=anthropic
+export HERNNESS_MODEL=claude-sonnet-4-6
+export HERNNESS_ANTHROPIC_API_KEY='paste-real-key-here'
 
 # OpenAI-compatible (any vendor exposing /v1/chat/completions)
-export SOTERIA_PROVIDER=openai
-export SOTERIA_MODEL=gpt-5.6
-export SOTERIA_OPENAI_API_KEY='paste-real-key-here'
-# optional: export SOTERIA_OPENAI_BASE_URL=https://api.openai.com/v1
+export HERNNESS_PROVIDER=openai
+export HERNNESS_MODEL=gpt-5.6
+export HERNNESS_OPENAI_API_KEY='paste-real-key-here'
+# optional: export HERNNESS_OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 ### 3. Verify without burning API credits
 
 ```bash
-soteria-loop doctor
+hernness doctor
 ```
 
 This prints the resolved endpoint, the chosen provider/model, and whether the `ConfigError` you would otherwise hit inside `chat` is present — all without sending an HTTP request.
@@ -176,22 +176,22 @@ This prints the resolved endpoint, the chosen provider/model, and whether the `C
 ### 4. Smoke-test against the real model
 
 ```bash
-SOTERIA_PROVIDER=minimax \
-SOTERIA_MODEL=MiniMax-M3 \
-SOTERIA_MINIMAX_API_KEY='paste-real-key-here' \
-soteria-loop chat --workspace-root .
+HERNNESS_PROVIDER=minimax \
+HERNNESS_MODEL=MiniMax-M3 \
+HERNNESS_MINIMAX_API_KEY='paste-real-key-here' \
+hernness chat --workspace-root .
 ```
 
-On a fresh machine with no `SOTERIA_PROVIDER` set, `soteria-loop chat` launches an **interactive first-run wizard** that asks for the provider, hidden-prompt API key, and model. At the end it offers (defaulting to **No**) to persist the variables to `~/.zshrc` or `~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you type `y`/`yes`.
+On a fresh machine with no `HERNNESS_PROVIDER` set, `hernness chat` launches an **interactive first-run wizard** that asks for the provider, hidden-prompt API key, and model. At the end it offers (defaulting to **No**) to persist the variables to `~/.zshrc` or `~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you type `y`/`yes`.
 
 ### Optional Lethe context management
 
-Lethe is a separate package that holds long-term memories outside Soteria's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Soteria's tests ship a local fake.
+Lethe is a separate package that holds long-term memories outside Hernness's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Hernness's tests ship a local fake.
 
 ```python
 from lethe import MemoryStore
-from soteria_loop import AgentRuntime, FakeProvider, ModelResponse
-from soteria_loop.integrations.lethe import LetheMemoryAdapter
+from hernness import AgentRuntime, FakeProvider, ModelResponse
+from hernness.integrations.lethe import LetheMemoryAdapter
 
 memory = LetheMemoryAdapter(MemoryStore(), recall_k=5)
 
@@ -209,52 +209,52 @@ Install Lethe separately in the application environment:
 python -m pip install lethe
 ```
 
-If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/soteria_loop/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
+If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/hernness/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
 
 ---
 
 ## Pick a provider with environment variables
 
-Soteria ships with four built-in provider adapters. Configure them through the `SOTERIA_`-prefixed environment, never via hard-coded URLs or keys in agent code:
+Hernness ships with four built-in provider adapters. Configure them through the `HERNNESS_`-prefixed environment, never via hard-coded URLs or keys in agent code:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `SOTERIA_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
-| `SOTERIA_MODEL` | yes | Default model name for the active provider |
-| `SOTERIA_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
-| `SOTERIA_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
-| `SOTERIA_<PROVIDER>_MODEL` | no | Provider-specific model override |
-| `SOTERIA_DATABASE_PATH` | no | SQLite path; empty = in-memory |
-| `SOTERIA_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
-| `SOTERIA_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
-| `SOTERIA_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
+| `HERNNESS_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `HERNNESS_MODEL` | yes | Default model name for the active provider |
+| `HERNNESS_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
+| `HERNNESS_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
+| `HERNNESS_<PROVIDER>_MODEL` | no | Provider-specific model override |
+| `HERNNESS_DATABASE_PATH` | no | SQLite path; empty = in-memory |
+| `HERNNESS_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
+| `HERNNESS_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
+| `HERNNESS_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
 
 Examples:
 
 ```bash
 # Local Ollama — no API key needed
-SOTERIA_PROVIDER=ollama SOTERIA_MODEL=llama3.1 python -m my_agent
+HERNNESS_PROVIDER=ollama HERNNESS_MODEL=llama3.1 python -m my_agent
 
 # Anthropic
-SOTERIA_PROVIDER=anthropic \
-SOTERIA_MODEL=claude-sonnet-4-6 \
-SOTERIA_ANTHROPIC_API_KEY="$SOTERIA_ANTHROPIC_API_KEY" \
+HERNNESS_PROVIDER=anthropic \
+HERNNESS_MODEL=claude-sonnet-4-6 \
+HERNNESS_ANTHROPIC_API_KEY="$HERNNESS_ANTHROPIC_API_KEY" \
 python -m my_agent
 
 # OpenAI-compatible self-hosted endpoint
-SOTERIA_PROVIDER=openai \
-SOTERIA_MODEL=meta-llama/Meta-Llama-3.1-70B-Instruct \
-SOTERIA_OPENAI_BASE_URL=https://my-gateway.internal/v1 \
-SOTERIA_OPENAI_API_KEY="$SOTERIA_OPENAI_API_KEY" \
+HERNNESS_PROVIDER=openai \
+HERNNESS_MODEL=meta-llama/Meta-Llama-3.1-70B-Instruct \
+HERNNESS_OPENAI_BASE_URL=https://my-gateway.internal/v1 \
+HERNNESS_OPENAI_API_KEY="$HERNNESS_OPENAI_API_KEY" \
 python -m my_agent
 ```
 
-`SOTERIA_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
+`HERNNESS_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
 
 A single factory builds the right provider:
 
 ```python
-from soteria_loop.config import build_provider_from_env
+from hernness.config import build_provider_from_env
 
 provider = build_provider_from_env()  # raises ConfigError if anything required is missing
 ```
@@ -268,8 +268,8 @@ This example makes one typed tool call and then completes without an API key:
 ```python
 import asyncio
 from pydantic import BaseModel
-from soteria_loop import AgentRuntime, FunctionTool, ModelResponse, ToolCall
-from soteria_loop.providers import FakeProvider
+from hernness import AgentRuntime, FunctionTool, ModelResponse, ToolCall
+from hernness.providers import FakeProvider
 
 
 class AddArguments(BaseModel):
@@ -320,10 +320,10 @@ The complete runnable version is [examples/basic_agent.py](examples/basic_agent.
 Replace the `FakeProvider` with one of the built-in adapters and let the factory pick it up from the environment:
 
 ```python
-from soteria_loop.config import build_provider_from_env
-from soteria_loop import AgentRuntime
+from hernness.config import build_provider_from_env
+from hernness import AgentRuntime
 
-provider = build_provider_from_env()  # reads SOTERIA_PROVIDER + SOTERIA_MODEL
+provider = build_provider_from_env()  # reads HERNNESS_PROVIDER + HERNNESS_MODEL
 runtime = AgentRuntime(provider=provider, tools=[...])
 result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
 ```
@@ -332,9 +332,9 @@ result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
 
 ## Deterministic benchmark
 
-The included benchmark compares a minimal raw loop with Soteria across **eight scripted scenarios**. On the latest local run:
+The included benchmark compares a minimal raw loop with Hernness across **eight scripted scenarios**. On the latest local run:
 
-| Metric | Minimal raw loop | Soteria |
+| Metric | Minimal raw loop | Hernness |
 |---|---:|---:|
 | Loop containment rate | 0.0% | 100.0% |
 | Resume success rate | 0.0% | 100.0% |
@@ -359,7 +359,7 @@ flowchart TB
         R2 -->|spins| R3[Duplicate side effects]
         R2 -->|runs out| R4[External cap stops it]
     end
-    subgraph "Soteria"
+    subgraph "Hernness"
         L1[Tool call] --> L2{Policy fingerprint check}
         L2 -->|new| L3[Execute]
         L2 -->|duplicate x3| L4[Stop: REPEATED_ACTION]
@@ -367,7 +367,7 @@ flowchart TB
     end
     R3 -.is NOT.-> X[Runtime containment]
     L4 --> X
-    X --> Y[100% Soteria containment, 0% raw]
+    X --> Y[100% Hernness containment, 0% raw]
 ```
 
 ---
@@ -380,7 +380,7 @@ The checked-in artifacts come from a **single real run** against `MiniMax-M3` (p
 
 ### Why bother running this at all?
 
-The deterministic benchmark uses `FakeProvider` — it measures the runtime, not the model. The live case study answers a complementary question: **does Soteria's policy machinery still fire when a real model is making real mistakes?** Three scenarios, three runs each, two approaches (raw vs. Soteria), one model. Snapshot, not statistic.
+The deterministic benchmark uses `FakeProvider` — it measures the runtime, not the model. The live case study answers a complementary question: **does Hernness's policy machinery still fire when a real model is making real mistakes?** Three scenarios, three runs each, two approaches (raw vs. Hernness), one model. Snapshot, not statistic.
 
 ### Repetition containment (n=3 runs per approach)
 
@@ -388,8 +388,8 @@ The deterministic benchmark uses `FakeProvider` — it measures the runtime, not
 
 | Approach | Contained runs (n=3) | Stop reason | Outcome |
 |---|---:|---|---|
-| **Raw loop** | 0/3 | manual cap (external fence, not Soteria containment) | tool fired multiple times until manual safety cap |
-| **Soteria** | **3/3** | `REPEATED_ACTION` | policy stopped before the duplicate became a side effect |
+| **Raw loop** | 0/3 | manual cap (external fence, not Hernness containment) | tool fired multiple times until manual safety cap |
+| **Hernness** | **3/3** | `REPEATED_ACTION` | policy stopped before the duplicate became a side effect |
 
 ### Normal completion comparison (n=3 runs per approach)
 
@@ -398,7 +398,7 @@ The deterministic benchmark uses `FakeProvider` — it measures the runtime, not
 | Approach | Mean steps (n=3) | Mean wall-clock (n=3) | Token accounting |
 |---|---:|---:|---|
 | Raw loop | 1.67 | 4.09 s | available |
-| Soteria | 1.67 | 5.08 s | available |
+| Hernness | 1.67 | 5.08 s | available |
 
 ### Cost vs. estimate
 
@@ -443,7 +443,7 @@ Run [examples/repeated_action.py](examples/repeated_action.py) to see the full t
 Use `SQLiteEventStore` when a run must survive process restart:
 
 ```python
-store = SQLiteEventStore("soteria_loop.db")
+store = SQLiteEventStore("hernness.db")
 runtime = AgentRuntime(
     provider=provider,
     tools=[tool],
@@ -496,30 +496,30 @@ The CLI reads a SQLite database path and exposes three subcommands:
 
 ```bash
 # Inspect the persisted event log
-soteria-loop --database soteria_loop.db runs list
-soteria-loop --database soteria_loop.db runs inspect RUN_ID
-soteria-loop --database soteria_loop.db runs resume RUN_ID
+hernness --database hernness.db runs list
+hernness --database hernness.db runs inspect RUN_ID
+hernness --database hernness.db runs resume RUN_ID
 
 # Interactive REPL — one AgentRuntime turn per line
-SOTERIA_PROVIDER=ollama \
-SOTERIA_MODEL=llama3.1 \
-SOTERIA_OLLAMA_BASE_URL=http://localhost:11434 \
-soteria-loop chat --workspace-root $(pwd)
+HERNNESS_PROVIDER=ollama \
+HERNNESS_MODEL=llama3.1 \
+HERNNESS_OLLAMA_BASE_URL=http://localhost:11434 \
+hernness chat --workspace-root $(pwd)
 
 # Verify provider config without making an HTTP call
-soteria-loop doctor
+hernness doctor
 ```
 
 Inside the chat REPL:
 
 ```text
-Soteria
+Hernness
 Provider: ollama
 Model: llama3.1
 Workspace: /home/user/project
 Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit
 You > Explain this repository
-Soteria [completed/completed] steps=2 run_id=01HK…
+Hernness [completed/completed] steps=2 run_id=01HK…
 > …answer…
 You > /provider
 Provider: ollama
@@ -542,12 +542,12 @@ not introduce a second agent loop.
 
 Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
 
-### `soteria-loop doctor`
+### `hernness doctor`
 
-`doctor` reads `os.environ` and reports which `SOTERIA_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
+`doctor` reads `os.environ` and reports which `HERNNESS_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
 
 ```bash
-$ soteria-loop doctor
+$ hernness doctor
 SOTERIA provider: MiniMax
 SOTERIA model: MiniMax-M3
 base URL: https://api.minimax.io
@@ -565,8 +565,8 @@ If anything is missing, `doctor` lists the missing variable names and exits non-
 ## Important limitations
 
 - Repetition and no-progress detection are exact deterministic heuristics, not semantic loop detection.
-- Runtime limits are checked between model and tool operations. Soteria does **not** preempt a tool already in flight.
-- If any provider response omits usage, token accounting is marked unavailable; Soteria never treats missing usage as zero.
+- Runtime limits are checked between model and tool operations. Hernness does **not** preempt a tool already in flight.
+- If any provider response omits usage, token accounting is marked unavailable; Hernness never treats missing usage as zero.
 - SQLite v0.1 assumes normal single-process use. There is no distributed lease or multi-process scheduler.
 - Tool calls execute serially. Parallel calls, MCP, OpenTelemetry, approval UIs, and replay are deferred.
 - A `TOOL_STARTED` event without a durable result is intentionally treated as ** unsafe to resume automatically because the external side effect is uncertain.
@@ -580,7 +580,7 @@ If anything is missing, `doctor` lists the missing variable names and exits non-
 python -m pip install -e ".[dev]"
 ruff check .
 ruff format --check .
-mypy src/soteria_loop
+mypy src/hernness
 pytest
 python -m build
 ```
@@ -609,4 +609,4 @@ Version 0.1.0 is under active development. The state and event schemas should be
 
 ## License
 
-Soteria is available under the [MIT License](LICENSE).
+Hernness is available under the [MIT License](LICENSE).
