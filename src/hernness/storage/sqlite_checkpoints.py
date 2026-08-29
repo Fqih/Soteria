@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from pydantic import ValidationError
 
 from hernness.events import AgentEvent, EventType
-from hernness.exceptions import SoteriaError, StorageError
+from hernness.exceptions import HernnessError, StorageError
 from hernness.models import Checkpoint
 
 if TYPE_CHECKING:
@@ -59,7 +59,7 @@ async def save_checkpoint(
             )
             store._commit()
             return persisted_checkpoint, persisted_event
-        except SoteriaError:
+        except HernnessError:
             store._rollback()
             raise
         except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -90,7 +90,7 @@ async def get_latest_checkpoint(
             if row is None:
                 return None
             return Checkpoint.model_validate_json(str(row["checkpoint_json"]))
-        except SoteriaError:
+        except HernnessError:
             raise
         except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
             raise store._raise_storage_error("read a checkpoint", exc) from exc

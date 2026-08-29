@@ -16,10 +16,10 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.models import TokenUsage
 
-LedgerError = SoteriaError
+LedgerError = HernnessError
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ledger_entries (

@@ -15,11 +15,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from decimal import Decimal
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.models import TokenUsage
 from hernness.usage import estimate_cost
 
-BudgetError = SoteriaError
+BudgetError = HernnessError
 
 
 @dataclass(frozen=True)

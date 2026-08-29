@@ -13,10 +13,10 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ValidationError
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-SchemaError = SoteriaError
-ValidationFailure = SoteriaError
+SchemaError = HernnessError
+ValidationFailure = HernnessError
 
 
 class SchemaRegistry:

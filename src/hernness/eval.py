@@ -16,9 +16,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-EvalError = SoteriaError
+EvalError = HernnessError
 
 
 @dataclass(frozen=True)

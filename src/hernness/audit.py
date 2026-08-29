@@ -23,9 +23,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-AuditError = SoteriaError
+AuditError = HernnessError
 
 _SECRET_SUFFIXES: tuple[str, ...] = (
     "api_key",

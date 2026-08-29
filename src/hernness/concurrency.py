@@ -11,10 +11,10 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.metrics import MetricsRegistry
 
-ConcurrencyError = SoteriaError
+ConcurrencyError = HernnessError
 
 T = TypeVar("T")
 

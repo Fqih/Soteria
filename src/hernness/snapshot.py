@@ -12,9 +12,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from hernness.checkpoint import Checkpoint, CheckpointStore
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-ResumeError = SoteriaError
+ResumeError = HernnessError
 
 _REQUIRED_KEYS: frozenset[str] = frozenset({"step", "phase"})
 

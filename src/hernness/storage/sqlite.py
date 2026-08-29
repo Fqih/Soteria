@@ -11,7 +11,7 @@ from typing import cast
 from pydantic import ValidationError
 
 from hernness.events import AgentEvent, EventType, validate_event_append
-from hernness.exceptions import RunNotFoundError, SoteriaError, StorageError
+from hernness.exceptions import HernnessError, RunNotFoundError, StorageError
 from hernness.models import Checkpoint, RunRecord
 from hernness.state import is_terminal
 
@@ -179,7 +179,7 @@ class SQLiteEventStore:
                 persisted = self._insert_event(event)
                 self._commit()
                 return persisted
-            except SoteriaError:
+            except HernnessError:
                 self._rollback()
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -197,7 +197,7 @@ class SQLiteEventStore:
                 persisted = self._insert_event(event)
                 self._commit()
                 return persisted
-            except SoteriaError:
+            except HernnessError:
                 self._rollback()
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -231,7 +231,7 @@ class SQLiteEventStore:
                 self._replace_run(run)
                 self._commit()
                 return persisted
-            except SoteriaError:
+            except HernnessError:
                 self._rollback()
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -279,7 +279,7 @@ class SQLiteEventStore:
                 self._replace_run(run)
                 self._commit()
                 return persisted_state, persisted_terminal
-            except SoteriaError:
+            except HernnessError:
                 self._rollback()
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -293,7 +293,7 @@ class SQLiteEventStore:
             self._ensure_open()
             try:
                 return self._read_run(run_id)
-            except SoteriaError:
+            except HernnessError:
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
                 raise self._raise_storage_error("read a run", exc) from exc
@@ -312,7 +312,7 @@ class SQLiteEventStore:
                     )
                 self._replace_run(run)
                 self._commit()
-            except SoteriaError:
+            except HernnessError:
                 self._rollback()
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
@@ -340,7 +340,7 @@ class SQLiteEventStore:
             try:
                 self._require_run_row(run_id)
                 return self._read_events(run_id)
-            except SoteriaError:
+            except HernnessError:
                 raise
             except (sqlite3.Error, ValidationError, ValueError, TypeError) as exc:
                 raise self._raise_storage_error("read events", exc) from exc

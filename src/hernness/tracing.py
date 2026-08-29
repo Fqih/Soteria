@@ -7,12 +7,12 @@ from datetime import datetime
 from pydantic import Field, JsonValue
 
 from hernness.events import AgentEvent, EventType
-from hernness.models import RunRecord, SoteriaModel, TokenUsage
+from hernness.models import HernnessModel, RunRecord, TokenUsage
 from hernness.state import RunState, StopReason
 from hernness.storage.base import EventStore
 
 
-class TraceEntry(SoteriaModel):
+class TraceEntry(HernnessModel):
     """A normalized, chronological view of one persisted event."""
 
     sequence: int = Field(ge=1)
@@ -27,7 +27,7 @@ class TraceEntry(SoteriaModel):
     payload: dict[str, JsonValue]
 
 
-class RunTrace(SoteriaModel):
+class RunTrace(HernnessModel):
     """Inspectable trace summary with text and structured representations."""
 
     run_id: str

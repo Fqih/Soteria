@@ -30,18 +30,18 @@ def test_persist_appends_soteria_block_to_new_rc(tmp_path: Path) -> None:
         "HERNNESS_PROVIDER": "minimax",
         "HERNNESS_MINIMAX_API_KEY": "secret-value",
         "HERNNESS_MODEL": "MiniMax-M3",
-        "PATH": "/usr/bin",  # non-SOTERIA keys must NOT be persisted
+        "PATH": "/usr/bin",  # non-HERNNESS keys must NOT be persisted
     }
     written = persist_env_to_shell_rc(env, rc_path=rc)
 
     assert written == rc
     content = rc.read_text(encoding="utf-8")
-    assert "# >>> soteria setup >>>" in content
-    assert "# <<< soteria setup <<<" in content
+    assert "# >>> hernness setup >>>" in content
+    assert "# <<< hernness setup <<<" in content
     assert 'export HERNNESS_PROVIDER="minimax"' in content
     assert 'export HERNNESS_MINIMAX_API_KEY="secret-value"' in content
     assert 'export HERNNESS_MODEL="MiniMax-M3"' in content
-    # Non-SOTERIA vars never reach the rc file.
+    # non-HERNNESS vars never reach the rc file.
     assert "PATH" not in content
 
 
@@ -61,15 +61,15 @@ def test_persist_replaces_previous_block(tmp_path: Path) -> None:
     )
 
     content = rc.read_text(encoding="utf-8")
-    assert content.count("# >>> soteria setup >>>") == 1
-    assert content.count("# <<< soteria setup <<<") == 1
+    assert content.count("# >>> hernness setup >>>") == 1
+    assert content.count("# <<< hernness setup <<<") == 1
     assert "first" not in content
     assert "second" in content
-    assert "ollama" not in content.split("# >>> soteria setup >>>")[0]
+    assert "ollama" not in content.split("# >>> hernness setup >>>")[0]
 
 
 def test_persist_preserves_user_lines_above_and_below(tmp_path: Path) -> None:
-    """User content outside the soteria block must survive a rewrite."""
+    """User content outside the hernness block must survive a rewrite."""
 
     from hernness.chat import persist_env_to_shell_rc
 
@@ -222,7 +222,7 @@ def test_setup_default_decline_does_not_write_rc(
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "k")
 
     assert env is not None
-    # The rc file is untouched (no soteria block).
+    # The rc file is untouched (no hernness block).
     content = rc.read_text(encoding="utf-8")
-    assert "soteria setup" not in content
+    assert "hernness setup" not in content
     assert "alias ll='ls -la'" in content

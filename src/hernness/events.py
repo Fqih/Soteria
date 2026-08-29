@@ -8,7 +8,7 @@ from enum import StrEnum
 from pydantic import Field, JsonValue, field_validator
 
 from hernness.exceptions import EventInvariantError, InvalidStateTransitionError
-from hernness.models import SoteriaModel, new_id, utc_now
+from hernness.models import HernnessModel, new_id, utc_now
 from hernness.state import RunState, StopReason, validate_terminal_outcome, validate_transition
 
 
@@ -46,7 +46,7 @@ TERMINAL_EVENT_TYPES = frozenset(
 )
 
 
-class AgentEvent(SoteriaModel):
+class AgentEvent(HernnessModel):
     """One immutable, sequenced fact in a run's execution history."""
 
     event_id: str = Field(default_factory=new_id, min_length=1)

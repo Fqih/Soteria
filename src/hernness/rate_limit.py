@@ -17,9 +17,9 @@ import asyncio
 import time
 from dataclasses import dataclass
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-RateLimitError = SoteriaError
+RateLimitError = HernnessError
 
 
 @dataclass(frozen=True)

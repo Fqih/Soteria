@@ -52,7 +52,7 @@ def build_provider_from_env(
     if name == "ollama":
         from hernness.providers.ollama import OllamaConfig, OllamaProvider
 
-        ollama_config = OllamaConfig.from_soteria_env(env, fallback_model=model)
+        ollama_config = OllamaConfig.from_hernness_env(env, fallback_model=model)
         return OllamaProvider(
             ollama_config,
             max_completion_tokens=max_completion_tokens,
@@ -62,7 +62,7 @@ def build_provider_from_env(
     if name == "minimax":
         from hernness.providers.minimax import MiniMaxConfig, MiniMaxProvider
 
-        minimax_config = MiniMaxConfig.from_soteria_env(env, fallback_model=model)
+        minimax_config = MiniMaxConfig.from_hernness_env(env, fallback_model=model)
         return MiniMaxProvider(
             minimax_config,
             max_completion_tokens=max_completion_tokens,
@@ -72,7 +72,7 @@ def build_provider_from_env(
     if name == "anthropic":
         from hernness.providers.anthropic import AnthropicConfig, AnthropicProvider
 
-        anthropic_config = AnthropicConfig.from_soteria_env(env, fallback_model=model)
+        anthropic_config = AnthropicConfig.from_hernness_env(env, fallback_model=model)
         return AnthropicProvider(
             anthropic_config,
             max_completion_tokens=max_completion_tokens,
@@ -85,7 +85,7 @@ def build_provider_from_env(
         OpenAICompatibleProvider,
     )
 
-    openai_config = OpenAICompatibleConfig.from_soteria_env(env, fallback_model=model)
+    openai_config = OpenAICompatibleConfig.from_hernness_env(env, fallback_model=model)
     return OpenAICompatibleProvider(
         openai_config,
         max_completion_tokens=max_completion_tokens,

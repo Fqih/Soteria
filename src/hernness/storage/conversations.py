@@ -19,9 +19,9 @@ from pathlib import Path
 
 from pydantic import JsonValue
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-HistoryError = SoteriaError
+HistoryError = HernnessError
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS conversation_turns (

@@ -28,7 +28,7 @@ from hernness.chat_shell_rc import (  # re-export
     persist_env_to_shell_rc,
 )
 from hernness.config import ConfigError, build_provider_from_env
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.runtime import AgentRuntime
 from hernness.skills import SkillRegistry
 from hernness.storage.sqlite import SQLiteEventStore
@@ -121,13 +121,13 @@ def build_chat_context(
 ) -> ChatContext:
     """Construct the runtime + store + workspace bound together.
 
-    Raises ``SoteriaError`` (or a subclass) if ``database_path`` or
+    Raises ``HernnessError`` (or a subclass) if ``database_path`` or
     ``workspace_root`` are unusable. ``ConfigError`` propagates unchanged
     from :func:`build_provider_from_env`.
     """
 
     if database_path is None:
-        raise SoteriaError("database_path must be a Path, not None; the CLI is misconfigured.")
+        raise HernnessError("database_path must be a Path, not None; the CLI is misconfigured.")
     db_path = Path(database_path)
 
     provider_name, model_name = _resolve_provider_label(environ)
@@ -189,7 +189,7 @@ async def _run_slash(
             return False
         try:
             trace = await TraceInspector(ctx.store).inspect(args[1])
-        except SoteriaError as exc:
+        except HernnessError as exc:
             err.write(f"inspect failed: {exc}\n")
             return False
         out.write(trace.to_text())
@@ -202,7 +202,7 @@ async def _run_slash(
             return False
         try:
             result = await ctx.runtime.resume(args[1])
-        except SoteriaError as exc:
+        except HernnessError as exc:
             err.write(f"resume failed: {exc}\n")
             return False
         out.write(
@@ -228,7 +228,7 @@ async def _run_slash(
             return False
         try:
             body = ctx.skills.load(args[1])
-        except SoteriaError as exc:
+        except HernnessError as exc:
             err.write(f"skill load failed: {exc}\n")
             return False
         # Skill bodies are injected as a user message so the runtime
@@ -246,7 +246,7 @@ async def _run_turn(ctx: ChatContext, task: str, out: TextIO, err: TextIO) -> No
     with bind_workspace(ctx.workspace):
         try:
             result = await ctx.runtime.run(task)
-        except SoteriaError as exc:
+        except HernnessError as exc:
             err.write(f"runtime error: {exc}\n")
             return
         except Exception as exc:
@@ -299,13 +299,13 @@ async def run_repl(
                 workspace_root=workspace_root,
                 environ=env,
             )
-        except (SoteriaError, OSError) as exc:
+        except (HernnessError, OSError) as exc:
             err_stream.write(f"hernness chat: {exc}\n")
             return 2
         except ConfigError as exc:
             err_stream.write(f"configuration still invalid after setup: {exc}\n")
             return 2
-    except (SoteriaError, OSError) as exc:
+    except (HernnessError, OSError) as exc:
         err_stream.write(f"hernness chat: {exc}\n")
         return 2
 

@@ -19,9 +19,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-MetricsError = SoteriaError
+MetricsError = HernnessError
 
 _DEFAULT_HISTOGRAM_BUCKETS: tuple[float, ...] = (
     0.005,

@@ -384,7 +384,7 @@ def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
     """Render reproducible Markdown benchmark output."""
 
     raw_metrics = aggregate(raw)
-    soteria_metrics = aggregate(hernness)
+    hernness_metrics = aggregate(hernness)
     rows = [
         "# Deterministic Benchmark Results",
         "",
@@ -397,7 +397,7 @@ def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
         "|---|---:|---:|",
     ]
     for metric in raw_metrics:
-        rows.append(f"| {metric.title()} | {raw_metrics[metric]} | {soteria_metrics[metric]} |")
+        rows.append(f"| {metric.title()} | {raw_metrics[metric]} | {hernness_metrics[metric]} |")
     rows.extend(
         [
             "",
@@ -410,12 +410,12 @@ def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
     )
     for scenario in SCENARIOS:
         raw_outcome = next(item for item in raw if item.scenario is scenario.kind)
-        soteria_outcome = next(item for item in hernness if item.scenario is scenario.kind)
+        hernness_outcomeb = next(item for item in hernness if item.scenario is scenario.kind)
         rows.append(
             f"| {scenario.kind.value} | {str(raw_outcome.task_completed).lower()} | "
-            f"{str(soteria_outcome.task_completed).lower()} | "
-            f"{str(soteria_outcome.contained).lower()} | "
-            f"{str(soteria_outcome.resume_succeeded).lower()} |"
+            f"{str(hernness_outcomeb.task_completed).lower()} | "
+            f"{str(hernness_outcomeb.contained).lower()} | "
+            f"{str(hernness_outcomeb.resume_succeeded).lower()} |"
         )
     rows.extend(
         [

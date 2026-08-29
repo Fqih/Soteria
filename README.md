@@ -8,9 +8,13 @@
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
-A Python-based harness agent: configure the `HERNNESS_` environment once, drive it from any Python entry point — the bundled CLI, your own script, or a long-running service.
+Configure the `HERNNESS_` environment once, drive it from any Python entry point — the bundled `hernness` CLI, your own script, or a long-running service.
 
 </div>
+
+---
+
+## About
 
 Hernness is an open-source Python runtime that wraps your tool-using agent loop in a strict state machine, an append-only event history, configurable safety policies, and a provider-neutral interface. Whether you are building a coding agent, an ops agent, a research agent, or a long-running automation, Hernness gives you the safety net most agent frameworks leave to chance:
 
@@ -25,7 +29,7 @@ Hernness is an open-source Python runtime that wraps your tool-using agent loop 
 
 <div align="center">
 
-[`pip install hernness`](#install) · [Quickstart](#quickstart) · [Deterministic benchmark](#deterministic-benchmark) · [Live case study](#live-agent-case-study-minimax-m3) · [CLI](#cli)
+[`pip install hernness`](#install) · [Quickstart](#quickstart) · [Configuration](#configuration) · [Providers](#providers) · [Application tools](#application-tools) · [CLI](#cli)
 
 </div>
 
@@ -96,6 +100,7 @@ flowchart LR
 - Chronological text and structured traces.
 - One explicit `StopReason` per terminal run (13 enum values).
 - Optional long-term memory via the `LetheMemoryAdapter`.
+- **Application tools** — `read_file`, `write_file`, `run_shell` — scoped to a fixed workspace root and a docker sandbox by default.
 
 ---
 
@@ -107,10 +112,10 @@ Python 3.11 or newer. For development from this repository:
 python -m pip install -e ".[dev]"
 ```
 
-For the optional live provider and benchmark extras (`httpx`, `matplotlib`):
+For the optional live provider, sandbox, and benchmark extras:
 
 ```bash
-python -m pip install -e ".[live-benchmark,providers]"
+python -m pip install -e ".[live-benchmark,providers,sandbox]"
 ```
 
 When the 0.1 package is published, the runtime-only installation will be:
@@ -119,15 +124,32 @@ When the 0.1 package is published, the runtime-only installation will be:
 python -m pip install hernness
 ```
 
-The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies.
+The core runtime depends only on **Pydantic**. The CLI uses the Python standard library, so Typer and Rich are not runtime dependencies. The `docker` extra is required only for `run_shell`; everything else works without it.
 
 ---
 
-## Setup
+## Configuration
 
 Hernness is a Python-based harness agent. You configure it once via environment variables (the `HERNNESS_` family), then drive it from any Python entry point — the bundled `hernness` CLI, your own script, or a long-running service.
 
-### 1. Pick a provider
+### Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `HERNNESS_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `HERNNESS_MODEL` | yes | Default model name for the active provider |
+| `HERNNESS_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
+| `HERNNESS_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
+| `HERNNESS_<PROVIDER>_MODEL` | no | Provider-specific model override |
+| `HERNNESS_DATABASE_PATH` | no | SQLite path; empty = in-memory |
+| `HERNNESS_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
+| `HERNNESS_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
+| `HERNNESS_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
+| `HERNNESS_TOOLS_REQUIRE_APPROVAL` | no | Comma-separated tool names that gate on `approval_callback` |
+
+### Setup in four steps
+
+**1. Pick a provider.**
 
 | Provider | Local? | Needs API key | Default style |
 |---|---|---|---|
@@ -136,7 +158,7 @@ Hernness is a Python-based harness agent. You configure it once via environment 
 | `anthropic` | no | yes | Anthropic Messages API |
 | `openai` | no | yes | OpenAI Chat Completions |
 
-### 2. Export the variables
+**2. Export the variables.**
 
 Use `getpass` for keys if you put them in scripts. The names follow `HERNNESS_<PROVIDER>_<FIELD>`:
 
@@ -165,15 +187,17 @@ export HERNNESS_OPENAI_API_KEY='paste-real-key-here'
 # optional: export HERNNESS_OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
-### 3. Verify without burning API credits
+`HERNNESS_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
+
+**3. Verify without burning API credits.**
 
 ```bash
 hernness doctor
 ```
 
-This prints the resolved endpoint, the chosen provider/model, and whether the `ConfigError` you would otherwise hit inside `chat` is present — all without sending an HTTP request.
+This prints the resolved endpoint, the chosen provider/model, and whether `ConfigError` would be raised at provider construction — all without sending an HTTP request.
 
-### 4. Smoke-test against the real model
+**4. Smoke-test against the real model.**
 
 ```bash
 HERNNESS_PROVIDER=minimax \
@@ -184,79 +208,37 @@ hernness chat --workspace-root .
 
 On a fresh machine with no `HERNNESS_PROVIDER` set, `hernness chat` launches an **interactive first-run wizard** that asks for the provider, hidden-prompt API key, and model. At the end it offers (defaulting to **No**) to persist the variables to `~/.zshrc` or `~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you type `y`/`yes`.
 
-### Optional Lethe context management
-
-Lethe is a separate package that holds long-term memories outside Hernness's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Hernness's tests ship a local fake.
-
-```python
-from lethe import MemoryStore
-from hernness import AgentRuntime, FakeProvider, ModelResponse
-from hernness.integrations.lethe import LetheMemoryAdapter
-
-memory = LetheMemoryAdapter(MemoryStore(), recall_k=5)
-
-async def main() -> None:
-    runtime = AgentRuntime(
-        provider=FakeProvider([ModelResponse(content="ok")]),
-        memory=memory,
-    )
-    result = await runtime.run("Continue the previous plan.")
-```
-
-Install Lethe separately in the application environment:
-
-```bash
-python -m pip install lethe
-```
-
-If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/hernness/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
-
----
-
-## Pick a provider with environment variables
-
-Hernness ships with four built-in provider adapters. Configure them through the `HERNNESS_`-prefixed environment, never via hard-coded URLs or keys in agent code:
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `HERNNESS_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
-| `HERNNESS_MODEL` | yes | Default model name for the active provider |
-| `HERNNESS_<PROVIDER>_API_KEY` | per provider | API key (omit for Ollama) |
-| `HERNNESS_<PROVIDER>_BASE_URL` | no | Override endpoint URL |
-| `HERNNESS_<PROVIDER>_MODEL` | no | Provider-specific model override |
-| `HERNNESS_DATABASE_PATH` | no | SQLite path; empty = in-memory |
-| `HERNNESS_MAX_TOTAL_TOKENS` | no | Override `LoopPolicy.max_total_tokens` |
-| `HERNNESS_MAX_RUNTIME_SECONDS` | no | Override `LoopPolicy.max_runtime_seconds` |
-| `HERNNESS_REPEATED_ACTION_LIMIT` | no | Override `LoopPolicy.repeated_action_limit` |
-
-Examples:
-
-```bash
-# Local Ollama — no API key needed
-HERNNESS_PROVIDER=ollama HERNNESS_MODEL=llama3.1 python -m my_agent
-
-# Anthropic
-HERNNESS_PROVIDER=anthropic \
-HERNNESS_MODEL=claude-sonnet-4-6 \
-HERNNESS_ANTHROPIC_API_KEY="$HERNNESS_ANTHROPIC_API_KEY" \
-python -m my_agent
-
-# OpenAI-compatible self-hosted endpoint
-HERNNESS_PROVIDER=openai \
-HERNNESS_MODEL=meta-llama/Meta-Llama-3.1-70B-Instruct \
-HERNNESS_OPENAI_BASE_URL=https://my-gateway.internal/v1 \
-HERNNESS_OPENAI_API_KEY="$HERNNESS_OPENAI_API_KEY" \
-python -m my_agent
-```
-
-`HERNNESS_OLLAMA_BASE_URL` defaults to `http://localhost:11434`; the rest have sensible built-in defaults. See [`.env.example`](.env.example) for a full template (placeholders only — never commit real keys).
-
-A single factory builds the right provider:
+A single factory builds the right provider from the environment:
 
 ```python
 from hernness.config import build_provider_from_env
 
 provider = build_provider_from_env()  # raises ConfigError if anything required is missing
+```
+
+---
+
+## Providers
+
+Hernness ships with four built-in provider adapters. All four read configuration through the `HERNNESS_`-prefixed environment; agent code never touches URLs or keys directly.
+
+| Provider | Adapter | Notes |
+|---|---|---|
+| Ollama | `OllamaProvider` | Local HTTP at `http://localhost:11434`, no key. Default for offline testing. |
+| MiniMax | `MiniMaxProvider` | Anthropic-compatible or OpenAI-compatible style. URL/key configurable. |
+| Anthropic | `AnthropicProvider` | Native Messages API. |
+| OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — works for OpenAI, vLLM, llama.cpp, etc. |
+
+Each adapter exposes the same `ModelProvider` Protocol, so swapping providers is a one-line change. The deterministic `FakeProvider` records scripted `ModelResponse`s so tests never need an API key.
+
+```python
+from hernness import AgentRuntime, FakeProvider, ModelResponse
+
+runtime = AgentRuntime(
+    provider=FakeProvider([
+        ModelResponse(content="Hello from a scripted provider."),
+    ]),
+)
 ```
 
 ---
@@ -327,6 +309,193 @@ provider = build_provider_from_env()  # reads HERNNESS_PROVIDER + HERNNESS_MODEL
 runtime = AgentRuntime(provider=provider, tools=[...])
 result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
 ```
+
+---
+
+## Application tools
+
+Beyond user-defined `FunctionTool`s, Hernness ships ready-to-use tools for the two things every coding/ops agent needs: **reading/writing files** and **running shell commands**. Both are scoped to a single workspace root per run; shell execution runs in an ephemeral docker container by default.
+
+```bash
+python -m pip install -e ".[sandbox]"   # adds docker-py for run_shell
+```
+
+### File tools — `read_file`, `write_file`
+
+Bind a workspace once per run, then hand the tools to `AgentRuntime`:
+
+```python
+from pathlib import Path
+from hernness import AgentRuntime
+from hernness.app_tools.workspace import Workspace
+from hernness.app_tools.file_tools import (
+    bind_workspace,
+    read_file_tool,
+    write_file_tool,
+)
+
+workspace = Workspace(Path("./project"), create=True)
+provider = build_provider_from_env()
+
+with bind_workspace(workspace):
+    runtime = AgentRuntime(
+        provider=provider,
+        tools=[read_file_tool(), write_file_tool()],
+    )
+    result = await runtime.run("Refactor tests/test_models.py to use parameterize.")
+```
+
+`Workspace.validate_path()` rejects every `../`, absolute-path, and symlink-escape attempt **before** the file is opened. The `write_file` tool opens with `O_NOFOLLOW` on POSIX so a symlink inside the workspace cannot redirect a write to an external target after validation.
+
+### Shell tool — `run_shell`
+
+The shell tool **never** calls `subprocess` on the host. Every invocation goes through `SandboxExecutor`, which spawns a fresh docker container with `remove=True`, `network_mode="none"` (configurable), a memory cap, and a CPU quota. The container is removed as soon as the command exits.
+
+```python
+from hernness.app_tools.sandbox import SandboxExecutor
+from hernness.app_tools.file_tools import bind_workspace
+from hernness.app_tools.shell_tool import bind_sandbox, run_shell_tool
+from hernness.app_tools.workspace import Workspace
+
+workspace = Workspace(Path("./project"), create=True)
+executor = SandboxExecutor(
+    image="python:3.12-slim",
+    mem_limit="256m",
+    network_mode="none",
+    timeout_seconds=30.0,
+)
+
+with bind_workspace(workspace), bind_sandbox(executor):
+    runtime = AgentRuntime(
+        provider=provider,
+        tools=[read_file_tool(), write_file_tool(), run_shell_tool()],
+    )
+    result = await runtime.run("Run the test suite and report failures.")
+```
+
+The container's working directory is fixed to `/workspace` so the agent cannot reach the host filesystem outside what the operator explicitly mounts. The docker client is injectable — production code passes `docker.from_env()`; tests pass a fake client that records the container config.
+
+### Approval gating
+
+For tools that should never run without an explicit operator check (e.g. `run_shell` in production), set `HERNNESS_TOOLS_REQUIRE_APPROVAL`:
+
+```bash
+export HERNNESS_TOOLS_REQUIRE_APPROVAL=run_shell,write_file
+```
+
+Then wire the policy into `AgentRuntime`:
+
+```python
+from hernness.app_tools.approval import build_approval_callback
+from hernness import AgentRuntime
+
+runtime = AgentRuntime(
+    provider=provider,
+    tools=[run_shell_tool(), write_file_tool()],
+    approval_callback=build_approval_callback(),
+)
+```
+
+Tool names in the list trigger the approval callback before invocation; tools outside the list auto-approve without any callback. Wrap `build_approval_callback()` with your own `on_require` hook to escalate to an interactive prompt.
+
+---
+
+## Optional Lethe context management
+
+Lethe is a separate package that holds long-term memories outside Hernness's operational event log. The shipped `LetheMemoryAdapter` keeps the runtime focused: it injects a bounded system message before the first model call and persists the final assistant answer when the run completes. Lethe itself is optional — the adapter uses its `MemoryStore.recall` and `MemoryStore.remember` only, and Hernness's tests ship a local fake.
+
+```python
+from lethe import MemoryStore
+from hernness import AgentRuntime, FakeProvider, ModelResponse
+from hernness.integrations.lethe import LetheMemoryAdapter
+
+memory = LetheMemoryAdapter(MemoryStore(), recall_k=5)
+
+async def main() -> None:
+    runtime = AgentRuntime(
+        provider=FakeProvider([ModelResponse(content="ok")]),
+        memory=memory,
+    )
+    result = await runtime.run("Continue the previous plan.")
+```
+
+Install Lethe separately in the application environment:
+
+```bash
+python -m pip install lethe
+```
+
+If `memory` is omitted (the default), `AgentRuntime` runs with no context recall and no answer persistence. See `src/hernness/integrations/lethe.py` and `tests/test_lethe_integration.py` for the adapter contract.
+
+---
+
+## CLI
+
+The `hernness` command reads a SQLite database path and exposes four subcommands:
+
+```bash
+# Inspect the persisted event log
+hernness --database hernness.db runs list
+hernness --database hernness.db runs inspect RUN_ID
+hernness --database hernness.db runs resume RUN_ID
+
+# Interactive REPL — one AgentRuntime turn per line
+HERNNESS_PROVIDER=ollama \
+HERNNESS_MODEL=llama3.1 \
+HERNNESS_OLLAMA_BASE_URL=http://localhost:11434 \
+hernness chat --workspace-root $(pwd)
+
+# Verify provider config without making an HTTP call
+hernness doctor
+```
+
+Inside the chat REPL:
+
+```text
+Hernness
+Provider: ollama
+Model: llama3.1
+Workspace: /home/user/project
+Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit
+You > Explain this repository
+Hernness [completed/completed] steps=2 run_id=01HK…
+> …answer…
+You > /provider
+Provider: ollama
+Model: llama3.1
+Base URL: http://localhost:11434
+API key configured: False
+You > /quit
+```
+
+Slash commands:
+
+- `/provider` — print provider / model / base URL / key presence (never the key itself).
+- `/inspect RUN_ID` — reuse `TraceInspector` to render a run.
+- `/resume RUN_ID` — reuse `AgentRuntime.resume`.
+- `/quit` / `/exit` — exit cleanly; the SQLite store is closed in `finally`.
+
+The chat subcommand uses the same `build_provider_from_env`, `Workspace`, `bind_workspace`, and `AgentRuntime` that application code uses; it does not introduce a second agent loop.
+
+Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
+
+### `hernness doctor`
+
+`doctor` reads `os.environ` and reports which `HERNNESS_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
+
+```bash
+$ hernness doctor
+HERNNESS provider: MiniMax
+HERNNESS model: MiniMax-M3
+base URL: https://api.minimax.io
+API style: anthropic
+endpoint: https://api.minimax.io/anthropic/v1/messages
+API key configured: True
+
+Result: OK. Provider config is buildable.
+```
+
+If anything is missing, `doctor` lists the missing variable names and exits non-zero so it can be used in CI.
 
 ---
 
@@ -490,78 +659,6 @@ Exact enum values are lowercase when serialized.
 
 ---
 
-## CLI
-
-The CLI reads a SQLite database path and exposes three subcommands:
-
-```bash
-# Inspect the persisted event log
-hernness --database hernness.db runs list
-hernness --database hernness.db runs inspect RUN_ID
-hernness --database hernness.db runs resume RUN_ID
-
-# Interactive REPL — one AgentRuntime turn per line
-HERNNESS_PROVIDER=ollama \
-HERNNESS_MODEL=llama3.1 \
-HERNNESS_OLLAMA_BASE_URL=http://localhost:11434 \
-hernness chat --workspace-root $(pwd)
-
-# Verify provider config without making an HTTP call
-hernness doctor
-```
-
-Inside the chat REPL:
-
-```text
-Hernness
-Provider: ollama
-Model: llama3.1
-Workspace: /home/user/project
-Slash commands: /provider, /inspect RUN_ID, /resume RUN_ID, /quit
-You > Explain this repository
-Hernness [completed/completed] steps=2 run_id=01HK…
-> …answer…
-You > /provider
-Provider: ollama
-Model: llama3.1
-Base URL: http://localhost:11434
-API key configured: False
-You > /quit
-```
-
-Slash commands:
-
-- `/provider` — print provider / model / base URL / key presence (never the key itself).
-- `/inspect RUN_ID` — reuse `TraceInspector` to render a run.
-- `/resume RUN_ID` — reuse `AgentRuntime.resume`.
-- `/quit` / `/exit` — exit cleanly; the SQLite store is closed in `finally`.
-
-The chat subcommand uses the same `build_provider_from_env`, `Workspace`,
-`bind_workspace`, and `AgentRuntime` that application code uses; it does
-not introduce a second agent loop.
-
-Generic provider and tool callables cannot be reconstructed from a database. CLI `runs resume` therefore supports persisted `FakeProvider` runs that do not have a pending application tool. Application runs should resume through Python with their provider and tool registry configured.
-
-### `hernness doctor`
-
-`doctor` reads `os.environ` and reports which `HERNNESS_*` variables are present, which are missing, what provider and model would be used, the resolved endpoint URL, and whether `ConfigError` would be raised at provider construction time. It **never** sends an HTTP request, so it is safe to run on a fresh machine to verify your `.zshrc` / `.bashrc` before talking to a paid provider.
-
-```bash
-$ hernness doctor
-SOTERIA provider: MiniMax
-SOTERIA model: MiniMax-M3
-base URL: https://api.minimax.io
-API style: anthropic
-endpoint: https://api.minimax.io/anthropic/v1/messages
-API key configured: True
-
-Result: OK. Provider config is buildable.
-```
-
-If anything is missing, `doctor` lists the missing variable names and exits non-zero so it can be used in CI.
-
----
-
 ## Important limitations
 
 - Repetition and no-progress detection are exact deterministic heuristics, not semantic loop detection.
@@ -569,7 +666,7 @@ If anything is missing, `doctor` lists the missing variable names and exits non-
 - If any provider response omits usage, token accounting is marked unavailable; Hernness never treats missing usage as zero.
 - SQLite v0.1 assumes normal single-process use. There is no distributed lease or multi-process scheduler.
 - Tool calls execute serially. Parallel calls, MCP, OpenTelemetry, approval UIs, and replay are deferred.
-- A `TOOL_STARTED` event without a durable result is intentionally treated as ** unsafe to resume automatically because the external side effect is uncertain.
+- A `TOOL_STARTED` event without a durable result is intentionally treated as **unsafe** to resume automatically because the external side effect is uncertain.
 - The event schema has no migration system yet.
 
 ---

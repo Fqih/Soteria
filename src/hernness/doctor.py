@@ -71,7 +71,7 @@ def _endpoint_for(env: Mapping[str, str], provider: str) -> tuple[str | None, st
         from hernness.providers.ollama import OllamaConfig
 
         try:
-            ollama_cfg: Any = OllamaConfig.from_soteria_env(env, fallback_model=fallback_model)
+            ollama_cfg: Any = OllamaConfig.from_hernness_env(env, fallback_model=fallback_model)
         except (ValueError, KeyError):
             return None, None
         return ollama_cfg.endpoint, None
@@ -80,7 +80,7 @@ def _endpoint_for(env: Mapping[str, str], provider: str) -> tuple[str | None, st
         from hernness.providers.minimax import MiniMaxConfig
 
         try:
-            minimax_cfg: Any = MiniMaxConfig.from_soteria_env(env, fallback_model=fallback_model)
+            minimax_cfg: Any = MiniMaxConfig.from_hernness_env(env, fallback_model=fallback_model)
         except (ValueError, KeyError):
             return None, env.get("HERNNESS_MINIMAX_API_STYLE", "anthropic")
         return minimax_cfg.endpoint, minimax_cfg.api_style
@@ -89,7 +89,7 @@ def _endpoint_for(env: Mapping[str, str], provider: str) -> tuple[str | None, st
         from hernness.providers.anthropic import AnthropicConfig
 
         try:
-            anthropic_cfg: Any = AnthropicConfig.from_soteria_env(
+            anthropic_cfg: Any = AnthropicConfig.from_hernness_env(
                 env, fallback_model=fallback_model
             )
         except (ValueError, KeyError):
@@ -100,7 +100,7 @@ def _endpoint_for(env: Mapping[str, str], provider: str) -> tuple[str | None, st
         from hernness.providers.openai_compatible import OpenAICompatibleConfig
 
         try:
-            openai_cfg: Any = OpenAICompatibleConfig.from_soteria_env(
+            openai_cfg: Any = OpenAICompatibleConfig.from_hernness_env(
                 env, fallback_model=fallback_model
             )
         except (ValueError, KeyError):
@@ -169,16 +169,16 @@ def render_report(report: DoctorReport, *, out: IO[str]) -> None:
     """Print a human-readable report to ``out`` without leaking secrets."""
 
     if report.provider is None:
-        out.write("SOTERIA provider: (unset)\n")
+        out.write("HERNNESS provider: (unset)\n")
         out.write("  set HERNNESS_PROVIDER to one of: " + ", ".join(_PROVIDER_NAMES) + "\n")
     else:
         label = _PROVIDER_LABELS.get(report.provider, report.provider)
-        out.write(f"SOTERIA provider: {label}\n")
+        out.write(f"HERNNESS provider: {label}\n")
 
     if report.model:
-        out.write(f"SOTERIA model: {report.model}\n")
+        out.write(f"HERNNESS model: {report.model}\n")
     else:
-        out.write("SOTERIA model: (unset)\n")
+        out.write("HERNNESS model: (unset)\n")
 
     if report.base_url:
         out.write(f"base URL: {report.base_url}\n")

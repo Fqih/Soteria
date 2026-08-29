@@ -16,7 +16,7 @@ is **0.1.0**.
   with `tool_use` block parsing.
 - `src/hernness/providers/openai_compatible.py` — OpenAI
   Chat-Completions adapter that also covers self-hosted gateways.
-- `src/hernness/providers/minimax.py` — new `from_soteria_env`
+- `src/hernness/providers/minimax.py` — new `from_hernness_env`
   constructor alongside the legacy benchmark `from_env` path.
 - `src/hernness/app_tools/workspace.py` — `Workspace` class and
   `validate_path` helper. Rejects `..`, absolute escapes, symlink

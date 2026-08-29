@@ -17,9 +17,9 @@ from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-PluginError = SoteriaError
+PluginError = HernnessError
 
 TOOL_GROUP = "hernness.tools"
 NOTIFIER_GROUP = "hernness.notifiers"

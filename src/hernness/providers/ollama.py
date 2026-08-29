@@ -60,7 +60,7 @@ class OllamaConfig(BaseModel):
     _api_key: str | None = PrivateAttr(default=None)
 
     @classmethod
-    def from_soteria_env(
+    def from_hernness_env(
         cls,
         environ: Mapping[str, str],
         *,

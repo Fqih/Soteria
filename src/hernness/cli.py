@@ -10,7 +10,7 @@ from pathlib import Path
 
 from hernness.chat import run_repl
 from hernness.doctor import main as doctor_main
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.providers.fake import FakeProvider
 from hernness.runtime import AgentRuntime
 from hernness.storage.sqlite import SQLiteEventStore
@@ -101,9 +101,9 @@ async def _execute(args: argparse.Namespace) -> int:
         if args.runs_command == "resume":
             checkpoint = await store.get_latest_checkpoint(args.run_id)
             if checkpoint is None:
-                raise SoteriaError(f"Run {args.run_id!r} has no checkpoint and cannot be resumed.")
+                raise HernnessError(f"Run {args.run_id!r} has no checkpoint and cannot be resumed.")
             if checkpoint.provider_metadata.get("provider_type") != "fake":
-                raise SoteriaError(
+                raise HernnessError(
                     "CLI resume can reconstruct only the built-in FakeProvider. "
                     "Resume real providers from application code with the configured adapter."
                 )
@@ -111,7 +111,7 @@ async def _execute(args: argparse.Namespace) -> int:
                 checkpoint.pending_response is not None
                 and checkpoint.pending_response.tool_call is not None
             ):
-                raise SoteriaError(
+                raise HernnessError(
                     "CLI resume cannot reconstruct application tool callables. "
                     "Resume this run from application code with its ToolRegistry."
                 )
@@ -120,7 +120,7 @@ async def _execute(args: argparse.Namespace) -> int:
             result = await runtime.resume(args.run_id)
             print(f"Run {result.run_id}: {result.status.value} ({result.stop_reason.value})")
             return 0
-        raise SoteriaError(f"Unknown runs command: {args.runs_command!r}.")
+        raise HernnessError(f"Unknown runs command: {args.runs_command!r}.")
     finally:
         await store.close()
 
@@ -131,7 +131,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         return asyncio.run(_execute(args))
-    except (SoteriaError, OSError) as exc:
+    except (HernnessError, OSError) as exc:
         print(f"hernness: {exc}", file=sys.stderr)
         return 2
 

@@ -13,8 +13,8 @@ import os
 from pathlib import Path
 from typing import TextIO
 
-_SHELL_RC_MARKER_BEGIN = "# >>> soteria setup >>>"
-_SHELL_RC_MARKER_END = "# <<< soteria setup <<<"
+_SHELL_RC_MARKER_BEGIN = "# >>> hernness setup >>>"
+_SHELL_RC_MARKER_END = "# <<< hernness setup <<<"
 
 
 def _detect_shell_rc_path() -> Path | None:
@@ -67,8 +67,8 @@ def persist_env_to_shell_rc(
 ) -> Path:
     """Append (or replace) HERNNESS_* exports in ``rc_path``.
 
-    The export block is delimited by ``# >>> soteria setup >>>`` and
-    ``# <<< soteria setup <<<`` markers so subsequent invocations replace
+    The export block is delimited by ``# >>> hernness setup >>>`` and
+    ``# <<< hernness setup <<<`` markers so subsequent invocations replace
     the block in place rather than accumulating duplicates. The block
     is written with POSIX-sh-compatible double-quoted exports so values
     containing single quotes survive intact.
@@ -84,7 +84,7 @@ def persist_env_to_shell_rc(
 
     existing = rc_path.read_text(encoding="utf-8") if rc_path.exists() else ""
 
-    # Drop the previous soteria block if present.
+    # Drop the previous hernness block if present.
     start = existing.find(_SHELL_RC_MARKER_BEGIN)
     end = existing.find(_SHELL_RC_MARKER_END)
     if start != -1 and end != -1 and end > start:

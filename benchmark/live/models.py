@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from hernness.models import SoteriaModel, TokenUsage, utc_now
+from hernness.models import HernnessModel, TokenUsage, utc_now
 from hernness.state import RunState, StopReason
 
 RawOutcome = Literal["completed", "hit_manual_step_cap", "error"]
@@ -28,7 +28,7 @@ class UnexpectedRawLoopError(Exception):
         self.original = original
 
 
-class LiveRunRecord(SoteriaModel):
+class LiveRunRecord(HernnessModel):
     """One observable live benchmark run, agnostic to approach.
 
     Only public fields are serialized; credential-like keys are not stored on
@@ -79,7 +79,7 @@ class LiveRunRecord(SoteriaModel):
         return False
 
 
-class LiveResults(SoteriaModel):
+class LiveResults(HernnessModel):
     """A bundle of ``LiveRunRecord`` rows persisted as the source of truth."""
 
     model_config = ConfigDict(extra="forbid")

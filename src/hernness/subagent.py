@@ -18,10 +18,10 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.snapshot import resume
 
-SubAgentError = SoteriaError
+SubAgentError = HernnessError
 
 
 @dataclass(frozen=True)

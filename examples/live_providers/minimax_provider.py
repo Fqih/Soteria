@@ -9,8 +9,8 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria_loop.exceptions import ProviderError
+from hernness import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from hernness.exceptions import ProviderError
 
 from .common import (
     build_openai_payload,

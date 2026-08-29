@@ -17,9 +17,9 @@ from typing import Any
 
 from pydantic import JsonValue
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
-CheckpointError = SoteriaError
+CheckpointError = HernnessError
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS checkpoints (

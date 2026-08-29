@@ -20,12 +20,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 
 PathLike = str | Path
 
 
-class WorkspacePathError(SoteriaError):
+class WorkspacePathError(HernnessError):
     """Raised when a path operation would escape the workspace root."""
 
 

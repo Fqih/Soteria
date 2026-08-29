@@ -6,8 +6,8 @@ import json
 import re
 from typing import Any
 
-from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria_loop.exceptions import ProviderError
+from hernness import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from hernness.exceptions import ProviderError
 
 
 def json_safe_content(value: object) -> str:
@@ -41,7 +41,7 @@ def build_openai_payload(
     request: ModelRequest,
     max_completion_tokens: int,
 ) -> dict[str, object]:
-    """Convert a Soteria model request to an OpenAI-compatible payload."""
+    """Convert a Hernness model request to an OpenAI-compatible payload."""
 
     messages = [_openai_message(message) for message in request.messages]
     tools = [

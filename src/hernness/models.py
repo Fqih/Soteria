@@ -32,13 +32,13 @@ def _require_aware(value: datetime) -> datetime:
     return value.astimezone(UTC)
 
 
-class SoteriaModel(BaseModel):
+class HernnessModel(BaseModel):
     """Strict base model shared by public Hernness data models."""
 
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
 
-class TokenUsage(SoteriaModel):
+class TokenUsage(HernnessModel):
     """Input and output token counts reported by a provider."""
 
     input_tokens: int = Field(default=0, ge=0)
@@ -59,7 +59,7 @@ class TokenUsage(SoteriaModel):
         )
 
 
-class ToolMetadata(SoteriaModel):
+class ToolMetadata(HernnessModel):
     """Model-facing metadata and JSON schema for a registered tool."""
 
     name: str = Field(min_length=1)
@@ -67,7 +67,7 @@ class ToolMetadata(SoteriaModel):
     input_schema: dict[str, JsonValue]
 
 
-class ToolCall(SoteriaModel):
+class ToolCall(HernnessModel):
     """A provider decision requesting one tool invocation."""
 
     tool_call_id: str = Field(default_factory=new_id, min_length=1)
@@ -75,7 +75,7 @@ class ToolCall(SoteriaModel):
     arguments: dict[str, JsonValue] = Field(default_factory=dict)
 
 
-class ToolResult(SoteriaModel):
+class ToolResult(HernnessModel):
     """The normalized result of a tool invocation."""
 
     tool_call_id: str = Field(min_length=1)
@@ -103,7 +103,7 @@ class ToolResult(SoteriaModel):
         return self
 
 
-class ModelRequest(SoteriaModel):
+class ModelRequest(HernnessModel):
     """Provider-neutral input for one model generation."""
 
     request_id: str = Field(default_factory=new_id, min_length=1)
@@ -113,7 +113,7 @@ class ModelRequest(SoteriaModel):
     tools: list[ToolMetadata] = Field(default_factory=list)
 
 
-class ModelResponse(SoteriaModel):
+class ModelResponse(HernnessModel):
     """Provider-neutral final answer or single tool-call decision."""
 
     response_id: str = Field(default_factory=new_id, min_length=1)
@@ -138,7 +138,7 @@ class ModelResponse(SoteriaModel):
         return self.content is not None
 
 
-class RunRecord(SoteriaModel):
+class RunRecord(HernnessModel):
     """Mutable run metadata; its event history remains append-only."""
 
     run_id: str = Field(default_factory=new_id, min_length=1)
@@ -173,7 +173,7 @@ class RunRecord(SoteriaModel):
         return self
 
 
-class Checkpoint(SoteriaModel):
+class Checkpoint(HernnessModel):
     """A durable runtime snapshot sufficient to continue a non-terminal run."""
 
     checkpoint_id: str = Field(default_factory=new_id, min_length=1)
@@ -199,7 +199,7 @@ class Checkpoint(SoteriaModel):
     _created_at_aware = field_validator("created_at", mode="after")(_require_aware)
 
 
-class RunResult(SoteriaModel):
+class RunResult(HernnessModel):
     """The explicit terminal outcome returned by the runtime."""
 
     run_id: str
