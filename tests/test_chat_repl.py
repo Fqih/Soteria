@@ -18,7 +18,7 @@ from hernness import ModelResponse
 from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from hernness.chat import build_chat_context, run_repl
 from hernness.config import ConfigError
-from hernness.exceptions import SoteriaError
+from hernness.exceptions import HernnessError
 from hernness.providers.base import ModelProvider
 from hernness.storage.sqlite import SQLiteEventStore
 
@@ -143,7 +143,7 @@ def test_build_chat_context_missing_provider_raises(
 def test_build_chat_context_missing_workspace_raises(
     chat_env: dict[str, Path],
 ) -> None:
-    with pytest.raises(SoteriaError):
+    with pytest.raises(HernnessError):
         build_chat_context(
             database_path=chat_env["db"],
             workspace_root=chat_env["workspace"] / "does-not-exist",

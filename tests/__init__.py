@@ -1,1 +1,1 @@
-"""Soteria test suite."""
+"""Hernness test suite."""

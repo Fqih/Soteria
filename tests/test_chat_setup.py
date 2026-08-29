@@ -314,12 +314,12 @@ async def test_fresh_anthropic_setup_reaches_repl(
 
 
 def test_build_chat_context_refuses_none_database_path() -> None:
-    """database_path=None must raise SoteriaError, not TypeError."""
+    """database_path=None must raise HernnessError, not TypeError."""
 
     from hernness.chat import build_chat_context
-    from hernness.exceptions import SoteriaError
+    from hernness.exceptions import HernnessError
 
-    with pytest.raises(SoteriaError):
+    with pytest.raises(HernnessError):
         build_chat_context(
             database_path=None,  # type: ignore[arg-type]
             workspace_root=Path("/tmp"),
@@ -344,7 +344,7 @@ async def test_database_path_never_none_during_chat_normal_init(
     stderr = io.StringIO()
 
     # Sanity: a real Path is passed; if anything tries to hand None downstream,
-    # we want the run to crash with a SoteriaError, never a bare TypeError.
+    # we want the run to crash with a HernnessError, never a bare TypeError.
     assert chat_env["db"] is not None
     code = await run_repl(
         database_path=chat_env["db"],
