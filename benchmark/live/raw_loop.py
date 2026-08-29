@@ -3,7 +3,7 @@
 This loop intentionally avoids ``AgentRuntime``, ``LoopPolicy``,
 ``ProgressDetector``, checkpoints, and the repeated-action stop. It exercises
 only ``ModelProvider.generate`` and ``ToolRegistry.invoke`` so the recorded
-metrics describe the raw provider behavior, not any Soteria safety net.
+metrics describe the raw provider behavior, not any Hernness safety net.
 """
 
 from __future__ import annotations
@@ -19,16 +19,16 @@ from benchmark.live.models import (
     UnexpectedRawLoopError,
 )
 from benchmark.live.scenarios import LiveScenario
-from soteria_loop.exceptions import ProviderError, ToolExecutionError
-from soteria_loop.models import (
+from hernness.exceptions import ProviderError, ToolExecutionError
+from hernness.models import (
     ModelRequest,
     ModelResponse,
     TokenUsage,
     ToolCall,
     ToolResult,
 )
-from soteria_loop.providers.base import ModelProvider
-from soteria_loop.tools import ToolRegistry
+from hernness.providers.base import ModelProvider
+from hernness.tools import ToolRegistry
 
 _RAW_RUN_ID = "raw-loop"
 
@@ -63,7 +63,7 @@ async def run_raw_loop(
         manual_step_cap: External safety fence; the loop exits after this many
             model calls regardless of the model's behavior.
         max_completion_tokens: Provider hint surfaced only via the
-            ``ModelRequest`` to keep parity with the Soteria runner.
+            ``ModelRequest`` to keep parity with the Hernness runner.
 
     Returns:
         A ``LiveRunRecord`` describing the run. ``loop_contained`` is always
@@ -81,7 +81,7 @@ async def run_raw_loop(
     # ``max_completion_tokens`` is intentionally not threaded through the raw
     # loop's ``ModelRequest``; providers consume it via their own configuration
     # and the parameter is retained so the public signature matches the
-    # Soteria runner. Touching it once suppresses the unused-argument warning
+    # Hernness runner. Touching it once suppresses the unused-argument warning
     # without altering the loop body.
     _ = max_completion_tokens
 

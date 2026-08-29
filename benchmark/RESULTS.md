@@ -5,7 +5,7 @@ containment, persistence, and recovery behavior—not model intelligence.
 
 ## Aggregate metrics
 
-| Metric | Minimal raw loop | Soteria |
+| Metric | Minimal raw loop | Hernness |
 |---|---:|---:|
 | Task Completion Rate | 25.0% | 25.0% |
 | Loop Containment Rate | 0.0% | 100.0% |
@@ -18,7 +18,7 @@ containment, persistence, and recovery behavior—not model intelligence.
 
 ## Scenario outcomes
 
-| Scenario | Raw completed | Soteria completed | Soteria contained | Soteria resumed |
+| Scenario | Raw completed | Hernness completed | Hernness contained | Hernness resumed |
 |---|---:|---:|---:|---:|
 | normal_completion | true | true | false | false |
 | repeated_tool_calls | false | false | true | false |

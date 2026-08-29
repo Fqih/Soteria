@@ -1,9 +1,9 @@
-"""Soteria-managed live benchmark execution, including interruption and resume.
+"""Hernness-managed live benchmark execution, including interruption and resume.
 
-Unlike ``raw_loop``, this runner deliberately drives the full Soteria stack:
+Unlike ``raw_loop``, this runner deliberately drives the full Hernness stack:
 ``AgentRuntime`` coordinates the provider, the scenario's typed tools, and its
 ``LoopPolicy`` while an event store records a durable trace. The recorded
-``LiveRunRecord`` therefore reflects Soteria's safety net (policy stops and
+``LiveRunRecord`` therefore reflects Hernness's safety net (policy stops and
 resume-safe idempotency), not a manual step cap.
 """
 
@@ -16,12 +16,12 @@ from tempfile import TemporaryDirectory
 
 from benchmark.live.models import LiveRunRecord
 from benchmark.live.scenarios import LiveScenario
-from soteria_loop import AgentEvent, AgentRuntime, EventType, RunResult, RunTrace
-from soteria_loop.providers.base import ModelProvider
-from soteria_loop.state import RunState, StopReason
-from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
+from hernness import AgentEvent, AgentRuntime, EventType, RunResult, RunTrace
+from hernness.providers.base import ModelProvider
+from hernness.state import RunState, StopReason
+from hernness.storage import InMemoryEventStore, SQLiteEventStore
 
-# Policy-driven stop reasons that mean Soteria's containment fences fired.
+# Policy-driven stop reasons that mean Hernness's containment fences fired.
 _CONTAINMENT_STOP_REASONS = frozenset(
     {
         StopReason.MAX_STEPS,
@@ -58,12 +58,12 @@ class InterruptAfterToolCompletedRuntime(AgentRuntime):
         await super()._event_persisted(event)
 
 
-def soteria_loop_contained(record: LiveRunRecord) -> bool:
-    """Return whether Soteria's policy fences contained the run.
+def hernness_contained(record: LiveRunRecord) -> bool:
+    """Return whether Hernness's policy fences contained the run.
 
     Containment means the runtime reached ``STOPPED`` via a policy stop reason
     (for example a repeated action). It is never inferred from a manual step
-    cap, which Soteria does not use.
+    cap, which Hernness does not use.
     """
 
     return record.status is RunState.STOPPED and record.stop_reason in _CONTAINMENT_STOP_REASONS
@@ -81,7 +81,7 @@ def _record_from_result(
 
     return LiveRunRecord(
         scenario=scenario.name,
-        approach="soteria_loop",
+        approach="hernness",
         run_index=run_index,
         status=result.status,
         stop_reason=result.stop_reason,
@@ -96,12 +96,12 @@ def _record_from_result(
     )
 
 
-async def run_soteria(
+async def run_hernness(
     provider: ModelProvider,
     scenario: LiveScenario,
     run_index: int,
 ) -> LiveRunRecord:
-    """Drive a Soteria-managed run to a terminal state and record its metrics.
+    """Drive a Hernness-managed run to a terminal state and record its metrics.
 
     Args:
         provider: The provider consulted for every model decision.
@@ -111,7 +111,7 @@ async def run_soteria(
     Returns:
         A ``LiveRunRecord`` mapping the terminal ``RunResult`` and inspected
         trace. Containment is decided by policy stop reasons via
-        :func:`soteria_loop_contained`, never by a manual cap.
+        :func:`hernness_contained`, never by a manual cap.
     """
 
     event_store = InMemoryEventStore()
@@ -126,7 +126,7 @@ async def run_soteria(
     return _record_from_result(scenario, run_index, result, trace)
 
 
-async def run_soteria_interrupted(
+async def run_hernness_interrupted(
     provider_factory: Callable[[], ModelProvider],
     scenario: LiveScenario,
     run_index: int,
@@ -152,9 +152,9 @@ async def run_soteria_interrupted(
     """
 
     counter = [0]
-    run_id = f"live-soteria_loop-{scenario.name}-{run_index}"
+    run_id = f"live-hernness-{scenario.name}-{run_index}"
 
-    with TemporaryDirectory(prefix="soteria_loop-live-") as directory:
+    with TemporaryDirectory(prefix="hernness-live-") as directory:
         database = Path(directory) / "runs.db"
 
         first_store = SQLiteEventStore(database)
@@ -201,7 +201,7 @@ async def run_soteria_interrupted(
 __all__ = [
     "BenchmarkInterruption",
     "InterruptAfterToolCompletedRuntime",
-    "run_soteria",
-    "run_soteria_interrupted",
-    "soteria_loop_contained",
+    "hernness_contained",
+    "run_hernness",
+    "run_hernness_interrupted",
 ]

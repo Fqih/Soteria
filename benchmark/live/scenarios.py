@@ -8,8 +8,8 @@ from typing import cast
 
 from pydantic import BaseModel, JsonValue
 
-from soteria_loop import FunctionTool, Tool
-from soteria_loop.policies import LoopPolicy
+from hernness import FunctionTool, Tool
+from hernness.policies import LoopPolicy
 
 NORMAL_TASK = "Use the add tool to calculate 12 + 8, then report the total."
 REPETITION_TASK = (

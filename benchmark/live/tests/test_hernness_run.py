@@ -1,4 +1,4 @@
-"""Deterministic tests for the live benchmark Soteria runner and resume harness."""
+"""Deterministic tests for the live benchmark Hernness runner and resume harness."""
 
 from __future__ import annotations
 
@@ -10,15 +10,15 @@ from pydantic import JsonValue
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from benchmark.live.scenarios import LiveScenario, scenario_by_name
-from benchmark.live.soteria_run import (
-    run_soteria,
-    run_soteria_interrupted,
-    soteria_loop_contained,
+from benchmark.live.hernness_run import (
+    hernness_contained,
+    run_hernness,
+    run_hernness_interrupted,
 )
-from soteria_loop import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from soteria_loop.providers import FakeProvider
-from soteria_loop.state import RunState, StopReason
+from benchmark.live.scenarios import LiveScenario, scenario_by_name
+from hernness import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from hernness.providers import FakeProvider
+from hernness.state import RunState, StopReason
 
 
 def _normal_scenario() -> LiveScenario:
@@ -40,7 +40,7 @@ def _expect_no_credentials(payload: dict[str, JsonValue]) -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_soteria_maps_normal_completion() -> None:
+async def test_run_hernness_maps_normal_completion() -> None:
     provider = FakeProvider(
         [
             ModelResponse(
@@ -58,10 +58,10 @@ async def test_run_soteria_maps_normal_completion() -> None:
         ]
     )
 
-    record = await run_soteria(provider, _normal_scenario(), run_index=0)
+    record = await run_hernness(provider, _normal_scenario(), run_index=0)
 
     assert record.scenario == "normal_completion"
-    assert record.approach == "soteria_loop"
+    assert record.approach == "hernness"
     assert record.run_index == 0
     assert record.status is RunState.COMPLETED
     assert record.stop_reason is StopReason.COMPLETED
@@ -74,7 +74,7 @@ async def test_run_soteria_maps_normal_completion() -> None:
     assert record.manual_step_cap_hit is False
     assert record.resume_tool_executed_exactly_once is None
     assert record.duration_seconds >= 0.0
-    assert soteria_loop_contained(record) is False
+    assert hernness_contained(record) is False
 
     assert record.trace_text is not None
     assert "Run:" in record.trace_text
@@ -83,7 +83,7 @@ async def test_run_soteria_maps_normal_completion() -> None:
 
 
 @pytest.mark.asyncio
-async def test_run_soteria_maps_repetition_policy_stop() -> None:
+async def test_run_hernness_maps_repetition_policy_stop() -> None:
     provider = FakeProvider(
         [
             ModelResponse(
@@ -97,22 +97,22 @@ async def test_run_soteria_maps_repetition_policy_stop() -> None:
         repeat_last=True,
     )
 
-    record = await run_soteria(provider, _repetition_scenario(), run_index=1)
+    record = await run_hernness(provider, _repetition_scenario(), run_index=1)
 
     assert record.scenario == "repetition_prone"
-    assert record.approach == "soteria_loop"
+    assert record.approach == "hernness"
     assert record.run_index == 1
     assert record.status is RunState.STOPPED
     assert record.stop_reason is StopReason.REPEATED_ACTION
     assert record.repeated_action_detected is True
     assert record.manual_step_cap_hit is False
-    assert soteria_loop_contained(record) is True
+    assert hernness_contained(record) is True
     assert record.trace_text is not None
     assert "Stop reason: repeated_action" in record.trace_text
 
 
 @pytest.mark.asyncio
-async def test_run_soteria_marks_token_accounting_unavailable() -> None:
+async def test_run_hernness_marks_token_accounting_unavailable() -> None:
     # FakeProvider substitutes an empty TokenUsage for None, so a bespoke
     # provider is required to exercise the missing-accounting branch.
     class _UsageMissingProvider:
@@ -120,7 +120,7 @@ async def test_run_soteria_marks_token_accounting_unavailable() -> None:
             del request
             return ModelResponse(content="done", usage=None)
 
-    record = await run_soteria(_UsageMissingProvider(), _normal_scenario(), run_index=0)
+    record = await run_hernness(_UsageMissingProvider(), _normal_scenario(), run_index=0)
 
     assert record.status is RunState.COMPLETED
     assert record.token_accounting_available is False
@@ -146,20 +146,20 @@ def _resume_provider_factory() -> FakeProvider:
 
 
 @pytest.mark.asyncio
-async def test_run_soteria_interrupted_executes_side_effect_exactly_once() -> None:
-    record = await run_soteria_interrupted(
+async def test_run_hernness_interrupted_executes_side_effect_exactly_once() -> None:
+    record = await run_hernness_interrupted(
         _resume_provider_factory,
         _interruption_scenario(),
         run_index=2,
     )
 
     assert record.scenario == "interrupted_resume"
-    assert record.approach == "soteria_loop"
+    assert record.approach == "hernness"
     assert record.run_index == 2
     assert record.status is RunState.COMPLETED
     assert record.stop_reason is StopReason.COMPLETED
     assert record.resume_tool_executed_exactly_once is True
-    assert soteria_loop_contained(record) is False
+    assert hernness_contained(record) is False
 
     # The side effect must be durably recorded exactly once across the interruption.
     assert record.trace_text is not None

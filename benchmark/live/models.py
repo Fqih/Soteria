@@ -8,11 +8,11 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from soteria_loop.models import SoteriaModel, TokenUsage, utc_now
-from soteria_loop.state import RunState, StopReason
+from hernness.models import SoteriaModel, TokenUsage, utc_now
+from hernness.state import RunState, StopReason
 
 RawOutcome = Literal["completed", "hit_manual_step_cap", "error"]
-Approach = Literal["raw", "soteria_loop"]
+Approach = Literal["raw", "hernness"]
 
 
 class UnexpectedRawLoopError(Exception):
@@ -48,7 +48,7 @@ class LiveRunRecord(SoteriaModel):
     approach: Approach
     run_index: int | None = Field(default=None, ge=0)
 
-    # Outcome (raw approach uses ``outcome``; soteria_loop approach uses status/stop_reason).
+    # Outcome (raw approach uses ``outcome``; hernness approach uses status/stop_reason).
     outcome: RawOutcome | None = None
     status: RunState | None = None
     stop_reason: StopReason | None = None
@@ -69,12 +69,12 @@ class LiveRunRecord(SoteriaModel):
     unexpected_error_type: str | None = None
     unexpected_error_message: str | None = None
 
-    # Optional Soteria trace text.
+    # Optional Hernness trace text.
     trace_text: str | None = None
 
     @property
     def loop_contained(self) -> bool:
-        """The raw loop never reports containment; only Soteria policy stops do."""
+        """The raw loop never reports containment; only Hernness policy stops do."""
 
         return False
 

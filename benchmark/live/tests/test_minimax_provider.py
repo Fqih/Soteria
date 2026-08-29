@@ -9,8 +9,8 @@ from typing import Any
 import httpx
 import pytest
 
-from soteria_loop import ModelRequest, TokenUsage, ToolCall, ToolMetadata
-from soteria_loop.exceptions import ProviderError
+from hernness import ModelRequest, TokenUsage, ToolCall, ToolMetadata
+from hernness.exceptions import ProviderError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 _minimax = import_module("examples.live_providers.minimax_provider")

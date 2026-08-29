@@ -3,7 +3,7 @@
 The renderer is deliberately JSON-driven: provider, model, and sample size are
 read from the bundle rather than hardcoded so the same code can chart any
 provider's results.  Matplotlib is an optional dependency of the live benchmark
-extras (``pip install soteria_loop[live-benchmark]``); tests gate on
+extras (``pip install hernness[live-benchmark]``); tests gate on
 ``pytest.importorskip("matplotlib")`` so the suite stays green without it.
 
 Public surface:
@@ -27,8 +27,8 @@ from pathlib import Path
 
 import matplotlib
 
+from benchmark.live.hernness_run import hernness_contained
 from benchmark.live.models import LiveResults, LiveRunRecord
-from benchmark.live.soteria_run import soteria_loop_contained
 
 matplotlib.use("Agg")  # headless backend, must precede pyplot
 
@@ -40,7 +40,7 @@ _NORMAL_SCENARIO = "normal_completion"
 _REPETITION_PNG = "repetition_containment.png"
 _NORMAL_PNG = "normal_completion_comparison.png"
 
-_APPROACH_ORDER: tuple[str, ...] = ("raw", "soteria_loop")
+_APPROACH_ORDER: tuple[str, ...] = ("raw", "hernness")
 
 _CHART_STYLE = "seaborn-v0_8-whitegrid"
 
@@ -60,14 +60,14 @@ def _record_contained(record: LiveRunRecord) -> bool:
     """Return whether ``record``'s loop was contained by a safety fence.
 
     For the raw baseline, containment is signalled by hitting the manual step
-    cap because the raw loop has no policy-driven fences.  For the Soteria
+    cap because the raw loop has no policy-driven fences.  For the Hernness
     approach, containment is decided by the policy stop reasons recorded by
-    :func:`benchmark.live.soteria_run.soteria_loop_contained`.
+    :func:`benchmark.live.hernness_run.hernness_contained`.
     """
 
     if record.approach == "raw":
         return bool(record.manual_step_cap_hit)
-    return soteria_loop_contained(record)
+    return hernness_contained(record)
 
 
 def _aggregate_repetition(

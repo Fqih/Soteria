@@ -12,9 +12,9 @@ from benchmark.live.scenarios import (
     SideEffectArguments,
     scenario_by_name,
 )
-from soteria_loop import FunctionTool, Tool
-from soteria_loop.exceptions import ToolValidationError
-from soteria_loop.policies import LoopPolicy
+from hernness import FunctionTool, Tool
+from hernness.exceptions import ToolValidationError
+from hernness.policies import LoopPolicy
 
 
 def _find(name: str) -> LiveScenario:

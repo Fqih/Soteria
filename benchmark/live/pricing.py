@@ -14,7 +14,7 @@ Two pricing regimes are supported today:
   explicitly.
 
 The estimator multiplies ``max_steps * scenario_count * 2 * runs`` to model
-both the raw baseline and the Soteria-managed run per scenario/run pair.  It
+both the raw baseline and the Hernness-managed run per scenario/run pair.  It
 deliberately over-estimates by also using the configured token caps, never the
 observed usage; the result is labeled ``upper-bound estimate, not a bill`` so
 the JSON dump cannot be mistaken for a settled invoice.
@@ -122,7 +122,7 @@ def estimate_upper_bound(
 ) -> CostEstimate:
     """Project the upper-bound USD cost of the configured live benchmark sweep.
 
-    The estimate assumes both the raw and the Soteria approach run for every
+    The estimate assumes both the raw and the Hernness approach run for every
     scenario/run pair, yielding ``max_steps * scenario_count * 2 * runs`` total
     model steps.  Each step is charged the configured token cap so the result
     is strictly an upper bound.

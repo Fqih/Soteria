@@ -27,7 +27,7 @@ hand-entered. Re-rendering is deterministic for a given bundle:
 
 | Chart file | What it shows | Derivation |
 | --- | --- | --- |
-| `repetition_containment.png` | Grouped bars of contained vs escaped counts per approach on the `repetition_prone` scenario. | `_aggregate_repetition` groups records by approach and counts `loop_contained` (Soteria policy stops) versus manual `step_cap_hit` (raw baseline). |
+| `repetition_containment.png` | Grouped bars of contained vs escaped counts per approach on the `repetition_prone` scenario. | `_aggregate_repetition` groups records by approach and counts `loop_contained` (Hernness policy stops) versus manual `step_cap_hit` (raw baseline). |
 | `normal_completion_comparison.png` | Side-by-side mean steps and mean wall-clock duration on the `normal_completion` scenario. | `_aggregate_normal` averages `steps` and `duration_seconds` per approach across the n-run slice. |
 
 The titles are derived from the bundle (`"Repetition containment — {provider}
@@ -44,19 +44,19 @@ The raw baseline records exactly one of three `outcome` values:
 - `error` — the run raised an exception (expected provider/tool errors stay in
   `expected_error_type`; unexpected ones land in `unexpected_error_type`).
 
-The Soteria approach records `status` and `stop_reason` instead:
+The Hernness approach records `status` and `stop_reason` instead:
 `completed`, `repeated_action` (policy containment), or any other RunState
 value. The renderer's containment rule is `approach=raw -> manual_step_cap_hit`,
-and `approach=soteria_loop -> soteria_loop_contained(record)`, so the raw loop's
+and `approach=hernness -> hernness_contained(record)`, so the raw loop's
 manual safety cap is treated as containment for *charting* but is never
-attributed to Soteria.
+attributed to Hernness.
 
 ## Cost-consent gate
 
 Two equivalent channels grant consent before the CLI builds any provider:
 
 - The CLI flag `--i-understand-this-costs-money`.
-- The environment variable `SOTERIA_I_UNDERSTAND_THIS_COSTS_MONEY` set to one
+- The environment variable `HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY` set to one
   of `1`, `true`, or `yes` (case-insensitive).
 
 If neither is present, the CLI exits with status `2` and the message names the
@@ -73,7 +73,7 @@ run(s) (<steps> steps total) - upper-bound estimate, not a bill
 ```
 
 The estimator (`benchmark.live.pricing.estimate_upper_bound`) deliberately
-**over**-estimates by assuming both raw and Soteria approaches run for every
+**over**-estimates by assuming both raw and Hernness approaches run for every
 `(scenario, run_index)` pair at the configured token caps. The default three
 runs therefore prints an upper bound, **not** an actual bill. Treat the number
 as a planning aid, not a settled invoice.
@@ -164,7 +164,7 @@ The live benchmark is gated behind an optional extra so the core package and
 the deterministic benchmark stay install-free:
 
 ```bash
-pip install soteria-loop[live-benchmark]
+pip install hernness[live-benchmark]
 ```
 
 The optional extra pulls in the live provider modules under

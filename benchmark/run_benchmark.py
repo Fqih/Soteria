@@ -1,4 +1,4 @@
-"""Run the deterministic raw-loop versus Soteria reliability benchmark."""
+"""Run the deterministic raw-loop versus Hernness reliability benchmark."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from pydantic import BaseModel
 from scenarios.catalog import SCENARIOS, Scenario, ScenarioKind
 
-from soteria_loop import (
+from hernness import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -26,9 +26,9 @@ from soteria_loop import (
     TokenUsage,
     ToolCall,
 )
-from soteria_loop.events import TERMINAL_EVENT_TYPES
-from soteria_loop.providers import FakeProvider, ScriptItem
-from soteria_loop.storage import InMemoryEventStore, SQLiteEventStore
+from hernness.events import TERMINAL_EVENT_TYPES
+from hernness.providers import FakeProvider, ScriptItem
+from hernness.storage import InMemoryEventStore, SQLiteEventStore
 
 HARNESS_STEP_LIMIT = 6
 
@@ -197,11 +197,11 @@ async def run_raw(scenario: Scenario) -> Outcome:
     )
 
 
-async def run_soteria(scenario: Scenario) -> Outcome:
-    """Run one scenario through Soteria and collect persisted invariants."""
+async def run_hernness(scenario: Scenario) -> Outcome:
+    """Run one scenario through Hernness and collect persisted invariants."""
 
     if scenario.kind is ScenarioKind.INTERRUPTION:
-        return await run_soteria_interruption(scenario)
+        return await run_hernness_interruption(scenario)
 
     started = time.perf_counter()
     side_effects = [0]
@@ -263,7 +263,7 @@ async def run_soteria(scenario: Scenario) -> Outcome:
     )
 
 
-async def run_soteria_interruption(scenario: Scenario) -> Outcome:
+async def run_hernness_interruption(scenario: Scenario) -> Outcome:
     """Measure SQLite recovery after a completed side effect."""
 
     started = time.perf_counter()
@@ -289,7 +289,7 @@ async def run_soteria_interruption(scenario: Scenario) -> Outcome:
         ),
         ModelResponse(content="recovered"),
     ]
-    with TemporaryDirectory(prefix="soteria_loop-benchmark-") as directory:
+    with TemporaryDirectory(prefix="hernness-benchmark-") as directory:
         path = Path(directory) / "benchmark.db"
         first_store = SQLiteEventStore(path)
         interrupted = InterruptingRuntime(
@@ -380,11 +380,11 @@ def aggregate(outcomes: list[Outcome]) -> dict[str, str]:
     }
 
 
-def render_results(raw: list[Outcome], soteria_loop: list[Outcome]) -> str:
+def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
     """Render reproducible Markdown benchmark output."""
 
     raw_metrics = aggregate(raw)
-    soteria_metrics = aggregate(soteria_loop)
+    soteria_metrics = aggregate(hernness)
     rows = [
         "# Deterministic Benchmark Results",
         "",
@@ -393,7 +393,7 @@ def render_results(raw: list[Outcome], soteria_loop: list[Outcome]) -> str:
         "",
         "## Aggregate metrics",
         "",
-        "| Metric | Minimal raw loop | Soteria |",
+        "| Metric | Minimal raw loop | Hernness |",
         "|---|---:|---:|",
     ]
     for metric in raw_metrics:
@@ -403,14 +403,14 @@ def render_results(raw: list[Outcome], soteria_loop: list[Outcome]) -> str:
             "",
             "## Scenario outcomes",
             "",
-            "| Scenario | Raw completed | Soteria completed | "
-            "Soteria contained | Soteria resumed |",
+            "| Scenario | Raw completed | Hernness completed | "
+            "Hernness contained | Hernness resumed |",
             "|---|---:|---:|---:|---:|",
         ]
     )
     for scenario in SCENARIOS:
         raw_outcome = next(item for item in raw if item.scenario is scenario.kind)
-        soteria_outcome = next(item for item in soteria_loop if item.scenario is scenario.kind)
+        soteria_outcome = next(item for item in hernness if item.scenario is scenario.kind)
         rows.append(
             f"| {scenario.kind.value} | {str(raw_outcome.task_completed).lower()} | "
             f"{str(soteria_outcome.task_completed).lower()} | "
@@ -439,8 +439,8 @@ async def main() -> None:
     """Execute every scenario for both systems and write RESULTS.md."""
 
     raw = [await run_raw(scenario) for scenario in SCENARIOS]
-    soteria_loop = [await run_soteria(scenario) for scenario in SCENARIOS]
-    output = render_results(raw, soteria_loop)
+    hernness = [await run_hernness(scenario) for scenario in SCENARIOS]
+    output = render_results(raw, hernness)
     results_path = Path(__file__).with_name("RESULTS.md")
     results_path.write_text(output, encoding="utf-8")
     print(output)
