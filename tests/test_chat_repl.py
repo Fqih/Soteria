@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from hernness import ModelResponse
-from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
-from hernness.chat import build_chat_context, run_repl
-from hernness.config import ConfigError
-from hernness.exceptions import HernnessError
-from hernness.providers.base import ModelProvider
-from hernness.storage.sqlite import SQLiteEventStore
+from avo import ModelResponse
+from avo.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
+from avo.chat import build_chat_context, run_repl
+from avo.config import ConfigError
+from avo.exceptions import AvoError
+from avo.providers.base import ModelProvider
+from avo.storage.sqlite import SQLiteEventStore
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -37,7 +37,7 @@ class _ScriptedProvider(ModelProvider):
     async def generate(self, request):  # type: ignore[override]
         self.calls.append(request.messages[-1].get("content", ""))  # type: ignore[union-attr]
         if not self.script:
-            from hernness.exceptions import FakeProviderExhaustedError
+            from avo.exceptions import FakeProviderExhaustedError
 
             raise FakeProviderExhaustedError("script empty")
         return self.script.pop(0)
@@ -56,9 +56,9 @@ def _environ_with_ollama(model: str = "fake-test-model") -> dict[str, str]:
     """Return an env dict that ``build_provider_from_env`` will accept for ollama."""
 
     return {
-        "HERNNESS_PROVIDER": "ollama",
-        "HERNNESS_MODEL": model,
-        "HERNNESS_OLLAMA_BASE_URL": "http://example.invalid",
+        "AVO_PROVIDER": "ollama",
+        "AVO_MODEL": model,
+        "AVO_OLLAMA_BASE_URL": "http://example.invalid",
     }
 
 
@@ -70,7 +70,7 @@ def _environ_with_ollama(model: str = "fake-test-model") -> dict[str, str]:
 def test_cli_chat_subcommand_parses(chat_env: dict[str, Path]) -> None:
     """The ``chat`` subcommand accepts an optional ``--workspace-root``."""
 
-    from hernness.cli import _parser
+    from avo.cli import _parser
 
     parser = _parser()
     args = parser.parse_args(
@@ -90,7 +90,7 @@ def test_cli_chat_subcommand_parses(chat_env: dict[str, Path]) -> None:
 def test_cli_existing_runs_subcommands_still_parse(chat_env: dict[str, Path]) -> None:
     """Existing ``runs list/inspect/resume`` continue to work after the chat add."""
 
-    from hernness.cli import _parser
+    from avo.cli import _parser
 
     parser = _parser()
     list_args = parser.parse_args(["runs", "list"])
@@ -143,7 +143,7 @@ def test_build_chat_context_missing_provider_raises(
 def test_build_chat_context_missing_workspace_raises(
     chat_env: dict[str, Path],
 ) -> None:
-    with pytest.raises(HernnessError):
+    with pytest.raises(AvoError):
         build_chat_context(
             database_path=chat_env["db"],
             workspace_root=chat_env["workspace"] / "does-not-exist",
@@ -178,7 +178,7 @@ async def test_repl_runs_one_turn_per_non_empty_line(
     stderr = io.StringIO()
 
     # Inline REPL using the same machinery but with the scripted provider swapped in.
-    from hernness.chat import _run_turn
+    from avo.chat import _run_turn
 
     with bind_workspace(ctx.workspace):
         for line in ("hello", "world"):
@@ -243,10 +243,10 @@ async def test_repl_provider_command_does_not_leak_key(
     """``/provider`` shows model + key presence but never the key value."""
 
     env = {
-        "HERNNESS_PROVIDER": "ollama",
-        "HERNNESS_MODEL": "llama3.1",
-        "HERNNESS_OLLAMA_BASE_URL": "http://localhost:11434",
-        "HERNNESS_OLLAMA_API_KEY": "super-secret-token",
+        "AVO_PROVIDER": "ollama",
+        "AVO_MODEL": "llama3.1",
+        "AVO_OLLAMA_BASE_URL": "http://localhost:11434",
+        "AVO_OLLAMA_API_KEY": "super-secret-token",
     }
     monkeypatch.setattr("os.environ", env)
 
@@ -335,7 +335,7 @@ async def test_repl_runtime_error_does_not_crash(
     scripted = _ScriptedProvider([])  # raises FakeProviderExhaustedError on first call
     ctx.runtime.provider = scripted
 
-    from hernness.chat import _run_turn
+    from avo.chat import _run_turn
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -424,7 +424,7 @@ async def test_chat_persists_run_and_events(
     stdout = io.StringIO()
     stderr = io.StringIO()
 
-    from hernness.chat import _run_turn
+    from avo.chat import _run_turn
 
     with bind_workspace(ctx.workspace):
         await _run_turn(ctx, "first task", stdout, stderr)
@@ -460,7 +460,7 @@ async def test_chat_multiple_turns_create_multiple_runs(
     )
     ctx.runtime.provider = scripted
 
-    from hernness.chat import _run_turn
+    from avo.chat import _run_turn
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -494,7 +494,7 @@ async def test_chat_inspect_command_finds_persisted_run(
     stdout = io.StringIO()
     stderr = io.StringIO()
 
-    from hernness.chat import _run_turn
+    from avo.chat import _run_turn
 
     with bind_workspace(ctx.workspace):
         await _run_turn(ctx, "task one", stdout, stderr)
@@ -502,7 +502,7 @@ async def test_chat_inspect_command_finds_persisted_run(
     run_id = (await ctx.store.list_runs())[0].run_id
 
     # Now invoke /inspect through the slash dispatcher.
-    from hernness.chat import _run_slash
+    from avo.chat import _run_slash
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -535,7 +535,7 @@ async def test_chat_full_flow_until_quit(
     ctx.runtime.provider = scripted
 
     # Patch run_repl's internal ctx by injecting ours via a thin wrapper.
-    from hernness import chat as chat_module
+    from avo import chat as chat_module
 
     original_build = chat_module.build_chat_context
     chat_module.build_chat_context = lambda **kwargs: ctx  # type: ignore[assignment]
@@ -568,7 +568,7 @@ def test_existing_runs_subcommands_unchanged(
 ) -> None:
     """``runs list/inspect/resume`` still parse and run unchanged."""
 
-    from hernness.cli import main
+    from avo.cli import main
 
     db = chat_env["db"]
     code = main(["--database", str(db), "runs", "list"])
@@ -594,7 +594,7 @@ async def test_slash_skills_lists_discovered_names(
     (skills_root / "alpha.md").write_text("a body", encoding="utf-8")
     (skills_root / "zeta.md").write_text("z body", encoding="utf-8")
 
-    from hernness.chat import _run_slash
+    from avo.chat import _run_slash
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -621,7 +621,7 @@ async def test_slash_skill_dispatches_body_to_runtime(
     scripted = _ScriptedProvider([ModelResponse(content="ok")])
     ctx.runtime.provider = scripted
 
-    from hernness.chat import _run_slash
+    from avo.chat import _run_slash
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -645,7 +645,7 @@ async def test_slash_skill_missing_name_reports_error(
         environ=env,
     )
 
-    from hernness.chat import _run_slash
+    from avo.chat import _run_slash
 
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -668,7 +668,7 @@ async def test_slash_skill_without_name_prints_usage(
         environ=env,
     )
 
-    from hernness.chat import _run_slash
+    from avo.chat import _run_slash
 
     stdout = io.StringIO()
     stderr = io.StringIO()

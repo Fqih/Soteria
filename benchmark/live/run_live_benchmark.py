@@ -6,8 +6,8 @@ LLM provider.  Three responsibilities live here:
 1. ``build_parser`` + ``preflight`` validate consent, provider-specific
    environment, pricing catalog, and positive limits before any provider is
    constructed.
-2. ``run_all`` orchestrates the three registered scenarios (raw + Hernness
-   for the completion scenarios, Hernness with interruption for the resume
+2. ``run_all`` orchestrates the three registered scenarios (raw + Avo
+   for the completion scenarios, Avo with interruption for the resume
    scenario) sequentially, building fresh config + provider objects per run.
 3. ``main`` writes the JSON source of truth, prints a short aggregate summary,
    and renders one saved ``RunTrace.to_text()`` for the user.
@@ -29,25 +29,26 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from benchmark.live.avo_run import (
+    run_avo,
+    run_avo_interrupted,
+)
+
+from avo.providers.base import ModelProvider
 from benchmark.live.consent import (
     COST_CONSENT_ENV,
     COST_CONSENT_FLAG,
     require_cost_consent,
 )
-from benchmark.live.hernness_run import (
-    run_hernness,
-    run_hernness_interrupted,
-)
 from benchmark.live.models import Approach, LiveResults, LiveRunRecord
 from benchmark.live.pricing import estimate_upper_bound, resolve_pricing
 from benchmark.live.raw_loop import run_raw_loop
 from benchmark.live.scenarios import LIVE_SCENARIOS, LiveScenario
-from hernness.providers.base import ModelProvider
 
 SleepFn = Callable[[float], Any]
 ProviderFactory = Callable[[], ModelProvider]
 RawRunner = Callable[..., Awaitable[LiveRunRecord]]
-HernnessRunner = Callable[..., Awaitable[LiveRunRecord]]
+AvoRunner = Callable[..., Awaitable[LiveRunRecord]]
 InterruptedRunner = Callable[..., Awaitable[LiveRunRecord]]
 InterruptedKwargs = Callable[..., Awaitable[LiveRunRecord]]
 
@@ -271,7 +272,7 @@ def _load_provider_module(provider: str) -> ModuleType:
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             f"Provider {provider!r} requires optional live-benchmark dependencies. "
-            f"Install with `pip install hernness[live-benchmark]`. ({exc})"
+            f"Install with `pip install avo[live-benchmark]`. ({exc})"
         ) from exc
 
 
@@ -319,7 +320,7 @@ async def run_all(
     args: argparse.Namespace,
     provider_factory: ProviderFactory,
     raw_runner: RawRunner | None = None,
-    hernness_runner: HernnessRunner | None = None,
+    avo_runner: AvoRunner | None = None,
     interrupted_runner: InterruptedRunner | None = None,
     sleep: SleepFn = time.sleep,
 ) -> LiveResults:
@@ -327,11 +328,11 @@ async def run_all(
 
     Each (scenario, approach) pair is repeated ``args.runs`` times.  Fresh
     provider objects are constructed per run via ``provider_factory`` so the
-    raw baseline never shares state with the Hernness-managed runner.
+    raw baseline never shares state with the Avo-managed runner.
     """
 
     raw_runner = raw_runner or _default_raw_runner
-    hernness_runner = hernness_runner or _default_hernness_runner
+    avo_runner = avo_runner or _default_avo_runner
     interrupted_runner = interrupted_runner or _default_interrupted_runner
 
     api_style, model = _describe_provider(args)
@@ -347,7 +348,7 @@ async def run_all(
                         scenario,
                         run_index,
                         raw_runner=raw_runner,
-                        hernness_runner=hernness_runner,
+                        avo_runner=avo_runner,
                         sleep=sleep,
                     )
                 )
@@ -359,7 +360,7 @@ async def run_all(
                     interrupted_runner,
                     scenario=scenario,
                     run_index=run_index,
-                    approach="hernness",
+                    approach="avo",
                     provider_factory=provider_factory,
                     run_index_inner=run_index,
                 )
@@ -382,7 +383,7 @@ async def _run_with_sleep(
     run_index: int,
     *,
     raw_runner: RawRunner,
-    hernness_runner: HernnessRunner,
+    avo_runner: AvoRunner,
     sleep: SleepFn,
 ) -> list[LiveRunRecord]:
     records: list[LiveRunRecord] = []
@@ -404,10 +405,10 @@ async def _run_with_sleep(
         provider = provider_factory()
         record = await _invoke_with_timeout(
             args,
-            _wrap_hernness(hernness_runner, scenario, run_index),
+            _wrap_avo(avo_runner, scenario, run_index),
             scenario=scenario,
             run_index=run_index,
-            approach="hernness",
+            approach="avo",
             provider=provider,
         )
         records.append(_mark_complete(record))
@@ -415,14 +416,14 @@ async def _run_with_sleep(
     return records
 
 
-def _wrap_hernness(
-    hernness_runner: HernnessRunner, scenario: LiveScenario, run_index: int
+def _wrap_avo(
+    avo_runner: AvoRunner, scenario: LiveScenario, run_index: int
 ) -> Callable[..., Awaitable[LiveRunRecord]]:
     async def _call(
         provider: ModelProvider,
         **_unused: Any,
     ) -> LiveRunRecord:
-        return await hernness_runner(provider, scenario=scenario, run_index=run_index)
+        return await avo_runner(provider, scenario=scenario, run_index=run_index)
 
     return _call
 
@@ -518,14 +519,14 @@ async def _default_raw_runner(
     return await run_raw_loop(provider, scenario, manual_step_cap, max_completion_tokens)
 
 
-async def _default_hernness_runner(
+async def _default_avo_runner(
     provider: ModelProvider,
     *,
     scenario: LiveScenario,
     run_index: int,
     **_unused: Any,
 ) -> LiveRunRecord:
-    return await run_hernness(provider, scenario, run_index)
+    return await run_avo(provider, scenario, run_index)
 
 
 async def _default_interrupted_runner(
@@ -535,7 +536,7 @@ async def _default_interrupted_runner(
     run_index_inner: int = 0,
     **_unused: Any,
 ) -> LiveRunRecord:
-    return await run_hernness_interrupted(provider_factory, scenario, run_index_inner)
+    return await run_avo_interrupted(provider_factory, scenario, run_index_inner)
 
 
 def _print_summary(results: LiveResults, output_path: Path, stdout: Any = None) -> None:

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from hernness.app_tools.file_tools import read_file_tool, write_file_tool
-from hernness.app_tools.task_tool import AgentType, TaskArguments, task_tool
-from hernness.models import ModelResponse, ToolCall
-from hernness.policies import LoopPolicy
-from hernness.providers.fake import FakeProvider
-from hernness.runtime import AgentRuntime
-from hernness.storage.memory import InMemoryEventStore
+from avo.app_tools.file_tools import read_file_tool, write_file_tool
+from avo.app_tools.task_tool import AgentType, TaskArguments, task_tool
+from avo.models import ModelResponse, ToolCall
+from avo.policies import LoopPolicy
+from avo.providers.fake import FakeProvider
+from avo.runtime import AgentRuntime
+from avo.storage.memory import InMemoryEventStore
 
 
 def _parent(

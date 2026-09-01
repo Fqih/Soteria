@@ -11,13 +11,13 @@ from pathlib import Path
 
 import pytest
 
-from hernness.app_tools.edit_file import (
+from avo.app_tools.edit_file import (
     EditFileArguments,
     EditFileError,
     edit_file_tool,
 )
-from hernness.app_tools.file_tools import bind_workspace
-from hernness.app_tools.workspace import Workspace, WorkspacePathError
+from avo.app_tools.file_tools import bind_workspace
+from avo.app_tools.workspace import Workspace, WorkspacePathError
 
 
 @pytest.fixture

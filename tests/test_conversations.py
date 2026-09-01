@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from hernness.storage.conversations import (
+from avo.storage.conversations import (
     ConversationStore,
     HistoryError,
 )

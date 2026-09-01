@@ -8,9 +8,9 @@ from tempfile import TemporaryDirectory
 
 from pydantic import BaseModel
 
-from hernness import AgentEvent, AgentRuntime, EventType, FunctionTool, ModelResponse, ToolCall
-from hernness.providers import FakeProvider
-from hernness.storage import SQLiteEventStore
+from avo import AgentEvent, AgentRuntime, EventType, FunctionTool, ModelResponse, ToolCall
+from avo.providers import FakeProvider
+from avo.storage import SQLiteEventStore
 
 
 class AbruptInterruption(BaseException):
@@ -64,7 +64,7 @@ async def main() -> None:
         ]
     )
 
-    with TemporaryDirectory(prefix="hernness-example-") as directory:
+    with TemporaryDirectory(prefix="avo-example-") as directory:
         database = Path(directory) / "runs.db"
         first_store = SQLiteEventStore(database)
         first_runtime = InterruptAfterToolResult(

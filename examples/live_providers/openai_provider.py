@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from hernness import ModelRequest, ModelResponse
-from hernness.exceptions import ProviderError
+from avo import ModelRequest, ModelResponse
+from avo.exceptions import ProviderError
 
 from .common import build_openai_payload, parse_openai_response, redact_text
 

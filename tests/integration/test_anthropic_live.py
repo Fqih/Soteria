@@ -1,14 +1,14 @@
 """Live integration tests against the Anthropic Messages API.
 
-Auto-skips when ``HERNNESS_ANTHROPIC_API_KEY`` is missing.
+Auto-skips when ``AVO_ANTHROPIC_API_KEY`` is missing.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from hernness import ModelResponse
-from hernness.providers.anthropic import AnthropicConfig, AnthropicProvider
+from avo import ModelResponse
+from avo.providers.anthropic import AnthropicConfig, AnthropicProvider
 
 from .conftest import report_failure, simple_request
 
@@ -18,16 +18,16 @@ pytestmark = pytest.mark.asyncio
 def _resolve_key() -> str:
     import os
 
-    value = os.environ.get("HERNNESS_ANTHROPIC_API_KEY", "").strip()
+    value = os.environ.get("AVO_ANTHROPIC_API_KEY", "").strip()
     if not value:
-        pytest.skip("HERNNESS_ANTHROPIC_API_KEY not set")
+        pytest.skip("AVO_ANTHROPIC_API_KEY not set")
     return value
 
 
 def _resolve_model() -> str:
     import os
 
-    return os.environ.get("HERNNESS_ANTHROPIC_MODEL", "").strip() or "claude-sonnet-4-6"
+    return os.environ.get("AVO_ANTHROPIC_MODEL", "").strip() or "claude-sonnet-4-6"
 
 
 async def test_anthropic_text_completion() -> None:
@@ -54,7 +54,7 @@ async def test_anthropic_text_completion() -> None:
 async def test_anthropic_tool_use_block() -> None:
     """Tool-use round-trip; verifies tool schema and content-block parsing."""
 
-    from hernness import ModelRequest, ToolMetadata
+    from avo import ModelRequest, ToolMetadata
 
     config = AnthropicConfig.model_construct(model=_resolve_model())
     config._api_key = _resolve_key()

@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 from pydantic import JsonValue, ValidationError
 
+from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from avo.exceptions import ProviderError
+from avo.providers import FakeProvider
 from benchmark.live.models import (
     LiveResults,
     LiveRunRecord,
@@ -12,9 +15,6 @@ from benchmark.live.models import (
 )
 from benchmark.live.raw_loop import classify_raw_outcome, run_raw_loop
 from benchmark.live.scenarios import LiveScenario, scenario_by_name
-from hernness import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from hernness.exceptions import ProviderError
-from hernness.providers import FakeProvider
 
 
 def _normal_scenario() -> LiveScenario:
@@ -204,7 +204,7 @@ async def test_raw_loop_catches_provider_error_as_expected() -> None:
 async def test_raw_loop_catches_tool_execution_error_as_expected() -> None:
     from pydantic import BaseModel
 
-    from hernness.tools import FunctionTool
+    from avo.tools import FunctionTool
 
     class _RaisingArgs(BaseModel):
         pass
@@ -373,9 +373,9 @@ def test_raw_loop_module_does_not_import_forbidden_modules() -> None:
     with open(module_source, encoding="utf-8") as handle:
         text = handle.read()
     for forbidden in (
-        "hernness.runtime",
-        "hernness.policies",
-        "hernness.progress",
-        "hernness.storage",
+        "avo.runtime",
+        "avo.policies",
+        "avo.progress",
+        "avo.storage",
     ):
         assert forbidden not in text, f"raw_loop must not import from {forbidden}"

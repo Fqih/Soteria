@@ -5,6 +5,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+from avo import FunctionTool, Tool
+from avo.exceptions import ToolValidationError
+from avo.policies import LoopPolicy
 from benchmark.live.scenarios import (
     LIVE_SCENARIOS,
     AddArguments,
@@ -12,9 +15,6 @@ from benchmark.live.scenarios import (
     SideEffectArguments,
     scenario_by_name,
 )
-from hernness import FunctionTool, Tool
-from hernness.exceptions import ToolValidationError
-from hernness.policies import LoopPolicy
 
 
 def _find(name: str) -> LiveScenario:

@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from hernness.app_tools.file_tools import bind_workspace
-from hernness.app_tools.workspace import Workspace
-from hernness.app_tools.workspace_map import WorkspaceMapArguments, workspace_map_tool
-from hernness.workspace.indexer import WorkspaceIndexer
+from avo.app_tools.file_tools import bind_workspace
+from avo.app_tools.workspace import Workspace
+from avo.app_tools.workspace_map import WorkspaceMapArguments, workspace_map_tool
+from avo.workspace.indexer import WorkspaceIndexer
 
 
 @pytest.fixture
@@ -107,7 +107,7 @@ async def test_workspace_map_tool_can_skip_sections(
 
 async def test_workspace_map_tool_requires_workspace(tmp_path: Path) -> None:
     tool = workspace_map_tool()
-    from hernness.app_tools.edit_file import EditFileError
+    from avo.app_tools.edit_file import EditFileError
 
     with pytest.raises(EditFileError, match="without an active workspace"):
         await tool._function(WorkspaceMapArguments())  # type: ignore[no-any-return]

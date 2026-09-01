@@ -7,15 +7,15 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from hernness.events import TERMINAL_EVENT_TYPES, AgentEvent, EventType
-from hernness.exceptions import (
+from avo.events import TERMINAL_EVENT_TYPES, AgentEvent, EventType
+from avo.exceptions import (
     EventInvariantError,
     InvalidStateTransitionError,
     StorageError,
 )
-from hernness.models import ModelResponse, RunRecord
-from hernness.state import RunState, StopReason, validate_terminal_outcome, validate_transition
-from hernness.storage import InMemoryEventStore
+from avo.models import ModelResponse, RunRecord
+from avo.state import RunState, StopReason, validate_terminal_outcome, validate_transition
+from avo.storage import InMemoryEventStore
 from tests.helpers import seed_run
 
 

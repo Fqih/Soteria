@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from hernness.events import AgentEvent, EventType
-from hernness.exceptions import RunNotFoundError, StorageError
-from hernness.models import Checkpoint, RunRecord
-from hernness.policies import LoopPolicy
-from hernness.state import RunState, StopReason
-from hernness.storage import EventStore, InMemoryEventStore, SQLiteEventStore
+from avo.events import AgentEvent, EventType
+from avo.exceptions import RunNotFoundError, StorageError
+from avo.models import Checkpoint, RunRecord
+from avo.policies import LoopPolicy
+from avo.state import RunState, StopReason
+from avo.storage import EventStore, InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run
 
 

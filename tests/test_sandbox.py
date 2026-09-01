@@ -1,7 +1,7 @@
 """Tests for the sandbox executor and the ``run_shell`` tool.
 
 The docker client is mocked so the suite stays offline (matching the
-Hernness principle: tests never depend on real services). The mock
+Avo principle: tests never depend on real services). The mock
 records the kwargs passed to ``containers().create(...)`` so we can
 verify the security-relevant settings (``network_mode``, ``mem_limit``,
 ``remove=True``, working directory) made it through to docker.
@@ -13,15 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from hernness.app_tools.file_tools import WorkspaceNotBoundError, bind_workspace
-from hernness.app_tools.sandbox import SandboxExecutor, SandboxResult
-from hernness.app_tools.shell_tool import (
+from avo.app_tools.file_tools import WorkspaceNotBoundError, bind_workspace
+from avo.app_tools.sandbox import SandboxExecutor, SandboxResult
+from avo.app_tools.shell_tool import (
     RunShellArguments,
     SandboxNotBoundError,
     bind_sandbox,
     run_shell_tool,
 )
-from hernness.app_tools.workspace import Workspace
+from avo.app_tools.workspace import Workspace
 
 
 class FakeContainer:

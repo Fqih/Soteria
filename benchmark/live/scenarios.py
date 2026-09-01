@@ -8,8 +8,8 @@ from typing import cast
 
 from pydantic import BaseModel, JsonValue
 
-from hernness import FunctionTool, Tool
-from hernness.policies import LoopPolicy
+from avo import FunctionTool, Tool
+from avo.policies import LoopPolicy
 
 NORMAL_TASK = "Use the add tool to calculate 12 + 8, then report the total."
 REPETITION_TASK = (

@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Hernness contributors are expected to make participation respectful, safe, and
+Avo contributors are expected to make participation respectful, safe, and
 welcoming.
 
 ## Expected behavior
@@ -26,4 +26,4 @@ on the project profile. Reports will be reviewed as promptly and confidentially
 as practical. Good-faith reporters will not face retaliation.
 
 This policy applies to repository discussions, pull requests, community spaces,
-and public interactions made while representing Hernness.
+and public interactions made while representing Avo.

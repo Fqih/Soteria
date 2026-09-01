@@ -1,4 +1,4 @@
-"""Run the deterministic raw-loop versus Hernness reliability benchmark."""
+"""Run the deterministic raw-loop versus Avo reliability benchmark."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from tempfile import TemporaryDirectory
 from pydantic import BaseModel
 from scenarios.catalog import SCENARIOS, Scenario, ScenarioKind
 
-from hernness import (
+from avo import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -26,9 +26,9 @@ from hernness import (
     TokenUsage,
     ToolCall,
 )
-from hernness.events import TERMINAL_EVENT_TYPES
-from hernness.providers import FakeProvider, ScriptItem
-from hernness.storage import InMemoryEventStore, SQLiteEventStore
+from avo.events import TERMINAL_EVENT_TYPES
+from avo.providers import FakeProvider, ScriptItem
+from avo.storage import InMemoryEventStore, SQLiteEventStore
 
 HARNESS_STEP_LIMIT = 6
 
@@ -197,11 +197,11 @@ async def run_raw(scenario: Scenario) -> Outcome:
     )
 
 
-async def run_hernness(scenario: Scenario) -> Outcome:
-    """Run one scenario through Hernness and collect persisted invariants."""
+async def run_avo(scenario: Scenario) -> Outcome:
+    """Run one scenario through Avo and collect persisted invariants."""
 
     if scenario.kind is ScenarioKind.INTERRUPTION:
-        return await run_hernness_interruption(scenario)
+        return await run_avo_interruption(scenario)
 
     started = time.perf_counter()
     side_effects = [0]
@@ -263,7 +263,7 @@ async def run_hernness(scenario: Scenario) -> Outcome:
     )
 
 
-async def run_hernness_interruption(scenario: Scenario) -> Outcome:
+async def run_avo_interruption(scenario: Scenario) -> Outcome:
     """Measure SQLite recovery after a completed side effect."""
 
     started = time.perf_counter()
@@ -289,7 +289,7 @@ async def run_hernness_interruption(scenario: Scenario) -> Outcome:
         ),
         ModelResponse(content="recovered"),
     ]
-    with TemporaryDirectory(prefix="hernness-benchmark-") as directory:
+    with TemporaryDirectory(prefix="avo-benchmark-") as directory:
         path = Path(directory) / "benchmark.db"
         first_store = SQLiteEventStore(path)
         interrupted = InterruptingRuntime(
@@ -380,11 +380,11 @@ def aggregate(outcomes: list[Outcome]) -> dict[str, str]:
     }
 
 
-def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
+def render_results(raw: list[Outcome], avo: list[Outcome]) -> str:
     """Render reproducible Markdown benchmark output."""
 
     raw_metrics = aggregate(raw)
-    hernness_metrics = aggregate(hernness)
+    avo_metrics = aggregate(avo)
     rows = [
         "# Deterministic Benchmark Results",
         "",
@@ -393,29 +393,28 @@ def render_results(raw: list[Outcome], hernness: list[Outcome]) -> str:
         "",
         "## Aggregate metrics",
         "",
-        "| Metric | Minimal raw loop | Hernness |",
+        "| Metric | Minimal raw loop | Avo |",
         "|---|---:|---:|",
     ]
     for metric in raw_metrics:
-        rows.append(f"| {metric.title()} | {raw_metrics[metric]} | {hernness_metrics[metric]} |")
+        rows.append(f"| {metric.title()} | {raw_metrics[metric]} | {avo_metrics[metric]} |")
     rows.extend(
         [
             "",
             "## Scenario outcomes",
             "",
-            "| Scenario | Raw completed | Hernness completed | "
-            "Hernness contained | Hernness resumed |",
+            "| Scenario | Raw completed | Avo completed | Avo contained | Avo resumed |",
             "|---|---:|---:|---:|---:|",
         ]
     )
     for scenario in SCENARIOS:
         raw_outcome = next(item for item in raw if item.scenario is scenario.kind)
-        hernness_outcomeb = next(item for item in hernness if item.scenario is scenario.kind)
+        avo_outcomeb = next(item for item in avo if item.scenario is scenario.kind)
         rows.append(
             f"| {scenario.kind.value} | {str(raw_outcome.task_completed).lower()} | "
-            f"{str(hernness_outcomeb.task_completed).lower()} | "
-            f"{str(hernness_outcomeb.contained).lower()} | "
-            f"{str(hernness_outcomeb.resume_succeeded).lower()} |"
+            f"{str(avo_outcomeb.task_completed).lower()} | "
+            f"{str(avo_outcomeb.contained).lower()} | "
+            f"{str(avo_outcomeb.resume_succeeded).lower()} |"
         )
     rows.extend(
         [
@@ -439,8 +438,8 @@ async def main() -> None:
     """Execute every scenario for both systems and write RESULTS.md."""
 
     raw = [await run_raw(scenario) for scenario in SCENARIOS]
-    hernness = [await run_hernness(scenario) for scenario in SCENARIOS]
-    output = render_results(raw, hernness)
+    avo = [await run_avo(scenario) for scenario in SCENARIOS]
+    output = render_results(raw, avo)
     results_path = Path(__file__).with_name("RESULTS.md")
     results_path.write_text(output, encoding="utf-8")
     print(output)

@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from hernness.rate_limit import RateLimitConfig, RateLimiter, RateLimitError
+from avo.rate_limit import RateLimitConfig, RateLimiter, RateLimitError
 
 
 def test_config_defaults_to_disabled() -> None:

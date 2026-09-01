@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from hernness.mcp import MCPClient, MCPError, MCPServer, _read_header, mcp_tool
+from avo.mcp import MCPClient, MCPError, MCPServer, _read_header, mcp_tool
 
 _FAKE_SERVER_PATH = Path(__file__).parent / "fixtures" / "fake_mcp_server.py"
 

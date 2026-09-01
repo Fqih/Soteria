@@ -13,9 +13,9 @@ import os
 
 import pytest
 
-from hernness import ModelRequest, ToolMetadata
-from hernness.config import ConfigError, build_provider_from_env
-from hernness.exceptions import ProviderError
+from avo import ModelRequest, ToolMetadata
+from avo.config import ConfigError, build_provider_from_env
+from avo.exceptions import ProviderError
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434"
 
@@ -30,13 +30,13 @@ def _env(name: str) -> str | None:
 def ollama_url() -> str:
     """Resolve the Ollama base URL from the environment (default localhost)."""
 
-    return _env("HERNNESS_OLLAMA_BASE_URL") or DEFAULT_OLLAMA_URL
+    return _env("AVO_OLLAMA_BASE_URL") or DEFAULT_OLLAMA_URL
 
 
 def ollama_model() -> str:
     """Resolve the local Ollama model name (default ``qwen2.5:7b``)."""
 
-    return _env("HERNNESS_OLLAMA_MODEL") or "qwen2.5:7b"
+    return _env("AVO_OLLAMA_MODEL") or "qwen2.5:7b"
 
 
 def _build_provider(
@@ -65,8 +65,8 @@ async def minimax_provider():
 
     provider = _build_provider(
         (
-            ("HERNNESS_PROVIDER", "must equal minimax"),
-            ("HERNNESS_MINIMAX_API_KEY", "MiniMax API key"),
+            ("AVO_PROVIDER", "must equal minimax"),
+            ("AVO_MINIMAX_API_KEY", "MiniMax API key"),
         )
     )
     try:
@@ -83,8 +83,8 @@ async def anthropic_provider():
 
     provider = _build_provider(
         (
-            ("HERNNESS_PROVIDER", "must equal anthropic"),
-            ("HERNNESS_ANTHROPIC_API_KEY", "Anthropic API key"),
+            ("AVO_PROVIDER", "must equal anthropic"),
+            ("AVO_ANTHROPIC_API_KEY", "Anthropic API key"),
         )
     )
     try:
@@ -101,8 +101,8 @@ async def openai_provider():
 
     provider = _build_provider(
         (
-            ("HERNNESS_PROVIDER", "must equal openai"),
-            ("HERNNESS_OPENAI_API_KEY", "OpenAI API key"),
+            ("AVO_PROVIDER", "must equal openai"),
+            ("AVO_OPENAI_API_KEY", "OpenAI API key"),
         )
     )
     try:
@@ -142,7 +142,7 @@ def report_failure(exc: ProviderError) -> str:
     operator can paste it back to the dev team. Never prints API keys.
     """
 
-    from hernness.providers.http_common import redact_text
+    from avo.providers.http_common import redact_text
 
     message = redact_text(str(exc))
     return f"\nProviderError: {message}\n"

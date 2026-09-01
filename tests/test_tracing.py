@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from hernness.events import AgentEvent, EventType
-from hernness.models import RunRecord, TokenUsage
-from hernness.state import RunState, StopReason
-from hernness.tracing import RunTrace, TraceInspector
+from avo.events import AgentEvent, EventType
+from avo.models import RunRecord, TokenUsage
+from avo.state import RunState, StopReason
+from avo.tracing import RunTrace, TraceInspector
 
 
 def test_summary_covers_all_operational_event_variants() -> None:

@@ -2,7 +2,7 @@
 
 Covers both the **OpenAI-compatible** endpoint (``/v1/chat/completions``)
 and the **Anthropic-compatible** endpoint (``/anthropic/v1/messages``).
-Auto-skips when ``HERNNESS_MINIMAX_API_KEY`` is missing. On a non-2xx
+Auto-skips when ``AVO_MINIMAX_API_KEY`` is missing. On a non-2xx
 response the test prints the unredacted provider error so the operator
 can diagnose 400 / 401 / 429 problems without re-running with extra
 logging.
@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from hernness import ModelResponse
-from hernness.providers.minimax import MiniMaxConfig, MiniMaxProvider
+from avo import ModelResponse
+from avo.providers.minimax import MiniMaxConfig, MiniMaxProvider
 
 from .conftest import report_failure, simple_request
 
@@ -23,22 +23,22 @@ pytestmark = pytest.mark.asyncio
 def _resolve_key() -> str:
     import os
 
-    value = os.environ.get("HERNNESS_MINIMAX_API_KEY", "").strip()
+    value = os.environ.get("AVO_MINIMAX_API_KEY", "").strip()
     if not value:
-        pytest.skip("HERNNESS_MINIMAX_API_KEY not set")
+        pytest.skip("AVO_MINIMAX_API_KEY not set")
     return value
 
 
 def _resolve_model() -> str:
     import os
 
-    return os.environ.get("HERNNESS_MINIMAX_MODEL", "").strip() or "MiniMax-M3"
+    return os.environ.get("AVO_MINIMAX_MODEL", "").strip() or "MiniMax-M3"
 
 
 def _resolve_base_url() -> str:
     import os
 
-    return os.environ.get("HERNNESS_MINIMAX_BASE_URL", "").strip() or "https://api.minimax.io"
+    return os.environ.get("AVO_MINIMAX_BASE_URL", "").strip() or "https://api.minimax.io"
 
 
 def _make_provider(style: str, *, key: str, model: str, base_url: str) -> MiniMaxProvider:
@@ -97,7 +97,7 @@ async def test_minimax_anthropic_tool_use() -> None:
 async def test_minimax_openai_text() -> None:
     """Plain text completion against the OpenAI-compatible endpoint.
 
-    Switch ``HERNNESS_MINIMAX_API_STYLE=openai`` in the env to drive this
+    Switch ``AVO_MINIMAX_API_STYLE=openai`` in the env to drive this
     path; otherwise it still runs because we construct the provider
     directly here.
     """
@@ -160,7 +160,7 @@ async def test_minimax_anthropic_does_not_400_on_minimum_payload() -> None:
     user message, ``max_tokens=64``) so a regression is easy to bisect.
     """
 
-    from hernness import ModelRequest
+    from avo import ModelRequest
 
     provider = _make_provider(
         "anthropic",
@@ -188,7 +188,7 @@ async def test_minimax_anthropic_does_not_400_on_minimum_payload() -> None:
 def _request_with_strong_tool_prompt():
     """Build a request whose prompt strongly nudges the tool-use path."""
 
-    from hernness import ModelRequest, ToolMetadata
+    from avo import ModelRequest, ToolMetadata
 
     return ModelRequest(
         run_id="integration-tool-minimax",

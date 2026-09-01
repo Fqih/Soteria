@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from hernness.eval import (
+from avo.eval import (
     EvalCase,
     EvalError,
     EvalReport,

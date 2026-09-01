@@ -7,9 +7,9 @@ from typing import cast
 import pytest
 from pydantic import JsonValue
 
-from hernness.exceptions import ProviderError
-from hernness.models import ModelRequest, ModelResponse, TokenUsage
-from hernness.providers import FakeProvider
+from avo.exceptions import ProviderError
+from avo.models import ModelRequest, ModelResponse, TokenUsage
+from avo.providers import FakeProvider
 
 
 def request(step: int = 1) -> ModelRequest:

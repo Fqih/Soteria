@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from hernness.hooks import (
+from avo.hooks import (
     HookAction,
     HookContext,
     HookDecision,
@@ -13,11 +13,11 @@ from hernness.hooks import (
     make_blocking_hook,
     make_logging_hook,
 )
-from hernness.models import ModelResponse, ToolCall
-from hernness.policies import LoopPolicy
-from hernness.providers.fake import FakeProvider
-from hernness.runtime import AgentRuntime
-from hernness.storage.memory import InMemoryEventStore
+from avo.models import ModelResponse, ToolCall
+from avo.policies import LoopPolicy
+from avo.providers.fake import FakeProvider
+from avo.runtime import AgentRuntime
+from avo.storage.memory import InMemoryEventStore
 
 
 def _runtime_with_hooks(

@@ -6,8 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from hernness.budget import BudgetChecker, BudgetConfig, BudgetError
-from hernness.models import TokenUsage
+from avo.budget import BudgetChecker, BudgetConfig, BudgetError
+from avo.models import TokenUsage
 
 
 def test_config_defaults_to_no_limits() -> None:

@@ -6,8 +6,8 @@ import asyncio
 
 import pytest
 
-from hernness.concurrency import ConcurrencyError, ConcurrencyLimiter
-from hernness.metrics import MetricsRegistry
+from avo.concurrency import ConcurrencyError, ConcurrencyLimiter
+from avo.metrics import MetricsRegistry
 
 
 def test_max_in_flight_must_be_positive() -> None:

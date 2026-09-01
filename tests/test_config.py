@@ -1,40 +1,38 @@
-"""Tests for the HERNNESS_-prefixed environment loader."""
+"""Tests for the AVO_-prefixed environment loader."""
 
 from __future__ import annotations
 
 import pytest
 
-from hernness.config import (
+from avo.config import (
     ConfigError,
     apply_runtime_overrides,
     build_provider_from_env,
     database_path_from_env,
 )
-from hernness.providers.anthropic import AnthropicProvider
-from hernness.providers.minimax import MiniMaxProvider
-from hernness.providers.ollama import OllamaProvider
-from hernness.providers.openai_compatible import OpenAICompatibleProvider
+from avo.providers.anthropic import AnthropicProvider
+from avo.providers.minimax import MiniMaxProvider
+from avo.providers.ollama import OllamaProvider
+from avo.providers.openai_compatible import OpenAICompatibleProvider
 
 
 def test_missing_provider_raises() -> None:
-    with pytest.raises(ConfigError, match="HERNNESS_PROVIDER"):
+    with pytest.raises(ConfigError, match="AVO_PROVIDER"):
         build_provider_from_env({})
 
 
 def test_unknown_provider_raises() -> None:
-    with pytest.raises(ConfigError, match="HERNNESS_PROVIDER"):
-        build_provider_from_env({"HERNNESS_PROVIDER": "azure", "HERNNESS_MODEL": "x"})
+    with pytest.raises(ConfigError, match="AVO_PROVIDER"):
+        build_provider_from_env({"AVO_PROVIDER": "azure", "AVO_MODEL": "x"})
 
 
 def test_missing_model_raises() -> None:
-    with pytest.raises(ConfigError, match="HERNNESS_MODEL"):
-        build_provider_from_env({"HERNNESS_PROVIDER": "ollama"})
+    with pytest.raises(ConfigError, match="AVO_MODEL"):
+        build_provider_from_env({"AVO_PROVIDER": "ollama"})
 
 
 def test_ollama_provider_built_with_no_credentials() -> None:
-    provider = build_provider_from_env(
-        {"HERNNESS_PROVIDER": "ollama", "HERNNESS_MODEL": "llama3.1"}
-    )
+    provider = build_provider_from_env({"AVO_PROVIDER": "ollama", "AVO_MODEL": "llama3.1"})
     assert isinstance(provider, OllamaProvider)
     assert provider._config.model == "llama3.1"
     assert provider._config.base_url == "http://localhost:11434"
@@ -43,11 +41,11 @@ def test_ollama_provider_built_with_no_credentials() -> None:
 def test_ollama_provider_respects_overrides() -> None:
     provider = build_provider_from_env(
         {
-            "HERNNESS_PROVIDER": "ollama",
-            "HERNNESS_MODEL": "default-model",
-            "HERNNESS_OLLAMA_MODEL": "qwen2.5",
-            "HERNNESS_OLLAMA_BASE_URL": "http://gpu.local:11434/",
-            "HERNNESS_OLLAMA_API_KEY": "proxy-token",
+            "AVO_PROVIDER": "ollama",
+            "AVO_MODEL": "default-model",
+            "AVO_OLLAMA_MODEL": "qwen2.5",
+            "AVO_OLLAMA_BASE_URL": "http://gpu.local:11434/",
+            "AVO_OLLAMA_API_KEY": "proxy-token",
         }
     )
     assert provider._config.model == "qwen2.5"
@@ -56,16 +54,16 @@ def test_ollama_provider_respects_overrides() -> None:
 
 
 def test_minimax_requires_api_key() -> None:
-    with pytest.raises(ValueError, match="HERNNESS_MINIMAX_API_KEY"):
-        build_provider_from_env({"HERNNESS_PROVIDER": "minimax", "HERNNESS_MODEL": "MiniMax-M3"})
+    with pytest.raises(ValueError, match="AVO_MINIMAX_API_KEY"):
+        build_provider_from_env({"AVO_PROVIDER": "minimax", "AVO_MODEL": "MiniMax-M3"})
 
 
 def test_minimax_provider_built() -> None:
     provider = build_provider_from_env(
         {
-            "HERNNESS_PROVIDER": "minimax",
-            "HERNNESS_MODEL": "MiniMax-M3",
-            "HERNNESS_MINIMAX_API_KEY": "test-key",
+            "AVO_PROVIDER": "minimax",
+            "AVO_MODEL": "MiniMax-M3",
+            "AVO_MINIMAX_API_KEY": "test-key",
         }
     )
     assert isinstance(provider, MiniMaxProvider)
@@ -76,13 +74,13 @@ def test_minimax_provider_built() -> None:
 
 
 def test_minimax_rejects_unknown_api_style() -> None:
-    with pytest.raises(ValueError, match="HERNNESS_MINIMAX_API_STYLE"):
+    with pytest.raises(ValueError, match="AVO_MINIMAX_API_STYLE"):
         build_provider_from_env(
             {
-                "HERNNESS_PROVIDER": "minimax",
-                "HERNNESS_MODEL": "MiniMax-M3",
-                "HERNNESS_MINIMAX_API_KEY": "test-key",
-                "HERNNESS_MINIMAX_API_STYLE": "bogus",
+                "AVO_PROVIDER": "minimax",
+                "AVO_MODEL": "MiniMax-M3",
+                "AVO_MINIMAX_API_KEY": "test-key",
+                "AVO_MINIMAX_API_STYLE": "bogus",
             }
         )
 
@@ -90,10 +88,10 @@ def test_minimax_rejects_unknown_api_style() -> None:
 def test_minimax_openai_style_uses_bearer() -> None:
     provider = build_provider_from_env(
         {
-            "HERNNESS_PROVIDER": "minimax",
-            "HERNNESS_MODEL": "MiniMax-M3",
-            "HERNNESS_MINIMAX_API_KEY": "test-key",
-            "HERNNESS_MINIMAX_API_STYLE": "openai",
+            "AVO_PROVIDER": "minimax",
+            "AVO_MODEL": "MiniMax-M3",
+            "AVO_MINIMAX_API_KEY": "test-key",
+            "AVO_MINIMAX_API_STYLE": "openai",
         }
     )
     assert isinstance(provider, MiniMaxProvider)
@@ -102,18 +100,16 @@ def test_minimax_openai_style_uses_bearer() -> None:
 
 
 def test_anthropic_requires_api_key() -> None:
-    with pytest.raises(ValueError, match="HERNNESS_ANTHROPIC_API_KEY"):
-        build_provider_from_env(
-            {"HERNNESS_PROVIDER": "anthropic", "HERNNESS_MODEL": "claude-sonnet-4-6"}
-        )
+    with pytest.raises(ValueError, match="AVO_ANTHROPIC_API_KEY"):
+        build_provider_from_env({"AVO_PROVIDER": "anthropic", "AVO_MODEL": "claude-sonnet-4-6"})
 
 
 def test_anthropic_provider_built() -> None:
     provider = build_provider_from_env(
         {
-            "HERNNESS_PROVIDER": "anthropic",
-            "HERNNESS_MODEL": "claude-sonnet-4-6",
-            "HERNNESS_ANTHROPIC_API_KEY": "test-key",
+            "AVO_PROVIDER": "anthropic",
+            "AVO_MODEL": "claude-sonnet-4-6",
+            "AVO_ANTHROPIC_API_KEY": "test-key",
         }
     )
     assert isinstance(provider, AnthropicProvider)
@@ -124,17 +120,17 @@ def test_anthropic_provider_built() -> None:
 
 
 def test_openai_requires_api_key() -> None:
-    with pytest.raises(ValueError, match="HERNNESS_OPENAI_API_KEY"):
-        build_provider_from_env({"HERNNESS_PROVIDER": "openai", "HERNNESS_MODEL": "gpt-4o-mini"})
+    with pytest.raises(ValueError, match="AVO_OPENAI_API_KEY"):
+        build_provider_from_env({"AVO_PROVIDER": "openai", "AVO_MODEL": "gpt-4o-mini"})
 
 
 def test_openai_provider_built() -> None:
     provider = build_provider_from_env(
         {
-            "HERNNESS_PROVIDER": "openai",
-            "HERNNESS_MODEL": "gpt-4o-mini",
-            "HERNNESS_OPENAI_API_KEY": "test-key",
-            "HERNNESS_OPENAI_BASE_URL": "https://api.example.com/v1/",
+            "AVO_PROVIDER": "openai",
+            "AVO_MODEL": "gpt-4o-mini",
+            "AVO_OPENAI_API_KEY": "test-key",
+            "AVO_OPENAI_BASE_URL": "https://api.example.com/v1/",
         }
     )
     assert isinstance(provider, OpenAICompatibleProvider)
@@ -149,9 +145,9 @@ def test_apply_runtime_overrides_parses_integers_and_floats() -> None:
     apply_runtime_overrides(
         kwargs,
         {
-            "HERNNESS_MAX_TOTAL_TOKENS": "50000",
-            "HERNNESS_MAX_RUNTIME_SECONDS": "120.5",
-            "HERNNESS_REPEATED_ACTION_LIMIT": "5",
+            "AVO_MAX_TOTAL_TOKENS": "50000",
+            "AVO_MAX_RUNTIME_SECONDS": "120.5",
+            "AVO_REPEATED_ACTION_LIMIT": "5",
         },
     )
     assert kwargs == {
@@ -162,8 +158,8 @@ def test_apply_runtime_overrides_parses_integers_and_floats() -> None:
 
 
 def test_apply_runtime_overrides_rejects_garbage() -> None:
-    with pytest.raises(ConfigError, match="HERNNESS_MAX_TOTAL_TOKENS"):
-        apply_runtime_overrides({}, {"HERNNESS_MAX_TOTAL_TOKENS": "not-a-number"})
+    with pytest.raises(ConfigError, match="AVO_MAX_TOTAL_TOKENS"):
+        apply_runtime_overrides({}, {"AVO_MAX_TOTAL_TOKENS": "not-a-number"})
 
 
 def test_database_path_from_env_default_none() -> None:
@@ -171,6 +167,6 @@ def test_database_path_from_env_default_none() -> None:
 
 
 def test_database_path_from_env_strips_and_returns() -> None:
-    assert database_path_from_env({"HERNNESS_DATABASE_PATH": "  /tmp/soteria.db  "}) == (
+    assert database_path_from_env({"AVO_DATABASE_PATH": "  /tmp/soteria.db  "}) == (
         "/tmp/soteria.db"
     )

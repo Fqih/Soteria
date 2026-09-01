@@ -6,8 +6,8 @@ import asyncio
 
 from pydantic import BaseModel
 
-from hernness import AgentRuntime, FunctionTool, ModelResponse, TokenUsage, ToolCall
-from hernness.providers import FakeProvider
+from avo import AgentRuntime, FunctionTool, ModelResponse, TokenUsage, ToolCall
+from avo.providers import FakeProvider
 
 
 class AddArguments(BaseModel):

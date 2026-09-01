@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from hernness.workspace.git import GitError, GitRepository, GitStatus
+from avo.workspace.git import GitError, GitRepository, GitStatus
 
 
 @pytest.fixture
@@ -115,7 +115,7 @@ def test_diff_summary_respects_max_files(git_repo: Path) -> None:
 def test_run_git_handles_missing_executable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import hernness.workspace.git as mod
+    import avo.workspace.git as mod
 
     monkeypatch.setattr(
         mod.subprocess, "run", lambda *a, **kw: (_ for _ in ()).throw(FileNotFoundError("no git"))

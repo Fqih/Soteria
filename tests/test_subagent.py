@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from hernness.checkpoint import CheckpointStore
-from hernness.subagent import (
+from avo.checkpoint import CheckpointStore
+from avo.subagent import (
     SubAgentError,
     SubAgentResult,
     SubAgentRunner,

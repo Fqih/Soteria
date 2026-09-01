@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from hernness.retry import RetryPolicy, call_with_retry, is_transient_error
+from avo.retry import RetryPolicy, call_with_retry, is_transient_error
 
 
 def test_policy_rejects_zero_attempts() -> None:

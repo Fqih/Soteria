@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from hernness.planning import (
+from avo.planning import (
     ExecutionPlan,
     PlanError,
     SubTask,

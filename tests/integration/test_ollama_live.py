@@ -1,6 +1,6 @@
 """Live integration tests against a local Ollama daemon.
 
-Auto-skips when ``HERNNESS_OLLAMA_BASE_URL`` is unreachable or the
+Auto-skips when ``AVO_OLLAMA_BASE_URL`` is unreachable or the
 configured model has not been pulled. No API key required.
 """
 
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from hernness import ModelResponse
+from avo import ModelResponse
 
 from .conftest import (
     ollama_has_model,
@@ -30,7 +30,7 @@ async def test_ollama_text_completion() -> None:
     if not ollama_has_model(ollama_url(), ollama_model()):
         pytest.skip(f"Ollama model {ollama_model()!r} not pulled locally")
 
-    from hernness.providers.ollama import OllamaConfig, OllamaProvider
+    from avo.providers.ollama import OllamaConfig, OllamaProvider
 
     config = OllamaConfig(model=ollama_model(), base_url=ollama_url())
     provider = OllamaProvider(config, request_timeout_seconds=60.0)
@@ -64,8 +64,8 @@ async def test_ollama_tool_call_returns_typed_arguments() -> None:
     if not ollama_has_model(ollama_url(), ollama_model()):
         pytest.skip(f"Ollama model {ollama_model()!r} not pulled locally")
 
-    from hernness import ModelRequest, ToolMetadata
-    from hernness.providers.ollama import OllamaConfig, OllamaProvider
+    from avo import ModelRequest, ToolMetadata
+    from avo.providers.ollama import OllamaConfig, OllamaProvider
 
     request = ModelRequest(
         run_id="integration-tool-run",

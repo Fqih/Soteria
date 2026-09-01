@@ -5,7 +5,7 @@ construction, scenario orchestration, or HTTP traffic, the CLI must collect an
 explicit, auditable opt-in.  Two equivalent channels are accepted:
 
 * The ``--i-understand-this-costs-money`` CLI flag (``flag``).
-* The ``HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY`` environment variable, which
+* The ``AVO_I_UNDERSTAND_THIS_COSTS_MONEY`` environment variable, which
   must hold one of ``1``, ``true``, or ``yes`` (case-insensitive).
 
 The module exposes pure helpers that take the consent inputs explicitly so the
@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 COST_CONSENT_FLAG = "i-understand-this-costs-money"
-COST_CONSENT_ENV = "HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY"
+COST_CONSENT_ENV = "AVO_I_UNDERSTAND_THIS_COSTS_MONEY"
 _TRUTHY_VALUES = frozenset({"1", "true", "yes"})
 
 
@@ -31,7 +31,7 @@ def has_cost_consent(flag: bool, environ: Mapping[str, str]) -> bool:
 
     Args:
         flag: Value of ``--i-understand-this-costs-money``.
-        environ: Mapping consulted for ``HERNNESS_I_UNDERSTAND_THIS_COSTS_MONEY``.
+        environ: Mapping consulted for ``AVO_I_UNDERSTAND_THIS_COSTS_MONEY``.
 
     Returns:
         ``True`` when consent is granted via either channel.

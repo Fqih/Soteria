@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from hernness import (
+from avo import (
     AgentEvent,
     AgentRuntime,
     EventType,
@@ -17,14 +17,14 @@ from hernness import (
     TokenUsage,
     ToolCall,
 )
-from hernness.exceptions import (
+from avo.exceptions import (
     CheckpointNotFoundError,
     RunAlreadyTerminalError,
     RunNotFoundError,
     UnsafeResumeError,
 )
-from hernness.providers import FakeProvider
-from hernness.storage import InMemoryEventStore, SQLiteEventStore
+from avo.providers import FakeProvider
+from avo.storage import InMemoryEventStore, SQLiteEventStore
 from tests.helpers import seed_run, value_tool
 
 

@@ -28,7 +28,7 @@ jobs:
       - name: Ruff format
         run: ruff format --check .
       - name: Mypy
-        run: mypy src/hernness
+        run: mypy src/avo
       - name: Tests
         run: pytest
       - name: Build

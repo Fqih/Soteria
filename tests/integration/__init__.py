@@ -14,17 +14,17 @@ Run locally with::
     pytest tests/integration/test_ollama_live.py --run-live -v
 
     # Just minimax (with both API styles)
-    HERNNESS_PROVIDER=minimax HERNNESS_MINIMAX_API_KEY=... \\
+    AVO_PROVIDER=minimax AVO_MINIMAX_API_KEY=... \\
         pytest tests/integration/test_minimax_live.py --run-live -v
 
 Required environment variables (per provider):
 
-- ollama:   ``HERNNESS_OLLAMA_BASE_URL`` (default ``http://localhost:11434``),
+- ollama:   ``AVO_OLLAMA_BASE_URL`` (default ``http://localhost:11434``),
             and a model the local daemon already has pulled.
-- minimax:  ``HERNNESS_MINIMAX_API_KEY`` + ``HERNNESS_MINIMAX_MODEL``
+- minimax:  ``AVO_MINIMAX_API_KEY`` + ``AVO_MINIMAX_MODEL``
             (defaults to ``MiniMax-M3``).
-- anthropic: ``HERNNESS_ANTHROPIC_API_KEY`` + ``HERNNESS_ANTHROPIC_MODEL``.
-- openai:   ``HERNNESS_OPENAI_API_KEY`` + ``HERNNESS_OPENAI_MODEL``.
+- anthropic: ``AVO_ANTHROPIC_API_KEY`` + ``AVO_ANTHROPIC_MODEL``.
+- openai:   ``AVO_OPENAI_API_KEY`` + ``AVO_OPENAI_MODEL``.
 
 Every test prints the resolved endpoint, the request URL, the response
 status, and (on failure) the unredacted error body so a 400 / 401 / 429

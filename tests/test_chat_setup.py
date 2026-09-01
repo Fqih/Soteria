@@ -30,70 +30,70 @@ def _chat_env(tmp_path: Path) -> dict[str, Path]:
 
 
 def test_setup_ollama_completes() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 1 = ollama, empty base_url (default), empty model (default)
     stdin = io.StringIO("1\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
     assert env == {
-        "HERNNESS_PROVIDER": "ollama",
-        "HERNNESS_OLLAMA_BASE_URL": "http://localhost:11434",
-        "HERNNESS_MODEL": "llama3.1",
+        "AVO_PROVIDER": "ollama",
+        "AVO_OLLAMA_BASE_URL": "http://localhost:11434",
+        "AVO_MODEL": "llama3.1",
     }
-    assert "Hernness First-Time Setup" in stdout.getvalue()
-    assert "Starting Hernness" in stdout.getvalue()
+    assert "Avo First-Time Setup" in stdout.getvalue()
+    assert "Starting Avo" in stdout.getvalue()
 
 
 def test_setup_openai_with_key() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 2 = openai, key (secret_reader), base_url=default, model=default
     stdin = io.StringIO("2\n\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "sk-test123")
     assert env == {
-        "HERNNESS_PROVIDER": "openai",
-        "HERNNESS_OPENAI_API_KEY": "sk-test123",
-        "HERNNESS_OPENAI_BASE_URL": "https://api.openai.com/v1",
-        "HERNNESS_MODEL": "gpt-5.6",
+        "AVO_PROVIDER": "openai",
+        "AVO_OPENAI_API_KEY": "sk-test123",
+        "AVO_OPENAI_BASE_URL": "https://api.openai.com/v1",
+        "AVO_MODEL": "gpt-5.6",
     }
 
 
 def test_setup_anthropic_uses_custom_model() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 3 = anthropic, key (secret_reader), model override
     stdin = io.StringIO("3\nclaude-opus\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "sk-ant-test")
     assert env == {
-        "HERNNESS_PROVIDER": "anthropic",
-        "HERNNESS_ANTHROPIC_API_KEY": "sk-ant-test",
-        "HERNNESS_MODEL": "claude-opus",
+        "AVO_PROVIDER": "anthropic",
+        "AVO_ANTHROPIC_API_KEY": "sk-ant-test",
+        "AVO_MODEL": "claude-opus",
     }
 
 
 def test_setup_minimax_with_api_style() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 4 = minimax, key (secret_reader), style=2 (openai), base_url=default, model=default
     stdin = io.StringIO("4\n2\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "key-xyz")
     assert env == {
-        "HERNNESS_PROVIDER": "minimax",
-        "HERNNESS_MINIMAX_API_KEY": "key-xyz",
-        "HERNNESS_MINIMAX_API_STYLE": "openai",
-        "HERNNESS_MINIMAX_BASE_URL": "https://api.minimax.io",
-        "HERNNESS_MODEL": "MiniMax-M3",
+        "AVO_PROVIDER": "minimax",
+        "AVO_MINIMAX_API_KEY": "key-xyz",
+        "AVO_MINIMAX_API_STYLE": "openai",
+        "AVO_MINIMAX_BASE_URL": "https://api.minimax.io",
+        "AVO_MODEL": "MiniMax-M3",
     }
 
 
 def test_setup_minimax_rejects_url_in_style_prompt() -> None:
     """A URL pasted into the style prompt must NOT be accepted as a style."""
 
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 4 = minimax, key (secret_reader), URL pasted as style (rejected),
     # then 2 (openai), base_url=default, model=default.
@@ -101,26 +101,26 @@ def test_setup_minimax_rejects_url_in_style_prompt() -> None:
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "key-xyz")
     assert env is not None
-    assert env["HERNNESS_MINIMAX_API_STYLE"] == "openai"
+    assert env["AVO_MINIMAX_API_STYLE"] == "openai"
     out = stdout.getvalue()
     assert "please choose one of: 1, 2" in out
 
 
 def test_setup_invalid_choice_re_prompts() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # 9 invalid, 0 invalid, then 1 valid; empty base_url, empty model
     stdin = io.StringIO("9\n0\n1\n\n\n")
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=lambda _: "x")
     assert env is not None
-    assert env["HERNNESS_PROVIDER"] == "ollama"
+    assert env["AVO_PROVIDER"] == "ollama"
     out = stdout.getvalue()
     assert "please choose one of" in out
 
 
 def test_setup_eof_returns_none() -> None:
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     stdin = io.StringIO("")  # immediate EOF
     stdout = io.StringIO()
@@ -132,7 +132,7 @@ def test_setup_eof_returns_none() -> None:
 def test_setup_uses_secret_reader_not_stdin() -> None:
     """API key must come from secret_reader, not from the REPL stdin."""
 
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     secret = "shhh-do-not-leak"
 
@@ -143,7 +143,7 @@ def test_setup_uses_secret_reader_not_stdin() -> None:
     stdout = io.StringIO()
     env = interactive_first_run_setup(stdin, stdout, secret_reader=fake_secret_reader)
     assert env is not None
-    assert env["HERNNESS_OPENAI_API_KEY"] == secret
+    assert env["AVO_OPENAI_API_KEY"] == secret
     # The secret must NOT appear in stdout (it was typed via secret_reader).
     assert secret not in stdout.getvalue()
 
@@ -160,7 +160,7 @@ async def test_repl_setup_succeeds_then_quits(
 ) -> None:
     """After interactive setup completes, the REPL starts and accepts /quit."""
 
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -182,7 +182,7 @@ async def test_repl_setup_succeeds_then_quits(
 
     assert code == 0
     out = stdout.getvalue()
-    assert "Hernness First-Time Setup" in out
+    assert "Avo First-Time Setup" in out
     assert "Provider configured: Ollama" in out
     assert "Slash commands" in out  # REPL header after setup
 
@@ -194,7 +194,7 @@ async def test_fresh_minimax_setup_reaches_repl_without_configerror(
 ) -> None:
     """Reproduces the original bug: interactive MiniMax setup -> REPL ready."""
 
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -216,7 +216,7 @@ async def test_fresh_minimax_setup_reaches_repl_without_configerror(
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
     # Original bug: a ConfigError appeared after the success message.
-    assert "HERNNESS_PROVIDER must be one of" not in combined
+    assert "AVO_PROVIDER must be one of" not in combined
     assert "got ''" not in combined
     # The header that proves the REPL actually entered the loop.
     assert "Slash commands" in combined
@@ -228,7 +228,7 @@ async def test_fresh_ollama_setup_reaches_repl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -249,7 +249,7 @@ async def test_fresh_ollama_setup_reaches_repl(
 
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
-    assert "HERNNESS_PROVIDER must be one of" not in combined
+    assert "AVO_PROVIDER must be one of" not in combined
     assert "Provider: ollama" in combined
 
 
@@ -258,7 +258,7 @@ async def test_fresh_openai_setup_reaches_repl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -279,7 +279,7 @@ async def test_fresh_openai_setup_reaches_repl(
 
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
-    assert "HERNNESS_PROVIDER must be one of" not in combined
+    assert "AVO_PROVIDER must be one of" not in combined
     assert "Provider: openai" in combined
 
 
@@ -288,7 +288,7 @@ async def test_fresh_anthropic_setup_reaches_repl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -309,21 +309,21 @@ async def test_fresh_anthropic_setup_reaches_repl(
 
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
-    assert "HERNNESS_PROVIDER must be one of" not in combined
+    assert "AVO_PROVIDER must be one of" not in combined
     assert "Provider: anthropic" in combined
 
 
 def test_build_chat_context_refuses_none_database_path() -> None:
-    """database_path=None must raise HernnessError, not TypeError."""
+    """database_path=None must raise AvoError, not TypeError."""
 
-    from hernness.chat import build_chat_context
-    from hernness.exceptions import HernnessError
+    from avo.chat import build_chat_context
+    from avo.exceptions import AvoError
 
-    with pytest.raises(HernnessError):
+    with pytest.raises(AvoError):
         build_chat_context(
             database_path=None,  # type: ignore[arg-type]
             workspace_root=Path("/tmp"),
-            environ={"HERNNESS_PROVIDER": "ollama", "HERNNESS_MODEL": "x"},
+            environ={"AVO_PROVIDER": "ollama", "AVO_MODEL": "x"},
         )
 
 
@@ -334,7 +334,7 @@ async def test_database_path_never_none_during_chat_normal_init(
 ) -> None:
     """run_repl with a Path database_path never crashes with TypeError on None."""
 
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -344,7 +344,7 @@ async def test_database_path_never_none_during_chat_normal_init(
     stderr = io.StringIO()
 
     # Sanity: a real Path is passed; if anything tries to hand None downstream,
-    # we want the run to crash with a HernnessError, never a bare TypeError.
+    # we want the run to crash with a AvoError, never a bare TypeError.
     assert chat_env["db"] is not None
     code = await run_repl(
         database_path=chat_env["db"],
@@ -365,7 +365,7 @@ async def test_provider_config_errors_do_not_produce_secondary_traceback(
 ) -> None:
     """If interactive setup's output is still invalid, no double traceback."""
 
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -399,7 +399,7 @@ async def test_api_key_never_appears_in_stdout_or_stderr(
 ) -> None:
     """Secret captured via secret_reader must not leak to either stream."""
 
-    from hernness.chat import run_repl
+    from avo.chat import run_repl
 
     monkeypatch.setattr("os.environ", {})
     chat_env = _chat_env(tmp_path)
@@ -424,15 +424,15 @@ async def test_api_key_never_appears_in_stdout_or_stderr(
 
 
 def test_existing_env_config_still_works() -> None:
-    """HERNNESS_ env config still builds a provider without wizard."""
+    """AVO_ env config still builds a provider without wizard."""
 
-    from hernness.config import build_provider_from_env
-    from hernness.providers.ollama import OllamaProvider
+    from avo.config import build_provider_from_env
+    from avo.providers.ollama import OllamaProvider
 
     env = {
-        "HERNNESS_PROVIDER": "ollama",
-        "HERNNESS_MODEL": "llama3.1",
-        "HERNNESS_OLLAMA_BASE_URL": "http://localhost:11434",
+        "AVO_PROVIDER": "ollama",
+        "AVO_MODEL": "llama3.1",
+        "AVO_OLLAMA_BASE_URL": "http://localhost:11434",
     }
     provider = build_provider_from_env(env)
     assert isinstance(provider, OllamaProvider)
@@ -447,18 +447,18 @@ def test_build_chat_context_passes_env_to_build_provider_from_env() -> None:
 
     from unittest.mock import patch
 
-    from hernness.chat import build_chat_context
+    from avo.chat import build_chat_context
 
     env = {
-        "HERNNESS_PROVIDER": "openai",
-        "HERNNESS_OPENAI_API_KEY": "sk-mock",
-        "HERNNESS_OPENAI_BASE_URL": "https://example.invalid/v1",
-        "HERNNESS_MODEL": "gpt-5.6",
+        "AVO_PROVIDER": "openai",
+        "AVO_OPENAI_API_KEY": "sk-mock",
+        "AVO_OPENAI_BASE_URL": "https://example.invalid/v1",
+        "AVO_MODEL": "gpt-5.6",
     }
 
     # Patch only the factory. The real Workspace and SQLiteEventStore
     # still get constructed so the test exercises the actual integration.
-    with patch("hernness.chat.build_provider_from_env") as factory:
+    with patch("avo.chat.build_provider_from_env") as factory:
         factory.return_value = "fake-provider"
 
         with tempfile.TemporaryDirectory() as td:
@@ -473,8 +473,8 @@ def test_build_chat_context_passes_env_to_build_provider_from_env() -> None:
                 )
                 factory.assert_called_once()
                 called_env = factory.call_args.args[0]
-                assert called_env.get("HERNNESS_PROVIDER") == "openai"
-                assert called_env.get("HERNNESS_OPENAI_API_KEY") == "sk-mock"
+                assert called_env.get("AVO_PROVIDER") == "openai"
+                assert called_env.get("AVO_OPENAI_API_KEY") == "sk-mock"
                 assert ctx.runtime.provider == "fake-provider"
             finally:
                 import asyncio
@@ -486,7 +486,7 @@ def test_build_chat_context_passes_env_to_build_provider_from_env() -> None:
 def test_merged_env_after_setup_carries_provider_key() -> None:
     """After setup, the merged env passed to build_chat_context has the key."""
 
-    from hernness.chat import interactive_first_run_setup
+    from avo.chat import interactive_first_run_setup
 
     # Simulate the run_repl merge: user-facing env empty + setup output.
     merged: dict[str, str] = {}
@@ -497,5 +497,5 @@ def test_merged_env_after_setup_carries_provider_key() -> None:
     )
     assert setup_out is not None
     merged.update(setup_out)
-    assert merged["HERNNESS_PROVIDER"] == "minimax"
-    assert merged["HERNNESS_MINIMAX_API_STYLE"] == "openai"
+    assert merged["AVO_PROVIDER"] == "minimax"
+    assert merged["AVO_MINIMAX_API_STYLE"] == "openai"

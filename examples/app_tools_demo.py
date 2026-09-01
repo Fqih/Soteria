@@ -20,9 +20,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from hernness import AgentRuntime, FakeProvider, ModelResponse, ToolCall
-from hernness.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
-from hernness.app_tools.workspace import Workspace
+from avo import AgentRuntime, FakeProvider, ModelResponse, ToolCall
+from avo.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
+from avo.app_tools.workspace import Workspace
 
 
 class WriteArgs(BaseModel):

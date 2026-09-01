@@ -1,6 +1,6 @@
 ---
 name: Pull request
-about: Propose changes to the Hernness runtime or its tooling
+about: Propose changes to the Avo runtime or its tooling
 title: ""
 labels:---
 
@@ -23,12 +23,12 @@ labels:---
 
 ## Provider or state-machine changes
 
-If your PR touches `src/hernness/providers/` or
-`src/hernness/runtime.py`, confirm:
+If your PR touches `src/avo/providers/` or
+`src/avo/runtime.py`, confirm:
 
 - [ ] No change to the public `ModelProvider` Protocol contract
 - [ ] No change to the `STOP_REASONS_BY_STATE` mapping without
-  updating `src/hernness/state.py` and the README stop-reasons list
+  updating `src/avo/state.py` and the README stop-reasons list
 - [ ] No change to event ordering or sequence invariants
 
 ## Docs

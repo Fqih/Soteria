@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hernness.models import ModelResponse, ToolCall, ToolResult
-from hernness.progress import ProgressDetector, model_response_fingerprint
-from hernness.tools import canonical_fingerprint, tool_call_fingerprint
+from avo.models import ModelResponse, ToolCall, ToolResult
+from avo.progress import ProgressDetector, model_response_fingerprint
+from avo.tools import canonical_fingerprint, tool_call_fingerprint
 
 
 def test_canonical_fingerprint_ignores_mapping_order() -> None:

@@ -3,7 +3,7 @@
 This loop intentionally avoids ``AgentRuntime``, ``LoopPolicy``,
 ``ProgressDetector``, checkpoints, and the repeated-action stop. It exercises
 only ``ModelProvider.generate`` and ``ToolRegistry.invoke`` so the recorded
-metrics describe the raw provider behavior, not any Hernness safety net.
+metrics describe the raw provider behavior, not any Avo safety net.
 """
 
 from __future__ import annotations
@@ -13,22 +13,22 @@ from typing import cast
 
 from pydantic import JsonValue
 
-from benchmark.live.models import (
-    LiveRunRecord,
-    RawOutcome,
-    UnexpectedRawLoopError,
-)
-from benchmark.live.scenarios import LiveScenario
-from hernness.exceptions import ProviderError, ToolExecutionError
-from hernness.models import (
+from avo.exceptions import ProviderError, ToolExecutionError
+from avo.models import (
     ModelRequest,
     ModelResponse,
     TokenUsage,
     ToolCall,
     ToolResult,
 )
-from hernness.providers.base import ModelProvider
-from hernness.tools import ToolRegistry
+from avo.providers.base import ModelProvider
+from avo.tools import ToolRegistry
+from benchmark.live.models import (
+    LiveRunRecord,
+    RawOutcome,
+    UnexpectedRawLoopError,
+)
+from benchmark.live.scenarios import LiveScenario
 
 _RAW_RUN_ID = "raw-loop"
 
@@ -63,7 +63,7 @@ async def run_raw_loop(
         manual_step_cap: External safety fence; the loop exits after this many
             model calls regardless of the model's behavior.
         max_completion_tokens: Provider hint surfaced only via the
-            ``ModelRequest`` to keep parity with the Hernness runner.
+            ``ModelRequest`` to keep parity with the Avo runner.
 
     Returns:
         A ``LiveRunRecord`` describing the run. ``loop_contained`` is always
@@ -81,7 +81,7 @@ async def run_raw_loop(
     # ``max_completion_tokens`` is intentionally not threaded through the raw
     # loop's ``ModelRequest``; providers consume it via their own configuration
     # and the parameter is retained so the public signature matches the
-    # Hernness runner. Touching it once suppresses the unused-argument warning
+    # Avo runner. Touching it once suppresses the unused-argument warning
     # without altering the loop body.
     _ = max_completion_tokens
 

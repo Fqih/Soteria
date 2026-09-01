@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hernness"
+name = "avo"
 version = "0.1.0"
 description = "Reliable execution infrastructure for long-running AI agents."
 readme = "README.md"
@@ -48,14 +48,14 @@ sandbox = [
 ]
 mcp = [
   # MCP servers are launched as subprocesses that speak JSON-RPC over stdio.
-  # Hernness itself does not depend on the upstream `mcp` SDK — it ships a
+  # Avo itself does not depend on the upstream `mcp` SDK — it ships a
   # minimal JSON-RPC client. Install this extra only when you want the
   # richer SDK helpers (server authoring, transports beyond stdio).
   "mcp>=1.0",
 ]
 
 [project.scripts]
-hernness = "hernness.cli:main"
+avo = "avo.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Fqih/Soteria"
@@ -63,10 +63,10 @@ Repository = "https://github.com/Fqih/Soteria"
 Issues = "https://github.com/Fqih/Soteria/issues"
 
 [project.entry-points.pytest11]
-hernness-live = "hernness._pytest_plugin"
+avo-live = "avo._pytest_plugin"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/hernness"]
+packages = ["src/avo"]
 
 [tool.pytest.ini_options]
 # Skip the live integration tests by default so the offline suite stays
@@ -80,7 +80,7 @@ markers = [
 
 [tool.coverage.run]
 branch = true
-source = ["hernness"]
+source = ["avo"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -111,7 +111,7 @@ select = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-packages = ["hernness"]
+packages = ["avo"]
 mypy_path = "src"
 plugins = ["pydantic.mypy"]
 

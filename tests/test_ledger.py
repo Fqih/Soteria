@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from hernness.ledger import LedgerError, TokenLedger
-from hernness.models import TokenUsage
+from avo.ledger import LedgerError, TokenLedger
+from avo.models import TokenUsage
 
 
 def test_record_returns_entry_with_id(tmp_path: Path) -> None:

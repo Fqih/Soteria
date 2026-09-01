@@ -1,4 +1,4 @@
-"""Shared deterministic helpers for Hernness tests."""
+"""Shared deterministic helpers for Avo tests."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ from collections.abc import Callable
 
 from pydantic import BaseModel
 
-from hernness.events import AgentEvent, EventType
-from hernness.models import RunRecord
-from hernness.storage.base import EventStore
-from hernness.tools import FunctionTool
+from avo.events import AgentEvent, EventType
+from avo.models import RunRecord
+from avo.storage.base import EventStore
+from avo.tools import FunctionTool
 
 
 class ValueArguments(BaseModel):

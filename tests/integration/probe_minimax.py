@@ -2,7 +2,7 @@
 
 Run with::
 
-    HERNNESS_MINIMAX_API_KEY=... python -m tests.integration.probe_minimax
+    AVO_MINIMAX_API_KEY=... python -m tests.integration.probe_minimax
 
 What it does:
 
@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hernness.providers.minimax import MiniMaxConfig, MiniMaxProvider  # noqa: E402
+from avo.providers.minimax import MiniMaxConfig, MiniMaxProvider  # noqa: E402
 
 DEFAULT_BASE = "https://api.minimax.io"
 DEFAULT_MODEL = "MiniMax-M3"
@@ -85,7 +85,7 @@ async def _probe_one(style: str, api_key: str, model: str, base_url: str) -> Non
 
 
 def _build_minimal_request():
-    from hernness import ModelRequest
+    from avo import ModelRequest
 
     return ModelRequest(
         run_id="probe-minimax",
@@ -96,12 +96,12 @@ def _build_minimal_request():
 
 
 async def main() -> int:
-    api_key = os.environ.get("HERNNESS_MINIMAX_API_KEY", "").strip()
+    api_key = os.environ.get("AVO_MINIMAX_API_KEY", "").strip()
     if not api_key:
-        print("HERNNESS_MINIMAX_API_KEY is not set; nothing to probe.", file=sys.stderr)
+        print("AVO_MINIMAX_API_KEY is not set; nothing to probe.", file=sys.stderr)
         return 2
-    model = os.environ.get("HERNNESS_MINIMAX_MODEL", "").strip() or DEFAULT_MODEL
-    base_url = os.environ.get("HERNNESS_MINIMAX_BASE_URL", "").strip() or DEFAULT_BASE
+    model = os.environ.get("AVO_MINIMAX_MODEL", "").strip() or DEFAULT_MODEL
+    base_url = os.environ.get("AVO_MINIMAX_BASE_URL", "").strip() or DEFAULT_BASE
 
     await _probe_one("anthropic", api_key, model, base_url)
     await _probe_one("openai", api_key, model, base_url)

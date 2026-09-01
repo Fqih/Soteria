@@ -5,9 +5,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from hernness.models import TokenUsage
-from hernness.policies import LoopPolicy
-from hernness.state import StopReason
+from avo.models import TokenUsage
+from avo.policies import LoopPolicy
+from avo.state import StopReason
 
 
 def test_policy_defaults_are_bounded() -> None:

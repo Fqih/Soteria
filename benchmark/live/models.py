@@ -8,11 +8,11 @@ from typing import Literal
 
 from pydantic import ConfigDict, Field, model_validator
 
-from hernness.models import HernnessModel, TokenUsage, utc_now
-from hernness.state import RunState, StopReason
+from avo.models import AvoModel, TokenUsage, utc_now
+from avo.state import RunState, StopReason
 
 RawOutcome = Literal["completed", "hit_manual_step_cap", "error"]
-Approach = Literal["raw", "hernness"]
+Approach = Literal["raw", "avo"]
 
 
 class UnexpectedRawLoopError(Exception):
@@ -28,7 +28,7 @@ class UnexpectedRawLoopError(Exception):
         self.original = original
 
 
-class LiveRunRecord(HernnessModel):
+class LiveRunRecord(AvoModel):
     """One observable live benchmark run, agnostic to approach.
 
     Only public fields are serialized; credential-like keys are not stored on
@@ -48,7 +48,7 @@ class LiveRunRecord(HernnessModel):
     approach: Approach
     run_index: int | None = Field(default=None, ge=0)
 
-    # Outcome (raw approach uses ``outcome``; hernness approach uses status/stop_reason).
+    # Outcome (raw approach uses ``outcome``; avo approach uses status/stop_reason).
     outcome: RawOutcome | None = None
     status: RunState | None = None
     stop_reason: StopReason | None = None
@@ -69,17 +69,17 @@ class LiveRunRecord(HernnessModel):
     unexpected_error_type: str | None = None
     unexpected_error_message: str | None = None
 
-    # Optional Hernness trace text.
+    # Optional Avo trace text.
     trace_text: str | None = None
 
     @property
     def loop_contained(self) -> bool:
-        """The raw loop never reports containment; only Hernness policy stops do."""
+        """The raw loop never reports containment; only Avo policy stops do."""
 
         return False
 
 
-class LiveResults(HernnessModel):
+class LiveResults(AvoModel):
     """A bundle of ``LiveRunRecord`` rows persisted as the source of truth."""
 
     model_config = ConfigDict(extra="forbid")

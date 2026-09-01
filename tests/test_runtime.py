@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from hernness import (
+from avo import (
     AgentRuntime,
     EventType,
     LoopPolicy,
@@ -17,10 +17,10 @@ from hernness import (
     TokenUsage,
     ToolCall,
 )
-from hernness.events import TERMINAL_EVENT_TYPES
-from hernness.models import ModelRequest
-from hernness.providers import FakeProvider
-from hernness.storage import InMemoryEventStore
+from avo.events import TERMINAL_EVENT_TYPES
+from avo.models import ModelRequest
+from avo.providers import FakeProvider
+from avo.storage import InMemoryEventStore
 from tests.helpers import value_tool
 
 

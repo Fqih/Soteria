@@ -8,9 +8,9 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from hernness.exceptions import InvalidStateTransitionError
-from hernness.models import RunRecord, RunResult, TokenUsage, ToolResult, new_id
-from hernness.state import RunState, StopReason
+from avo.exceptions import InvalidStateTransitionError
+from avo.models import RunRecord, RunResult, TokenUsage, ToolResult, new_id
+from avo.state import RunState, StopReason
 
 
 def test_generated_identifier_is_canonical_uuid_string() -> None:

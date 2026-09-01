@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-from hernness.models import ModelRequest, ModelResponse
-from hernness.providers.base import ModelProvider
-from hernness.providers.streaming import (
+from avo.models import ModelRequest, ModelResponse
+from avo.providers.base import ModelProvider
+from avo.providers.streaming import (
     ModelChunk,
     StreamingModelProvider,
     collect_stream,

@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel, Field
 
-from hernness.schemas import (
+from avo.schemas import (
     SchemaError,
     SchemaRegistry,
     ValidationFailure,

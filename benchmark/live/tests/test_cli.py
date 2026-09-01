@@ -14,6 +14,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from avo import TokenUsage
+from avo.providers.base import ModelProvider
 from benchmark.live.consent import COST_CONSENT_ENV
 from benchmark.live.models import LiveRunRecord
 from benchmark.live.run_live_benchmark import (
@@ -23,8 +25,6 @@ from benchmark.live.run_live_benchmark import (
     run_all,
 )
 from benchmark.live.scenarios import LiveScenario, scenario_by_name
-from hernness import TokenUsage
-from hernness.providers.base import ModelProvider
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -206,7 +206,7 @@ def _completed_record(scenario_name: str, approach: str, run_index: int) -> Live
         )
     return LiveRunRecord(
         scenario=scenario_name,
-        approach="hernness",
+        approach="avo",
         run_index=run_index,
         status="completed",
         stop_reason="completed",
@@ -241,31 +241,31 @@ async def test_run_all_orchestrates_three_scenarios_raw_and_soteria(tmp_path: Pa
         call_log.append(f"raw:{scenario.name}")
         return _completed_record(scenario.name, "raw", run_index=0)
 
-    async def hernness_runner(provider, *, scenario, run_index, **_unused):
+    async def avo_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        call_log.append(f"hernness:{scenario.name}:{run_index}")
-        return _completed_record(scenario.name, "hernness", run_index=run_index)
+        call_log.append(f"avo:{scenario.name}:{run_index}")
+        return _completed_record(scenario.name, "avo", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        call_log.append(f"hernness-interrupted:{scenario.name}:{run_index_inner}")
-        return _completed_record(scenario.name, "hernness", run_index=run_index_inner)
+        call_log.append(f"avo-interrupted:{scenario.name}:{run_index_inner}")
+        return _completed_record(scenario.name, "avo", run_index=run_index_inner)
 
     results = await run_all(
         args,
         provider_factory=provider_factory_stub,
         raw_runner=raw_runner,
-        hernness_runner=hernness_runner,
+        avo_runner=avo_runner,
         interrupted_runner=interrupted_runner,
         sleep=lambda _seconds: None,
     )
 
-    # Two scenarios are raw-and-hernness capable (3 raw + 3 hernness per
+    # Two scenarios are raw-and-avo capable (3 raw + 3 avo per
     # scenario * 2 scenarios * 2 runs), and one scenario is
-    # hernness-interrupted-only.
+    # avo-interrupted-only.
     raw_calls = [entry for entry in call_log if entry.startswith("raw:")]
-    soteria_calls = [entry for entry in call_log if entry.startswith("hernness:")]
-    interrupted_calls = [entry for entry in call_log if entry.startswith("hernness-interrupted:")]
+    soteria_calls = [entry for entry in call_log if entry.startswith("avo:")]
+    interrupted_calls = [entry for entry in call_log if entry.startswith("avo-interrupted:")]
 
     assert len(raw_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
     assert len(soteria_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
@@ -299,19 +299,19 @@ async def test_run_all_persists_utc_timestamped_json(tmp_path: Path) -> None:
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
         return _completed_record(scenario.name, "raw", run_index=0)
 
-    async def hernness_runner(provider, *, scenario, run_index, **_unused):
+    async def avo_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "hernness", run_index=run_index)
+        return _completed_record(scenario.name, "avo", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "hernness", run_index=run_index_inner)
+        return _completed_record(scenario.name, "avo", run_index=run_index_inner)
 
     results = await run_all(
         args,
         provider_factory=provider_factory_stub,
         raw_runner=raw_runner,
-        hernness_runner=hernness_runner,
+        avo_runner=avo_runner,
         interrupted_runner=interrupted_runner,
         sleep=lambda _seconds: None,
     )
@@ -347,19 +347,19 @@ async def test_run_all_marks_internal_errors_incomplete() -> None:
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
         raise RuntimeError("intentional raw failure")
 
-    async def hernness_runner(provider, *, scenario, run_index, **_unused):
+    async def avo_runner(provider, *, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "hernness", run_index=run_index)
+        return _completed_record(scenario.name, "avo", run_index=run_index)
 
     async def interrupted_runner(provider_factory, *, scenario, run_index_inner=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        return _completed_record(scenario.name, "hernness", run_index=run_index_inner)
+        return _completed_record(scenario.name, "avo", run_index=run_index_inner)
 
     results = await run_all(
         args,
         provider_factory=provider_factory_stub,
         raw_runner=raw_runner,
-        hernness_runner=hernness_runner,
+        avo_runner=avo_runner,
         interrupted_runner=interrupted_runner,
         sleep=lambda _seconds: None,
     )
@@ -393,16 +393,16 @@ def test_main_prints_summary_and_one_trace_example(
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
         return _completed_record(scenario.name, "raw", run_index=0)
 
-    async def hernness_runner(provider, scenario, run_index, **_unused):
+    async def avo_runner(provider, scenario, run_index, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        record = _completed_record(scenario.name, "hernness", run_index=run_index)
+        record = _completed_record(scenario.name, "avo", run_index=run_index)
         # Ensure the summary trace render has a non-empty trace to print.
         record.trace_text = f"Run: {scenario.name}\nStop reason: completed\n"
         return record
 
     async def interrupted_runner(provider_factory, scenario, run_index=0, **_unused):
         scenario = scenario_by_name(scenario) if isinstance(scenario, str) else scenario
-        record = _completed_record(scenario.name, "hernness", run_index=run_index)
+        record = _completed_record(scenario.name, "avo", run_index=run_index)
         record.trace_text = f"Run: {scenario.name}\nStop reason: completed\n"
         return record
 
@@ -421,11 +421,11 @@ def test_main_prints_summary_and_one_trace_example(
     import benchmark.live.run_live_benchmark as cli_module
 
     original_raw = cli_module.run_raw_loop
-    original_soteria = cli_module.run_hernness
-    original_interrupted = cli_module.run_hernness_interrupted
+    original_soteria = cli_module.run_avo
+    original_interrupted = cli_module.run_avo_interrupted
     cli_module.run_raw_loop = raw_runner  # type: ignore[assignment]
-    cli_module.run_hernness = hernness_runner  # type: ignore[assignment]
-    cli_module.run_hernness_interrupted = interrupted_runner  # type: ignore[assignment]
+    cli_module.run_avo = avo_runner  # type: ignore[assignment]
+    cli_module.run_avo_interrupted = interrupted_runner  # type: ignore[assignment]
     try:
         code = main(
             [
@@ -442,8 +442,8 @@ def test_main_prints_summary_and_one_trace_example(
         )
     finally:
         cli_module.run_raw_loop = original_raw
-        cli_module.run_hernness = original_soteria
-        cli_module.run_hernness_interrupted = original_interrupted
+        cli_module.run_avo = original_soteria
+        cli_module.run_avo_interrupted = original_interrupted
 
     assert code == 0
     captured = capsys.readouterr()

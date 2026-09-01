@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from hernness.notifications import (
+from avo.notifications import (
     DesktopNotifier,
     Notification,
     NotificationDispatcher,
@@ -39,7 +39,7 @@ def test_notification_to_dict() -> None:
 
 
 def test_webhook_notifier_posts_payload(monkeypatch: pytest.MonkeyPatch) -> None:
-    import hernness.notifications as mod
+    import avo.notifications as mod
 
     fake = _FakeClient()
     fake_httpx = type("_H", (), {"Client": lambda *a, **kw: fake})
@@ -49,7 +49,7 @@ def test_webhook_notifier_posts_payload(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_webhook_notifier_requires_httpx(monkeypatch: pytest.MonkeyPatch) -> None:
-    import hernness.notifications as mod
+    import avo.notifications as mod
 
     monkeypatch.setattr(mod, "_httpx", None)
     with pytest.raises(NotifierError, match="requires httpx"):
@@ -106,7 +106,7 @@ def test_dispatcher_register_appends() -> None:
 def test_desktop_notifier_no_command_does_not_raise(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import hernness.notifications as mod
+    import avo.notifications as mod
 
     monkeypatch.setattr(mod.shutil, "which", lambda _name: None)
     notifier = DesktopNotifier()
@@ -115,21 +115,21 @@ def test_desktop_notifier_no_command_does_not_raise(
 
 
 def test_from_env_returns_empty_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HERNNESS_NOTIFY_WEBHOOK", raising=False)
-    monkeypatch.delenv("HERNNESS_NOTIFY_DESKTOP", raising=False)
+    monkeypatch.delenv("AVO_NOTIFY_WEBHOOK", raising=False)
+    monkeypatch.delenv("AVO_NOTIFY_DESKTOP", raising=False)
     dispatcher = from_env()
     assert dispatcher._notifiers == []  # type: ignore[attr-defined]
 
 
 def test_from_env_registers_webhook_when_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("HERNNESS_NOTIFY_WEBHOOK", "https://x/hook")
-    monkeypatch.delenv("HERNNESS_NOTIFY_DESKTOP", raising=False)
+    monkeypatch.setenv("AVO_NOTIFY_WEBHOOK", "https://x/hook")
+    monkeypatch.delenv("AVO_NOTIFY_DESKTOP", raising=False)
     dispatcher = from_env()
     assert any(isinstance(n, WebhookNotifier) for n in dispatcher._notifiers)  # type: ignore[attr-defined]
 
 
 def test_from_env_registers_desktop_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HERNNESS_NOTIFY_WEBHOOK", raising=False)
-    monkeypatch.setenv("HERNNESS_NOTIFY_DESKTOP", "1")
+    monkeypatch.delenv("AVO_NOTIFY_WEBHOOK", raising=False)
+    monkeypatch.setenv("AVO_NOTIFY_DESKTOP", "1")
     dispatcher = from_env()
     assert any(isinstance(n, DesktopNotifier) for n in dispatcher._notifiers)  # type: ignore[attr-defined]

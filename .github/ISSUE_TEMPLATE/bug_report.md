@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a bug in Hernness
+about: Report a bug in Avo
 title: "[bug] "
 labels: bug
 ---
@@ -10,16 +10,16 @@ A clear description of what happens vs. what you expected.
 
 **Reproduction**
 Minimal code or commands that reproduce the issue. Include provider
-(`HERNNESS_PROVIDER`) and model (`HERNNESS_MODEL`) where applicable.
+(`AVO_PROVIDER`) and model (`AVO_MODEL`) where applicable.
 
 **Environment**
-- Hernness version (`pip show hernness` or `python -c "import hernness; print(hernness.__version__)"`)
+- Avo version (`pip show avo` or `python -c "import avo; print(avo.__version__)"`)
 - Python version
 - Provider (Ollama / MiniMax / Anthropic / OpenAI / OpenAI-compatible)
 - OS
 
 **Logs / trace**
-If available, paste a `hernness --database hernness.db runs inspect RUN_ID`
+If available, paste a `avo --database avo.db runs inspect RUN_ID`
 trace excerpt.
 
 **Notes**

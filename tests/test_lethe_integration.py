@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from hernness.integrations import LetheMemoryAdapter
+from avo.integrations import LetheMemoryAdapter
 
 
 @dataclass

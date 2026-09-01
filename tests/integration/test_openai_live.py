@@ -1,8 +1,8 @@
 """Live integration tests against any OpenAI-compatible chat endpoint.
 
-Auto-skips when ``HERNNESS_OPENAI_API_KEY`` is missing. The base URL
+Auto-skips when ``AVO_OPENAI_API_KEY`` is missing. The base URL
 defaults to ``https://api.openai.com/v1``; override with
-``HERNNESS_OPENAI_BASE_URL`` to point at a self-hosted vLLM / llama.cpp /
+``AVO_OPENAI_BASE_URL`` to point at a self-hosted vLLM / llama.cpp /
 Azure / etc. endpoint.
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from hernness import ModelResponse
-from hernness.providers.openai_compatible import (
+from avo import ModelResponse
+from avo.providers.openai_compatible import (
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,
 )
@@ -24,22 +24,22 @@ pytestmark = pytest.mark.asyncio
 def _resolve_key() -> str:
     import os
 
-    value = os.environ.get("HERNNESS_OPENAI_API_KEY", "").strip()
+    value = os.environ.get("AVO_OPENAI_API_KEY", "").strip()
     if not value:
-        pytest.skip("HERNNESS_OPENAI_API_KEY not set")
+        pytest.skip("AVO_OPENAI_API_KEY not set")
     return value
 
 
 def _resolve_model() -> str:
     import os
 
-    return os.environ.get("HERNNESS_OPENAI_MODEL", "").strip() or "gpt-4o-mini"
+    return os.environ.get("AVO_OPENAI_MODEL", "").strip() or "gpt-4o-mini"
 
 
 def _resolve_base_url() -> str:
     import os
 
-    return os.environ.get("HERNNESS_OPENAI_BASE_URL", "").strip() or "https://api.openai.com/v1"
+    return os.environ.get("AVO_OPENAI_BASE_URL", "").strip() or "https://api.openai.com/v1"
 
 
 async def test_openai_text_completion() -> None:
@@ -68,7 +68,7 @@ async def test_openai_text_completion() -> None:
 async def test_openai_tool_call_round_trip() -> None:
     """Tool-call round-trip; verifies tool_choice=auto path."""
 
-    from hernness import ModelRequest, ToolMetadata
+    from avo import ModelRequest, ToolMetadata
 
     config = OpenAICompatibleConfig.model_construct(
         model=_resolve_model(), base_url=_resolve_base_url()

@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from hernness.app_tools.edit_file import EditFileError
-from hernness.app_tools.file_tools import bind_workspace
-from hernness.app_tools.git_status import GitStatusArguments, git_status_tool
-from hernness.app_tools.workspace import Workspace
+from avo.app_tools.edit_file import EditFileError
+from avo.app_tools.file_tools import bind_workspace
+from avo.app_tools.git_status import GitStatusArguments, git_status_tool
+from avo.app_tools.workspace import Workspace
 
 
 @pytest.fixture

@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from hernness.exceptions import (
+from avo.exceptions import (
     DuplicateToolError,
     ToolAlreadyCompletedError,
     ToolValidationError,
 )
-from hernness.models import ToolCall
-from hernness.tools import FunctionTool, ToolRegistry
+from avo.models import ToolCall
+from avo.tools import FunctionTool, ToolRegistry
 from tests.helpers import value_tool
 
 

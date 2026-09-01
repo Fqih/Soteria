@@ -5,7 +5,7 @@ The example bundle under ``benchmark/live/example_output/`` is a real
 recorded against MiniMax's API.  These tests verify the JSON conforms to
 :class:`LiveResults` and describes the expected shape (provider=``minimax``,
 api_style=``anthropic``, model=``MiniMax-M3``, three runs per applicable
-approach, and a Hernness interruption/resume record), and that the two stable
+approach, and a Avo interruption/resume record), and that the two stable
 PNGs exist with non-trivial size.  The PNGs must always be produced by the
 renderer, never hand-authored.
 """
@@ -22,9 +22,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 pytest.importorskip("matplotlib")
 
+from avo import RunState, StopReason
 from benchmark.live.models import LiveResults
 from benchmark.live.render import load_results
-from hernness import RunState, StopReason
 
 _EXAMPLE_DIR = Path(__file__).resolve().parents[1] / "example_output"
 _JSON_PATH = _EXAMPLE_DIR / "example_results.json"
@@ -58,10 +58,10 @@ def test_example_json_has_three_runs_per_applicable_approach() -> None:
     )
 
     assert grouped[("normal_completion", "raw")] == _SAMPLE_SIZE
-    assert grouped[("normal_completion", "hernness")] == _SAMPLE_SIZE
+    assert grouped[("normal_completion", "avo")] == _SAMPLE_SIZE
     assert grouped[("repetition_prone", "raw")] == _SAMPLE_SIZE
-    assert grouped[("repetition_prone", "hernness")] == _SAMPLE_SIZE
-    assert grouped[("interrupted_resume", "hernness")] == _SAMPLE_SIZE
+    assert grouped[("repetition_prone", "avo")] == _SAMPLE_SIZE
+    assert grouped[("interrupted_resume", "avo")] == _SAMPLE_SIZE
 
 
 def test_example_records_carry_token_duration_and_containment_fields() -> None:
@@ -76,7 +76,7 @@ def test_example_records_carry_token_duration_and_containment_fields() -> None:
     repetition_soteria = [
         record
         for record in results.records
-        if record.scenario == "repetition_prone" and record.approach == "hernness"
+        if record.scenario == "repetition_prone" and record.approach == "avo"
     ]
     assert repetition_soteria
     for record in repetition_soteria:
@@ -93,7 +93,7 @@ def test_example_interruption_record_resumes_exactly_once() -> None:
     ]
     assert len(interruptions) == _SAMPLE_SIZE
     for record in interruptions:
-        assert record.approach == "hernness"
+        assert record.approach == "avo"
         assert record.resume_tool_executed_exactly_once is True
 
 

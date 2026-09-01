@@ -2,7 +2,7 @@
 
 Two layers:
 
-* ``SessionLifecycle`` (in ``hernness.chat_session``) — open/append/list
+* ``SessionLifecycle`` (in ``avo.chat_session``) — open/append/list
   + the ``/sessions`` picker renderer and ``/resume`` resolver.
 * Chat REPL wiring — every user turn persists to ``ConversationStore``;
   ``/resume SESSION_ID`` loads a preamble for the next user turn;
@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from hernness import ModelResponse
-from hernness.app_tools.file_tools import bind_workspace
-from hernness.chat import (
+from avo import ModelResponse
+from avo.app_tools.file_tools import bind_workspace
+from avo.chat import (
     ChatContext,
     _new_session_id,
     _run_slash,
@@ -28,15 +28,15 @@ from hernness.chat import (
     build_chat_context,
     run_repl,
 )
-from hernness.chat_session import (
+from avo.chat_session import (
     SessionInfo,
     SessionLifecycle,
     render_session_picker,
     render_session_row,
     resolve_session_id,
 )
-from hernness.cli import _parser
-from hernness.providers.base import ModelProvider
+from avo.cli import _parser
+from avo.providers.base import ModelProvider
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -53,7 +53,7 @@ class _ScriptedProvider(ModelProvider):
     async def generate(self, request):  # type: ignore[override]
         self.calls.append(request.messages[-1].get("content", ""))  # type: ignore[union-attr]
         if not self.script:
-            from hernness.exceptions import FakeProviderExhaustedError
+            from avo.exceptions import FakeProviderExhaustedError
 
             raise FakeProviderExhaustedError("script empty")
         return self.script.pop(0)
@@ -70,9 +70,9 @@ def chat_env(tmp_path: Path) -> dict[str, Path]:
 
 def _environ_with_ollama(model: str = "fake-test-model") -> dict[str, str]:
     return {
-        "HERNNESS_PROVIDER": "ollama",
-        "HERNNESS_MODEL": model,
-        "HERNNESS_OLLAMA_BASE_URL": "http://example.invalid",
+        "AVO_PROVIDER": "ollama",
+        "AVO_MODEL": model,
+        "AVO_OLLAMA_BASE_URL": "http://example.invalid",
     }
 
 
@@ -190,7 +190,7 @@ def test_build_preamble_marks_oldest_first_and_truncates(tmp_path: Path) -> None
 
 
 def test_build_preamble_rejects_empty_session(tmp_path: Path) -> None:
-    from hernness.chat_session import SessionError
+    from avo.chat_session import SessionError
 
     lifecycle = SessionLifecycle.open(tmp_path / "h.db")
     with pytest.raises(SessionError, match="no turns"):
@@ -592,7 +592,7 @@ async def test_run_repl_session_id_flag_loads_preamble(
     lifecycle.close()
 
     # Patch ctx after build so we can inspect the preamble.
-    from hernness import chat as chat_module
+    from avo import chat as chat_module
 
     original_build = chat_module.build_chat_context
     captured: dict[str, object] = {}

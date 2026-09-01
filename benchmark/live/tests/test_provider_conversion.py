@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from hernness import ModelRequest, TokenUsage, ToolCall, ToolMetadata
-from hernness.exceptions import ProviderError
+from avo import ModelRequest, TokenUsage, ToolCall, ToolMetadata
+from avo.exceptions import ProviderError
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 _common = import_module("examples.live_providers.common")

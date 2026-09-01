@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from hernness import AgentRuntime, EventType, ModelResponse
-from hernness.cli import main
-from hernness.providers import FakeProvider
-from hernness.storage import SQLiteEventStore
+from avo import AgentRuntime, EventType, ModelResponse
+from avo.cli import main
+from avo.providers import FakeProvider
+from avo.storage import SQLiteEventStore
 from tests.test_resume import InjectedInterruption, InterruptOnEventRuntime
 
 

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from hernness.app_tools.web_fetch import (
+from avo.app_tools.web_fetch import (
     WebFetchArguments,
     WebFetchError,
     _fetch_with_client,

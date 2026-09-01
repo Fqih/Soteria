@@ -48,7 +48,7 @@ def test_estimate_upper_bound_uses_documented_formula() -> None:
     )
 
     assert isinstance(estimate, CostEstimate)
-    # max_steps * scenario_count * 2 (raw + hernness) * runs = 6 * 3 * 2 * 3 = 108
+    # max_steps * scenario_count * 2 (raw + avo) * runs = 6 * 3 * 2 * 3 = 108
     assert estimate.total_steps == 6 * 3 * 2 * 3
     expected_input_tokens = 6 * 3 * 2 * 3 * 2048
     expected_output_tokens = 6 * 3 * 2 * 3 * 2048

@@ -6,8 +6,8 @@ import asyncio
 
 from pydantic import BaseModel
 
-from hernness import AgentRuntime, FunctionTool, LoopPolicy, ModelResponse, ToolCall
-from hernness.providers import FakeProvider
+from avo import AgentRuntime, FunctionTool, LoopPolicy, ModelResponse, ToolCall
+from avo.providers import FakeProvider
 
 
 class WriteArguments(BaseModel):
@@ -17,7 +17,7 @@ class WriteArguments(BaseModel):
 
 
 async def main() -> None:
-    """Run a repeating script and print why Hernness stopped it."""
+    """Run a repeating script and print why Avo stopped it."""
 
     writes = [0]
 

@@ -7,8 +7,8 @@ from io import StringIO
 
 import pytest
 
-from hernness.models import ToolCall
-from hernness.permissions import (
+from avo.models import ToolCall
+from avo.permissions import (
     PermissionMode,
     PermissionPolicy,
     active_run_id,
@@ -244,8 +244,8 @@ def test_permission_policy_from_env_defaults_to_default_mode() -> None:
 def test_permission_policy_from_env_reads_mode_and_extras() -> None:
     policy = permission_policy_from_env(
         {
-            "HERNNESS_PERMISSION_MODE": "plan",
-            "HERNNESS_TOOLS_REQUIRE_APPROVAL": "write_file, edit_file",
+            "AVO_PERMISSION_MODE": "plan",
+            "AVO_TOOLS_REQUIRE_APPROVAL": "write_file, edit_file",
         }
     )
     assert policy.mode is PermissionMode.PLAN
@@ -253,8 +253,8 @@ def test_permission_policy_from_env_reads_mode_and_extras() -> None:
 
 
 def test_permission_policy_from_env_rejects_unknown_mode() -> None:
-    with pytest.raises(ValueError, match="HERNNESS_PERMISSION_MODE"):
-        permission_policy_from_env({"HERNNESS_PERMISSION_MODE": "nuclear"})
+    with pytest.raises(ValueError, match="AVO_PERMISSION_MODE"):
+        permission_policy_from_env({"AVO_PERMISSION_MODE": "nuclear"})
 
 
 def test_active_run_id_returns_current_slot() -> None:

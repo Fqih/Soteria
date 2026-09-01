@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 matplotlib = pytest.importorskip("matplotlib")
 
+from avo import RunState, StopReason  # noqa: E402
 from benchmark.live.models import LiveResults, LiveRunRecord  # noqa: E402
 from benchmark.live.render import (  # noqa: E402
     chart_titles,
@@ -24,7 +25,6 @@ from benchmark.live.render import (  # noqa: E402
     render_results,
     render_results_data,
 )
-from hernness import RunState, StopReason  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Fixture
@@ -45,7 +45,7 @@ def _normal_raw(steps: int, duration: float, run_index: int) -> LiveRunRecord:
 def _normal_soteria(steps: int, duration: float, run_index: int) -> LiveRunRecord:
     return LiveRunRecord(
         scenario="normal_completion",
-        approach="hernness",
+        approach="avo",
         run_index=run_index,
         status=RunState.COMPLETED,
         stop_reason=StopReason.COMPLETED,
@@ -69,7 +69,7 @@ def _repetition_raw(contained: bool, run_index: int) -> LiveRunRecord:
 def _repetition_soteria(contained: bool, run_index: int) -> LiveRunRecord:
     return LiveRunRecord(
         scenario="repetition_prone",
-        approach="hernness",
+        approach="avo",
         run_index=run_index,
         status=RunState.STOPPED if contained else RunState.COMPLETED,
         stop_reason=StopReason.REPEATED_ACTION if contained else StopReason.COMPLETED,
@@ -214,4 +214,4 @@ def test_written_json_matches_loaded_results(tmp_path: Path) -> None:
         "normal_completion",
         "repetition_prone",
     }
-    assert {record["approach"] for record in payload["records"]} == {"raw", "hernness"}
+    assert {record["approach"] for record in payload["records"]} == {"raw", "avo"}

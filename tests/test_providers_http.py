@@ -12,13 +12,13 @@ from typing import Any
 
 import pytest
 
-from hernness import ModelRequest, ToolMetadata
-from hernness.exceptions import ProviderError
-from hernness.models import TokenUsage
-from hernness.providers.anthropic import AnthropicConfig, AnthropicProvider
-from hernness.providers.minimax import MiniMaxConfig, MiniMaxProvider
-from hernness.providers.ollama import OllamaConfig, OllamaProvider
-from hernness.providers.openai_compatible import (
+from avo import ModelRequest, ToolMetadata
+from avo.exceptions import ProviderError
+from avo.models import TokenUsage
+from avo.providers.anthropic import AnthropicConfig, AnthropicProvider
+from avo.providers.minimax import MiniMaxConfig, MiniMaxProvider
+from avo.providers.ollama import OllamaConfig, OllamaProvider
+from avo.providers.openai_compatible import (
     OpenAICompatibleConfig,
     OpenAICompatibleProvider,
 )
