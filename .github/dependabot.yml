@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    groups:
+      runtime:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+      dev:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      security-patches:
+        applies-to: version-updates
+        update-types:
+          - "security:patch"
+          - "security:minor"
+    # Pin Python major version so Dependabot updates only patch/minor.
+    versioning-strategy: increase
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps(dev)"
+      include: scope
+    labels:
+      - "dependencies"
+      - "automated"
+    # Skip GitHub Actions updates for now; we only have a handful.
+    ignore:
+      - dependency-name: "hatchling"
+        versions:
+          - ">1.26"

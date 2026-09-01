@@ -36,4 +36,16 @@ jobs:
       - name: Tests
         run: pytest
       - name: Build
-        run: python -m build
+        env:
+          # Reproducible build: pin build timestamp to the latest
+          # commit so wheel and sdist are byte-identical between runs.
+          SOURCE_DATE_EPOCH: ${{ format('{0}', github.event.repository.updated_at_timestamp) }}
+        run: |
+          # GitHub's ``github.event.repository.updated_at_timestamp`` is
+          # not always present; fall back to ``git log -1`` so the
+          # build is reproducible locally too.
+          if [ -z "${SOURCE_DATE_EPOCH:-}" ]; then
+            SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          fi
+          export SOURCE_DATE_EPOCH
+          python -m build

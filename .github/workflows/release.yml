@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: Build, sign, attest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build tooling
+        run: python -m pip install -e ".[dev]"
+      - name: Run quality gates
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy src/avo
+          pytest
+          bandit -r src/avo -c pyproject.toml --severity-level medium
+          pip-audit --strict
+      - name: Build wheel and sdist (reproducible)
+        env:
+          SOURCE_DATE_EPOCH: ${{ github.event.repository.updated_at_timestamp || '0' }}
+        run: |
+          if [ "${SOURCE_DATE_EPOCH}" = "0" ]; then
+            SOURCE_DATE_EPOCH="$(git log -1 --pretty=%ct)"
+          fi
+          export SOURCE_DATE_EPOCH
+          python -m build
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          artifact: dist/avo-*.whl,dist/avo-*.tar.gz
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: "*spdx.json,*cdx.json,*sbom*"
+      - name: Sign wheel and sdist with Sigstore
+        uses: sigstore/gh-action-sigstore-py@v2.1.0
+        with:
+          signing-mode: fulcio
+          certificate-github-workflow: true
+          inputs: |
+            dist/*.whl
+            dist/*.tar.gz
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          twine upload dist/*.whl dist/*.tar.gz
+      - name: Attach artifacts to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.sig
+            dist/*.cert
+            dist/*.intoto.jsonl
+            *sbom*
+        generate_release_notes: true
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: dist/avo-*.whl
