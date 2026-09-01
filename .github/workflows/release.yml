@@ -80,7 +80,7 @@ jobs:
             dist/*.cert
             dist/*.intoto.jsonl
             *sbom*
-        generate_release_notes: true
+          generate_release_notes: true
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1
         with:
