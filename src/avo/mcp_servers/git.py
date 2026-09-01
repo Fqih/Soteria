@@ -37,7 +37,7 @@ class _Server(AvoMCPServer):
             user_error("git binary not found on PATH")
         self._repo = repo
 
-    async def _run_git(self, *args: str, timeout: float = 10.0) -> str:
+    async def _run_git(self, *args: str, timeout: float = 30.0) -> str:
         if not self._repo.exists():
             user_error(f"repository not found: {self._repo}")
         try:
