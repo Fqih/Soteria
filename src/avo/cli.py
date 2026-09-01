@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from avo import __version__
 from avo.chat import run_repl
 from avo.doctor import main as doctor_main
 from avo.exceptions import AvoError
@@ -35,6 +36,11 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="avo",
         description="Inspect, resume, and chat with Avo SQLite runs.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"avo {__version__}",
     )
     parser.add_argument(
         "--database",

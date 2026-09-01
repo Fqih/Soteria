@@ -75,3 +75,13 @@ def test_cli_resumes_persisted_fake_provider_run(
     assert main(["--database", str(path), "runs", "resume", "cli-resume"]) == 0
     output = capsys.readouterr().out
     assert "completed (completed)" in output
+
+
+def test_cli_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
+    from avo.cli import main as cli_main
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main(["--version"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out.strip()
+    assert out == "avo 0.1.3"
