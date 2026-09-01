@@ -57,11 +57,10 @@ jobs:
           name: sbom
           path: "*spdx.json,*cdx.json,*sbom*"
       - name: Sign wheel and sdist with Sigstore
-        uses: sigstore/gh-action-sigstore-py@v2.1.0
+        uses: sigstore/sigstore-action@c3d03a7f4160d44ff3cd9f88b2e4f9e2c33b1edb
         with:
-          signing-mode: fulcio
-          certificate-github-workflow: true
-          inputs: |
+          cosign-sign: true
+          artifacts: |
             dist/*.whl
             dist/*.tar.gz
       - name: Publish to PyPI
@@ -76,9 +75,6 @@ jobs:
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/*.sig
-            dist/*.cert
-            dist/*.intoto.jsonl
             *sbom*
           generate_release_notes: true
       - name: Attest build provenance
