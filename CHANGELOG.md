@@ -9,14 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- CycloneDX SBOM generation per release.
-- Sigstore signing for release wheels and source distributions.
+- `avo.providers.groq` and `avo.providers.cerebras` — OpenAI-compatible
+  HTTP adapters for Groq (`https://api.groq.com/openai/v1`) and
+  Cerebras (`https://api.cerebras.ai/v1`) with bearer auth and an
+  injectable async client.
+- `avo cost` CLI — aggregates the persistent `TokenLedger` into total
+  + per-run + per-model token and USD summaries. Emits a human-readable
+  table by default and machine-readable JSON via `--json`.
+- `avo plugin init [NAME] [--directory DIR] [--force]` — scaffolds a
+  working plugin directory: `pyproject.toml` declaring an `avo.tools`
+  entry point, a `register()` stub returning a sample `FunctionTool`,
+  `README.md`, and `.gitignore`.
+- `avo --version` — prints the package version (`avo 0.1.3`).
+- `.github/workflows/ci.yml` CycloneDX SBOM job — generates the SBOM
+  on every push + PR and uploads it as an artifact.
 
 ### Changed
 
 - `ci.yml` extended with `bandit`, `pip-audit`, and SBOM steps.
 - `pyproject.toml` `[build]` target switched to `reproducible = true`
   to honor `SOURCE_DATE_EPOCH`.
+- `release.yml` publish step is now conditional on
+  `secrets.PYPI_TOKEN`; the wheel + sdist + SBOM attach to the GitHub
+  release regardless, so the release is verifiable even without a
+  PyPI token configured.
+- `release.yml` quality gates include the `[dev,providers,sandbox,otel]`
+  extras so mypy sees httpx / docker / opentelemetry stubs.
+- README updated with the 0.1.3 surface: `[otel]` extra, groq +
+  cerebras providers, cost CLI, plugin init, sandbox run, bench, diff.
+- `mcp_servers.git._run_git` timeout bumped from 10s to 30s for
+  cold-cache CI environments.
 
 ## [0.1.3] — 2026-09-01
 
@@ -58,8 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `OtelDisabledError`, `deprecated`, `deprecation_index`,
   `DeprecatedSymbol`).
 
-## [0.1.2] — 2026-09-01
-
 ### Added
 
 - `avo init` — scaffolds `.avo/skills/repo-overview/SKILL.md` and
@@ -97,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README no longer duplicates the wordmark (SVG already shows it).
 - Sweep of leftover `soteria` / `hernness` strings in code, docs,
   and benchmark fixtures.
+
+## [0.1.2] — 2026-09-01
+
+### Added
+
+- Re-tag of 0.1.1 line with a documented release process (no code changes).
 
 ## [0.1.1] — 2026-07-21
 
