@@ -226,8 +226,6 @@ benchmark/live/results/*
 .claude/
 .superpowers/
 CLAUDE.md
-project.md 
+project.md
 NEXT-UPDATE.md
-soteria.db
-soteria_loop.db
 *.db

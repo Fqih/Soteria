@@ -30,7 +30,7 @@ def test_persist_appends_avo_block_to_new_rc(tmp_path: Path) -> None:
         "AVO_PROVIDER": "minimax",
         "AVO_MINIMAX_API_KEY": "secret-value",
         "AVO_MODEL": "MiniMax-M3",
-        "PATH": "/usr/bin",  # non-HERNNESS keys must NOT be persisted
+        "PATH": "/usr/bin",  # non-AVO_ keys must NOT be persisted
     }
     written = persist_env_to_shell_rc(env, rc_path=rc)
 
@@ -41,7 +41,7 @@ def test_persist_appends_avo_block_to_new_rc(tmp_path: Path) -> None:
     assert 'export AVO_PROVIDER="minimax"' in content
     assert 'export AVO_MINIMAX_API_KEY="secret-value"' in content
     assert 'export AVO_MODEL="MiniMax-M3"' in content
-    # non-HERNNESS vars never reach the rc file.
+    # non-AVO_ vars never reach the rc file.
     assert "PATH" not in content
 
 

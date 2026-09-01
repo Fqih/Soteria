@@ -1,210 +1,52 @@
 <div align="center">
 
-![Avo logo](logo.png)
+<img src="logo.svg" width="240" alt="avo logo">
 
-# avo
-
-**A provider-agnostic reliability runtime for bounded, observable, resumable, and replayable AI agent loops.**
+**Provider-agnostic reliability runtime for bounded, observable, resumable, replayable AI agent loops.**
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
-
-**avo** packages a strict state machine, an append-only event history, configurable
-safety policies, a provider-neutral interface, and a sandboxed application-tools
-layer. To use it you install the `avo` package, set `AVO_*` environment variables,
-and `import avo` from Python.
 
 </div>
 
 ---
 
-> ⚠️ avo 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
-> testing, and local prototypes; it is **not production-ready**.
+> ⚠️ 0.1 is an **alpha foundation**. Suitable for evaluation, deterministic tests, and local prototypes; **not production-ready**.
 
 ---
 
 ## Install
 
-Requires **Python 3.11+**. The core runtime depends only on **Pydantic**.
-
-### From this repository
+Requires Python 3.11+. Core runtime depends only on Pydantic.
 
 ```bash
 git clone https://github.com/Fqih/avo.git
-cd Avo
-python -m pip install -e ".[dev]"
+cd avo
+python -m pip install -e ".[dev,providers,sandbox]"
 ```
 
 ### Optional extras
 
 | Extra | Adds | When you need it |
 |---|---|---|
-| `[dev]` | pytest, mypy, ruff, coverage | Local development + test runs |
-| `[providers]` | `httpx` | Talking to MiniMax, Anthropic, or any OpenAI-compatible endpoint |
-| `[sandbox]` | `docker` (docker-py) | Using `run_shell` against a real Docker daemon |
-| `[live-benchmark]` | `httpx`, `matplotlib` | Running `python benchmark/run_benchmark.py` and reproducing case-study charts |
-| `[mcp]` | `mcp` SDK | Authoring MCP servers or using SDK transports beyond stdio |
+| `[dev]` | pytest, mypy, ruff, coverage | Local dev + tests |
+| `[providers]` | httpx | Talking to MiniMax, Anthropic, OpenAI-compatible endpoints |
+| `[sandbox]` | docker-py | Using `run_shell` against a real Docker daemon |
+| `[live-benchmark]` | httpx, matplotlib | Running `python benchmark/run_benchmark.py` |
+| `[mcp]` | mcp SDK | Authoring MCP servers or non-stdio transports |
 
-```bash
-# Most common: providers + sandbox + dev tooling
-python -m pip install -e ".[dev,providers,sandbox]"
-```
-
-`[sandbox]` is required only for the `run_shell` tool. Everything else (chat REPL,
-`FakeProvider`, SQLite store, file tools) works without Docker.
-
-### Verify the install
+Verify the install:
 
 ```bash
 avo doctor
 ```
 
-This prints the resolved provider / model / endpoint without sending any HTTP request —
-the cheapest possible smoke test.
-
----
-
-## Configuration
-
-Avo is configured through the `AVO_*` environment-variable family. Set them
-once per shell (or persist to `~/.zshrc` / `~/.bashrc` via the `avo chat` first-run
-wizard) and every run picks them up.
-
-### Environment variables
-
-Every variable the runtime reads is `AVO_*`-prefixed. Set them in your shell or via
-a `.env` file.
-
-#### Provider selection
-
-| Variable | Required | Purpose |
-|---|---|---|
-| `AVO_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
-| `AVO_MODEL` | yes | Default model name for the active provider |
-| `AVO_OLLAMA_BASE_URL` | no | Ollama endpoint (default `http://localhost:11434`) |
-| `AVO_OLLAMA_MODEL` | no | Ollama-specific model override |
-| `AVO_OLLAMA_API_KEY` | no | Ollama auth header (rarely needed) |
-| `AVO_MINIMAX_API_KEY` | yes for minimax | API key |
-| `AVO_MINIMAX_BASE_URL` | no | Default `https://api.minimax.io` |
-| `AVO_MINIMAX_MODEL` | no | MiniMax-specific model override |
-| `AVO_MINIMAX_API_STYLE` | no | `anthropic` (default) or `openai` |
-| `AVO_ANTHROPIC_API_KEY` | yes for anthropic | API key |
-| `AVO_ANTHROPIC_BASE_URL` | no | Default `https://api.anthropic.com` |
-| `AVO_ANTHROPIC_MODEL` | no | Anthropic-specific model override |
-| `AVO_OPENAI_API_KEY` | yes for openai | API key |
-| `AVO_OPENAI_BASE_URL` | no | Default `https://api.openai.com/v1` |
-| `AVO_OPENAI_MODEL` | no | OpenAI-specific model override |
-
-#### Runtime and policy overrides
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AVO_DATABASE_PATH` | empty (in-memory) | SQLite path for the run/event store |
-| `AVO_MAX_TOTAL_TOKENS` | unlimited | Override `LoopPolicy.max_total_tokens` |
-| `AVO_MAX_RUNTIME_SECONDS` | `300` | Override `LoopPolicy.max_runtime_seconds` |
-| `AVO_REPEATED_ACTION_LIMIT` | `3` | Override `LoopPolicy.repeated_action_limit` |
-| `AVO_PERMISSION_MODE` | `default` | `default` / `accept_edits` / `plan` / `bypass` |
-| `AVO_TOOLS_REQUIRE_APPROVAL` | empty | Comma-separated tool names that gate on `approval_callback` |
-| `AVO_USAGE_RATES_INPUT_PER_1K` | unset | Cost rate for input tokens (for ledger) |
-| `AVO_USAGE_RATES_OUTPUT_PER_1K` | unset | Cost rate for output tokens (for ledger) |
-
-#### Notifications
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `AVO_NOTIFY_WEBHOOK` | unset | URL to POST run lifecycle events to |
-| `AVO_NOTIFY_DESKTOP` | `0` | Set to `1` to enable desktop notifications |
-
-### Pick a provider and export
-
-| Provider | Local? | Needs API key | Default style |
-|---|---|---|---|
-| `ollama` | yes | no | `/api/chat` |
-| `minimax` | no | yes | Anthropic-compatible |
-| `anthropic` | no | yes | Anthropic Messages API |
-| `openai` | no | yes | OpenAI Chat Completions |
-
-```bash
-# Ollama (local, no key)
-export AVO_PROVIDER=ollama
-export AVO_MODEL=llama3.1
-# optional: export AVO_OLLAMA_BASE_URL=http://localhost:11434
-
-# MiniMax
-export AVO_PROVIDER=minimax
-export AVO_MODEL=MiniMax-M3
-export AVO_MINIMAX_API_KEY='paste-real-key-here'
-# optional: export AVO_MINIMAX_API_STYLE=anthropic   # or "openai"
-# optional: export AVO_MINIMAX_BASE_URL=https://api.minimax.io
-
-# Anthropic
-export AVO_PROVIDER=anthropic
-export AVO_MODEL=claude-sonnet-4-6
-export AVO_ANTHROPIC_API_KEY='paste-real-key-here'
-
-# OpenAI-compatible (any vendor exposing /v1/chat/completions)
-export AVO_PROVIDER=openai
-export AVO_MODEL=gpt-5.6
-export AVO_OPENAI_API_KEY='paste-real-key-here'
-# optional: export AVO_OPENAI_BASE_URL=https://api.openai.com/v1
-```
-
-Use `getpass` if you script the export. See [`.env.example`](.env.example) for a full
-template — placeholders only, never commit real keys.
-
-### Smoke-test
-
-```bash
-avo doctor                       # verifies config without an HTTP call
-avo chat --workspace-root .      # interactive REPL, drives one run per input
-```
-
-On a fresh machine with no `AVO_PROVIDER` set, `avo chat` launches an
-**interactive first-run wizard** that asks for the provider, hidden-prompt API key, and
-model. At the end it offers (default **No**) to persist the variables to `~/.zshrc` or
-`~/.bashrc` so subsequent shells see them automatically. Nothing is written unless you
-type `y`/`yes`.
-
-A single factory builds the right provider from the environment:
-
-```python
-from avo.config import build_provider_from_env
-
-provider = build_provider_from_env()  # raises ConfigError if anything required is missing
-```
-
----
-
-## Providers
-
-Avo ships with four built-in adapters. All read configuration through the
-`AVO_`-prefixed environment; agent code never touches URLs or keys directly.
-
-| Provider | Adapter | Notes |
-|---|---|---|
-| Ollama | `OllamaProvider` | Local HTTP, no key. Default for offline development. |
-| MiniMax | `MiniMaxProvider` | Anthropic-compatible (default) or OpenAI-compatible style. |
-| Anthropic | `AnthropicProvider` | Native Anthropic Messages API. |
-| OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — OpenAI, vLLM, llama.cpp, etc. |
-
-Every adapter implements the same `ModelProvider` Protocol, so swapping providers is a
-one-line change. `FakeProvider` records scripted `ModelResponse`s so tests never need an
-API key:
-
-```python
-from avo import AgentRuntime, FakeProvider, ModelResponse
-
-runtime = AgentRuntime(
-    provider=FakeProvider([
-        ModelResponse(content="Hello from a scripted provider."),
-    ]),
-)
-```
+Prints resolved provider / model / endpoint without an HTTP call — cheapest smoke test.
 
 ---
 
 ## Quickstart
 
-One typed tool call, then a final reply, no API key required:
+One typed tool call, then a final reply. No API key:
 
 ```python
 import asyncio
@@ -264,90 +106,115 @@ asyncio.run(main())
 
 ---
 
+## Configuration
+
+All knobs live in `AVO_*` env vars. The chat REPL's first-run wizard can persist them to `~/.zshrc` / `~/.bashrc`.
+
+### Provider selection
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `AVO_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `AVO_MODEL` | yes | Default model name for the active provider |
+| `AVO_OLLAMA_BASE_URL` | no | Ollama endpoint (default `http://localhost:11434`) |
+| `AVO_OLLAMA_MODEL` | no | Ollama-specific model override |
+| `AVO_OLLAMA_API_KEY` | no | Ollama auth header (rarely needed) |
+| `AVO_MINIMAX_API_KEY` | yes for minimax | API key |
+| `AVO_MINIMAX_BASE_URL` | no | Default `https://api.minimax.io` |
+| `AVO_MINIMAX_MODEL` | no | Provider-specific override |
+| `AVO_MINIMAX_API_STYLE` | no | `anthropic` (default) or `openai` |
+| `AVO_ANTHROPIC_API_KEY` | yes for anthropic | API key |
+| `AVO_ANTHROPIC_BASE_URL` | no | Default `https://api.anthropic.com` |
+| `AVO_ANTHROPIC_MODEL` | no | Provider-specific override |
+| `AVO_OPENAI_API_KEY` | yes for openai | API key |
+| `AVO_OPENAI_BASE_URL` | no | Default `https://api.openai.com/v1` |
+| `AVO_OPENAI_MODEL` | no | Provider-specific override |
+
+### Runtime + policy
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `AVO_DATABASE_PATH` | in-memory | SQLite path for the run/event store |
+| `AVO_MAX_TOTAL_TOKENS` | unlimited | Override `LoopPolicy.max_total_tokens` |
+| `AVO_MAX_RUNTIME_SECONDS` | `300` | Override `LoopPolicy.max_runtime_seconds` |
+| `AVO_REPEATED_ACTION_LIMIT` | `3` | Override `LoopPolicy.repeated_action_limit` |
+| `AVO_PERMISSION_MODE` | `default` | `default` / `accept_edits` / `plan` / `bypass` |
+| `AVO_TOOLS_REQUIRE_APPROVAL` | empty | Comma-separated tool names gating on `approval_callback` |
+| `AVO_USAGE_RATES_INPUT_PER_1K` | unset | Cost rate for input tokens |
+| `AVO_USAGE_RATES_OUTPUT_PER_1K` | unset | Cost rate for output tokens |
+| `AVO_NOTIFY_WEBHOOK` | unset | URL to POST run lifecycle events to |
+| `AVO_NOTIFY_DESKTOP` | `0` | Set to `1` to enable desktop notifications |
+
+See [`.env.example`](.env.example) for a copy-paste template.
+
+---
+
+## Providers
+
+| Provider | Adapter | Notes |
+|---|---|---|
+| Ollama | `OllamaProvider` | Local HTTP, no key. Default for offline dev. |
+| MiniMax | `MiniMaxProvider` | Anthropic-compatible (default) or OpenAI-compatible style. |
+| Anthropic | `AnthropicProvider` | Native Anthropic Messages API. |
+| OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — OpenAI, vLLM, llama.cpp. |
+
+All four implement the same `ModelProvider` Protocol. Swapping providers is one line.
+
+---
+
 ## Application tools
 
-`avo.app_tools` is the optional-but-default toolkit for code-writing and ops agents.
-All tools plug in via the existing `FunctionTool` / `ToolRegistry` contract — no change
-to the runtime, the state machine, or the event log.
+`avo.app_tools` is the optional-but-default toolkit. Tools plug into the existing
+`FunctionTool` / `ToolRegistry` contract — no changes to the runtime, state machine, or
+event log.
 
-| Tool | Module | What it does |
-|---|---|---|
-| `read_file` | `file_tools.read_file_tool` | Read a file inside the active workspace. |
-| `write_file` | `file_tools.write_file_tool` | Write (overwrite) a file inside the active workspace. |
-| `edit_file` | `edit_file.edit_file_tool` | Surgical string replacement (requires unique match unless `replace_all=True`). |
-| `glob` | `glob_tool.glob_tool` | Enumerate files matching a glob, paths returned relative to workspace root. |
-| `grep` | `grep_tool.grep_tool` | Regex search with optional `include_glob` and `context_lines`. |
-| `workspace_map` | `workspace_map.workspace_map_tool` | Compact file map + recently-modified files. |
-| `git_status` | `git_status.git_status_tool` | Branch, modified files, optional untracked files. |
-| `run_shell` | `shell_tool.run_shell_tool` | One shell command inside an ephemeral Docker container. |
-| `plan_tasks` | `plan_tasks.plan_tasks_tool` | Declare / update / complete a structured execution plan. |
-| `submit_plan` | `plan_tool.submit_plan_tool` | Record the active run's plan for `permission_mode=plan`. |
-| `task` | `task_tool.task_tool` | Dispatch an isolated sub-agent run (`explore` or `general`). |
-| `web_fetch` | `web_fetch.web_fetch_tool` | HTTP GET with a hard `max_bytes` cap; http/https only. |
-| `web_search` | `web_search.web_search_tool` | Web search via DuckDuckGo HTML; no API key required. |
+| Tool | What it does |
+|---|---|
+| `read_file` / `write_file` / `edit_file` | Workspace-scoped file I/O |
+| `glob` / `grep` / `workspace_map` | Workspace enumeration + search |
+| `git_status` | Branch, modified, optional untracked files |
+| `run_shell` | One shell command in an ephemeral Docker container |
+| `plan_tasks` / `submit_plan` | Structured plan declaration + persistence |
+| `task` | Dispatch isolated sub-agent run |
+| `web_fetch` / `web_search` | HTTP GET with hard byte cap / DuckDuckGo HTML search |
 
 ### Workspace safety
 
 `Workspace(root).validate_path(...)` rejects `../`, symlink escapes, absolute-path
-escapes, and null bytes **before** any I/O. `validate_for_write` also refuses to follow
-symlinks at the leaf or any parent; `write_file` and `edit_file` open with `O_NOFOLLOW`
-on POSIX as a second line of defense. There is no path the model can ask for that exits
-the workspace root.
+escapes, and null bytes **before** any I/O. `validate_for_write` refuses to follow
+symlinks at the leaf or any parent. `write_file` / `edit_file` open with `O_NOFOLLOW` on
+POSIX. No path the model can ask for exits the workspace root.
 
 ### Shell sandbox
 
-`SandboxExecutor` wraps docker-py. Each `run_shell` call:
+`SandboxExecutor` wraps docker-py. Each `run_shell` call creates a fresh container
+(`remove=True`), runs with `network_mode="none"` by default, applies a `mem_limit` and
+`cpu_quota`, times out via the runtime's `LoopPolicy.tool_timeout_seconds`, and removes
+the container before returning. `run_shell` never calls `subprocess` on the host — the
+sandbox is the only path to the shell.
 
-- creates a fresh container (`remove=True`),
-- runs with `network_mode="none"` (default — fully offline),
-- applies a `mem_limit` (default `256m`) and `cpu_quota` (default `50000`),
-- times out via the runtime's `LoopPolicy.tool_timeout_seconds`,
-- removes the container before returning.
-
-`run_shell` **never** calls `subprocess` on the host. The sandbox is the only path to
-the shell.
-
-### Wiring tools into the runtime
+Suit the network policy to your task:
 
 ```python
-from contextlib import contextmanager
-
-from avo import AgentRuntime, FunctionTool
-from avo.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
-from avo.app_tools.shell_tool import bind_sandbox, run_shell_tool
 from avo.app_tools.sandbox import SandboxExecutor
-from avo.app_tools.workspace import Workspace
 
-workspace = Workspace("/srv/agent-workspace")
-sandbox = SandboxExecutor(network_mode="none", mem_limit="256m")
-
-with bind_workspace(workspace), bind_sandbox(sandbox):
-    runtime = AgentRuntime(
-        provider=provider,
-        tools=[read_file_tool(), write_file_tool(), run_shell_tool()],
-    )
-    result = await runtime.run("Add a Makefile to the workspace root.")
+sandbox = SandboxExecutor(
+    network_mode="bridge",  # default "none" — switch when network is required
+    mem_limit="512m",
+    cpu_quota=100000,
+)
 ```
-
-The workspace binding is required — calling `read_file` / `write_file` / `run_shell`
-outside a `bind_workspace(...)` block raises `WorkspaceNotBoundError` /
-`SandboxNotBoundError`. This prevents the runtime from ever reaching the host filesystem
-without an explicit workspace decision.
 
 ### Approval policy
 
-`AVO_TOOLS_REQUIRE_APPROVAL` is a comma- or whitespace-separated list of tool
-names that must wait for explicit operator approval before the runtime executes them.
-Tools not in the list are auto-approved without invoking any callback. For 0.1 the
-built-in callback denies listed tools (returning `False` so the runtime stops with
-`StopReason.POLICY_DENIED`); wrap with `on_require=...` to escalate to an interactive
-prompter:
+`AVO_TOOLS_REQUIRE_APPROVAL` lists tool names that must wait for explicit operator
+approval. Tools not in the list auto-approve. Wire a custom callback:
 
 ```python
 from avo.app_tools.approval import build_approval_callback
 
 callback = build_approval_callback(
-    on_require=lambda call: print(f"approving {call.name}({call.arguments})"),
+    on_require=lambda call: input(f"approve {call.name}? [y/N] ").lower() == "y",
 )
 runtime = AgentRuntime(provider=provider, tools=[...], approval_callback=callback)
 ```
@@ -362,17 +229,24 @@ avo [-d DATABASE] <command> [args]
 
 | Command | What it does |
 |---|---|
-| `avo doctor` | Verify `AVO_*` configuration without an HTTP call. |
-| `avo chat [-d DATABASE] [--workspace-root PATH]` | Interactive REPL; one `AgentRuntime.run` per input. First run with no provider triggers the setup wizard. |
-| `avo runs list` | Print one line per run: `RUN_ID`, `STATE`, `STOP_REASON`, `STEPS`. |
-| `avo runs inspect RUN_ID` | Render the chronological trace (text). |
-| `avo runs resume RUN_ID` | Resume a persisted run whose latest checkpoint uses the built-in `FakeProvider` and has no pending tool call. |
+| `avo doctor` | Verify `AVO_*` config without an HTTP call. |
+| `avo chat [-d PATH] [--workspace-root DIR] [--session ID] [--new-session]` | Interactive REPL. First run with no provider triggers the setup wizard. |
+| `avo runs list` | Print one line per run. |
+| `avo runs inspect RUN_ID` | Render the chronological trace. |
+| `avo runs resume RUN_ID` | Resume a persisted FakeProvider run with no pending tool call. |
+| `avo plugin install URL \| PATH` | Install a plugin from git URL or local path. |
+| `avo plugin list` / `show NAME` / `remove NAME [-y]` | Manage installed plugins. |
+| `avo mcp add NAME [--env KEY=VAL]... CMD ARGS...` | Register an MCP server. |
+| `avo mcp list` / `remove NAME [-y]` | Manage MCP server registrations. |
+| `avo skill install PATH` / `list` / `show NAME` / `remove NAME [-y]` | Manage skill packs. |
 
-The chat REPL accepts slash commands:
+### Chat REPL slash commands
 
 | Slash command | Action |
 |---|---|
+| `/help` | Print the full slash-command list. |
 | `/provider` | Print provider / model / base URL / key-presence. |
+| `/model [NAME]` | Switch to `NAME` or pick from the catalog (`/model` alone). |
 | `/inspect RUN_ID` | Render a stored trace. |
 | `/resume RUN_ID` | Resume a stored run. |
 | `/skills` | List skills under `<workspace>/.avo/skills`. |
@@ -383,17 +257,15 @@ The chat REPL accepts slash commands:
 
 ## Examples
 
-`examples/` ships runnable Python files, all offline (no API key needed):
+`examples/` ships runnable Python files, all offline (no API key):
 
 | File | Demonstrates |
 |---|---|
-| `examples/basic_agent.py` | One typed tool call followed by a final response. |
-| `examples/repeated_action.py` | Deterministic repeated-action containment before the third side effect. |
-| `examples/resume_after_interrupt.py` | Interrupt mid-flight, reopen SQLite, resume without replaying side effects. |
-| `examples/app_tools_demo.py` | Workspace + file tools + permissive approval; walks the runtime through a one-step file edit. |
-| `examples/live_providers/` | Real-API smoke tests for each provider (require `AVO_*` keys). |
-
-Run any of them:
+| `examples/basic_agent.py` | One typed tool call, then a final reply. |
+| `examples/repeated_action.py` | Deterministic repeated-action containment. |
+| `examples/resume_after_interrupt.py` | Interrupt mid-flight, reopen SQLite, resume. |
+| `examples/app_tools_demo.py` | Workspace + file tools + permissive approval. |
+| `examples/live_providers/` | Real-API smoke tests per provider (need `AVO_*` keys). |
 
 ```bash
 python examples/basic_agent.py
@@ -414,17 +286,16 @@ mypy src/avo
 pytest
 ```
 
-Quality gates (from `pyproject.toml`):
+Quality gates:
 
-- **ruff** lint + format — line-length 100, strict per-file ignores for `examples/`, `benchmark/`.
-- **mypy** strict on `src/avo` (Pydantic plugin enabled).
+- **ruff** lint + format — line-length 100, per-file ignores for `examples/`, `benchmark/`.
+- **mypy** strict on `src/avo` (Pydantic plugin).
 - **pytest** `--strict-config --strict-markers`, asyncio mode auto.
 - **coverage** branch coverage, fail-under 90%.
 
-The `pytest` suite does not require Docker — `SandboxExecutor` accepts an injectable
-client so the suite injects a fake and asserts the container configuration that would
-be sent to docker. Live Docker integration is opt-in, same pattern as
-`benchmark/live/tests/`.
+The suite needs no Docker — `SandboxExecutor` accepts an injectable client so tests
+inject a fake and assert the container config that would be sent. Live Docker integration
+is opt-in, same pattern as `benchmark/live/tests/`.
 
 ---
 

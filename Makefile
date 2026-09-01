@@ -18,7 +18,7 @@ format-check:
 	$(PYTHON) -m ruff format --check .
 
 typecheck:
-	$(PYTHON) -m mypy src/soteria_loop
+	$(PYTHON) -m mypy src/avo
 
 test:
 	$(PYTHON) -m pytest
