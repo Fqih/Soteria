@@ -17,8 +17,15 @@ import os
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
-ProviderName = Literal["ollama", "minimax", "anthropic", "openai"]
-_PROVIDER_NAMES: tuple[ProviderName, ...] = ("ollama", "minimax", "anthropic", "openai")
+ProviderName = Literal["ollama", "minimax", "anthropic", "openai", "groq", "cerebras"]
+_PROVIDER_NAMES: tuple[ProviderName, ...] = (
+    "ollama",
+    "minimax",
+    "anthropic",
+    "openai",
+    "groq",
+    "cerebras",
+)
 
 
 # Curated catalog of models each provider knows about. Used by the
@@ -63,6 +70,17 @@ PROVIDER_MODELS: dict[ProviderName, tuple[str, ...]] = {
     "minimax": (
         "MiniMax-M2",
         "MiniMax-M3",
+    ),
+    "groq": (
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "mixtral-8x7b-32768",
+        "gemma2-9b-it",
+    ),
+    "cerebras": (
+        "llama-3.3-70b",
+        "llama-3.1-8b",
+        "qwen-2.5-32b",
     ),
 }
 
@@ -160,6 +178,26 @@ def build_provider_from_env(
         anthropic_config = AnthropicConfig.from_avo_env(env, fallback_model=model)
         return AnthropicProvider(
             anthropic_config,
+            max_completion_tokens=max_completion_tokens,
+            request_timeout_seconds=request_timeout_seconds,
+        )
+
+    if name == "groq":
+        from avo.providers.groq import GroqConfig, GroqProvider
+
+        groq_config = GroqConfig.from_avo_env(env, fallback_model=model)
+        return GroqProvider(
+            groq_config,
+            max_completion_tokens=max_completion_tokens,
+            request_timeout_seconds=request_timeout_seconds,
+        )
+
+    if name == "cerebras":
+        from avo.providers.cerebras import CerebrasConfig, CerebrasProvider
+
+        cerebras_config = CerebrasConfig.from_avo_env(env, fallback_model=model)
+        return CerebrasProvider(
+            cerebras_config,
             max_completion_tokens=max_completion_tokens,
             request_timeout_seconds=request_timeout_seconds,
         )

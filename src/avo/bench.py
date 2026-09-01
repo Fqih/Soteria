@@ -196,9 +196,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if turns <= 0:
         raise BenchError("--turns must be > 0")
 
-    report = asyncio.run(
-        run_benchmark(provider=_scripted_provider(turns), task=task, turns=turns)
-    )
+    report = asyncio.run(run_benchmark(provider=_scripted_provider(turns), task=task, turns=turns))
     text = report.to_json()
     if output is None:
         sys.stdout.write(text + "\n")

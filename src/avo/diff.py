@@ -45,9 +45,7 @@ class _SideMetrics:
     duration_seconds: float | None = None
 
     @classmethod
-    def from_events(
-        cls, run_id: str, events: Sequence[AgentEvent], *, steps: int
-    ) -> _SideMetrics:
+    def from_events(cls, run_id: str, events: Sequence[AgentEvent], *, steps: int) -> _SideMetrics:
         counts: Counter[str] = Counter()
         token = TokenUsage()
         started = events[0].created_at if events else None
@@ -98,8 +96,7 @@ class DiffReport:
                 "output_tokens": self.run_b.token_usage.output_tokens
                 - self.run_a.token_usage.output_tokens,
                 "duration_seconds": (
-                    (self.run_b.duration_seconds or 0.0)
-                    - (self.run_a.duration_seconds or 0.0)
+                    (self.run_b.duration_seconds or 0.0) - (self.run_a.duration_seconds or 0.0)
                 )
                 if self.run_a.duration_seconds is not None
                 and self.run_b.duration_seconds is not None
@@ -173,8 +170,7 @@ def diff_runs(
     side_a, side_b = _run_coroutine(_load())
     keys = set(side_a.event_counts) | set(side_b.event_counts)
     deltas = {
-        key: side_b.event_counts.get(key, 0) - side_a.event_counts.get(key, 0)
-        for key in keys
+        key: side_b.event_counts.get(key, 0) - side_a.event_counts.get(key, 0) for key in keys
     }
     return DiffReport(run_a=side_a, run_b=side_b, event_type_deltas=deltas)
 

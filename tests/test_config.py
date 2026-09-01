@@ -173,7 +173,14 @@ def test_database_path_from_env_strips_and_returns() -> None:
 def test_provider_models_catalog_has_all_providers() -> None:
     from avo.config import PROVIDER_MODELS
 
-    assert set(PROVIDER_MODELS.keys()) == {"ollama", "minimax", "anthropic", "openai"}
+    assert set(PROVIDER_MODELS.keys()) == {
+        "ollama",
+        "minimax",
+        "anthropic",
+        "openai",
+        "groq",
+        "cerebras",
+    }
     for catalog in PROVIDER_MODELS.values():
         assert catalog, "every catalog must have at least one model"
         assert catalog[0] == catalog[0].strip(), "default model cannot be blank"

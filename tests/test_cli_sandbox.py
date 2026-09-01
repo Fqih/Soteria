@@ -144,9 +144,7 @@ def test_run_emits_json_report(
     assert parsed["network_mode"] == "none"
 
 
-def test_run_propagates_exit_code(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_run_propagates_exit_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     client = _FakeClient({"StatusCode": 7}, b"failed\n")
     _patch_docker(monkeypatch, client)
 
@@ -164,9 +162,7 @@ def test_run_propagates_exit_code(
 
 def test_run_strips_leading_dash_dash() -> None:
     parser = _build_parser()
-    args = parser.parse_args(
-        ["run", "--", "echo", "hello"]
-    )
+    args = parser.parse_args(["run", "--", "echo", "hello"])
     # REMAINDER captures "--" too — ensure _invoke strips it.
     assert args.command[0] == "--"
 

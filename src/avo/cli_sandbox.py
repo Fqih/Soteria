@@ -93,17 +93,13 @@ async def _invoke(args: argparse.Namespace) -> int:
     if command_parts and command_parts[0] == "--":
         command_parts = command_parts[1:]
     if not command_parts:
-        raise SandboxCliError(
-            "no command provided; pass a shell command after the flags."
-        )
+        raise SandboxCliError("no command provided; pass a shell command after the flags.")
     command = " ".join(command_parts)
 
     env: dict[str, str] = {}
     for entry in args.env:
         if "=" not in entry:
-            raise SandboxCliError(
-                f"--env entries must look like KEY=VALUE; got {entry!r}"
-            )
+            raise SandboxCliError(f"--env entries must look like KEY=VALUE; got {entry!r}")
         key, value = entry.split("=", 1)
         env[key] = value
 
