@@ -9,16 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- OpenAPI-style tool schema helpers (JSON Schema 2020-12 export from
-  Pydantic argument models) for downstream interop.
-- OpenAI strict function-calling mode (`strict: true`) on
-  `ChatCompletions` tool payloads.
-- Anthropic `input_schema` block on `tool_use` payloads.
-- OpenTelemetry tracing support behind the `[otel]` extra; emits
-  spans per turn with `gen_ai.*` semantic-convention attributes.
-- `docs/semver.md` — public SemVer commitment and deprecation policy.
-- `docs/api-stability.md` — frozen public API surface declaration.
-- `.github/dependabot.yml` — weekly dependency update PRs.
 - CycloneDX SBOM generation per release.
 - Sigstore signing for release wheels and source distributions.
 
@@ -27,6 +17,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ci.yml` extended with `bandit`, `pip-audit`, and SBOM steps.
 - `pyproject.toml` `[build]` target switched to `reproducible = true`
   to honor `SOURCE_DATE_EPOCH`.
+
+## [0.1.3] — 2026-09-01
+
+### Added
+
+- `avo.tools.to_json_schema`, `avo.tools.to_openai_function`,
+  `avo.tools.to_anthropic_tool` — JSON Schema 2020-12 export helpers
+  with OpenAI strict mode compliance (`additionalProperties: false`
+  on every nested object).
+- `avo.observability` — OpenTelemetry tracing behind the `[otel]`
+  extra. Emits `gen_ai.*` semantic-convention spans per turn; no-op
+  fallback when the extra is not installed.
+- `avo.deprecation` — `@deprecated(since=, removal=, replacement=)`
+  decorator and `deprecation_index()` for SemVer policy enforcement.
+- `avo.bench` and `avo bench` CLI — deterministic benchmark harness
+  with JSON report; foundation for cross-provider comparison.
+- `avo.diff` and `avo runs diff` CLI — event log + token + step
+  comparison between two persisted runs.
+- `avo.cli_sandbox` and `avo sandbox run` CLI — Docker-as-a-service
+  CLI independent of the agent loop.
+- `docs/semver.md` — public SemVer commitment and deprecation policy.
+- `docs/api-stability.md` — frozen public API surface declaration.
+- `.github/dependabot.yml` — weekly dependency update PRs.
+- `.github/workflows/scorecard.yml` — weekly OpenSSF Scorecard run.
+- `.github/workflows/codeql.yml` — weekly CodeQL security analysis.
+- `.github/workflows/release.yml` — release pipeline with
+  Sigstore signing, SBOM, and PyPI publish.
+- `scripts/audit.sh` — local mirror of the CI bandit + pip-audit
+  gates for pre-PR runs.
+- `src/avo/py.typed` marker verified for PEP 561 compliance.
+
+### Changed
+
+- `src/avo/runtime._drive` wraps each turn in an OpenTelemetry span
+  when OTEL is enabled. Falls through to the no-op path otherwise.
+- `src/avo/__init__.py` exports the new public helpers
+  (`to_json_schema`, `to_openai_function`, `to_anthropic_tool`,
+  `span_for_turn`, `configure_tracer`, `is_enabled`,
+  `OtelDisabledError`, `deprecated`, `deprecation_index`,
+  `DeprecatedSymbol`).
 
 ## [0.1.2] — 2026-09-01
 
@@ -127,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ruff check` + `ruff format --check` clean.
 - Coverage gate: `fail_under = 90`.
 
-[Unreleased]: https://github.com/Fqih/avo/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/Fqih/avo/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/Fqih/avo/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/Fqih/avo/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/Fqih/avo/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/Fqih/avo/releases/tag/v0.1.0
