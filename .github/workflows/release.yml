@@ -70,8 +70,9 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
       - name: Publish to PyPI
-        if: ${{ secrets.PYPI_TOKEN != '' }}
+        if: env.PYPI_TOKEN != ''
         env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
