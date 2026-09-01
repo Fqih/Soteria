@@ -186,7 +186,7 @@ def _print_provider_summary(out: TextIO, ctx: ChatContext, environ: dict[str, st
     base_url = environ.get(f"AVO_{ctx.provider_name.upper()}_BASE_URL", "") or "(default)"
     out.write(f"Base URL: {base_url}\n")
     has_key = bool(environ.get(f"AVO_{ctx.provider_name.upper()}_API_KEY", "").strip())
-    out.write(f"API key configured: {has_key}\n")
+    out.write(f"API key configured: {'yes' if has_key else 'no'}\n")
     out.flush()
 
 
@@ -272,7 +272,7 @@ async def _run_slash(
     """Dispatch a slash command. Returns True if the REPL should exit."""
 
     if not args:
-        err.write("expected a slash command (try /provider)\n")
+        err.write("usage: try /help to list slash commands\n")
         return False
 
     cmd = args[0]
@@ -315,7 +315,7 @@ async def _run_slash(
         try:
             trace = await TraceInspector(ctx.store).inspect(args[1])
         except AvoError as exc:
-            err.write(f"inspect failed: {exc}\n")
+            err.write(f"inspect failed: {exc}; check /runs list for valid ids\n")
             return False
         out.write(trace.to_text())
         out.write("\n")
@@ -347,6 +347,10 @@ async def _run_slash(
                 result = await ctx.runtime.resume(arg)
             except AvoError as exc:
                 err.write(f"resume failed: {exc}\n")
+                err.write(
+                    "hint: /resume SESSION_ID resumes a chat thread; "
+                    "/resume RUN_ID replays a recorded run\n"
+                )
                 return False
             out.write(
                 f"Resumed run {result.run_id}: status={result.status.value} "
@@ -374,14 +378,14 @@ async def _run_slash(
         try:
             body = ctx.skills.load(args[1])
         except AvoError as exc:
-            err.write(f"skill load failed: {exc}\n")
+            err.write(f"skill load failed: {exc}; try /skills to list installed skills\n")
             return False
         # Skill bodies are injected as a user message so the runtime
         # treats them like any other turn input — no separate channel.
         await _run_turn(ctx, body, out, err)
         return False
 
-    err.write(f"unknown command: {cmd}\n")
+    err.write(f"unknown command: {cmd}; try /help to list slash commands\n")
     return False
 
 
@@ -535,7 +539,7 @@ def _maybe_offer_resume_prompt(
     if not recent:
         return None
     info = recent[0]
-    out.write(f"Resume session {info.session_id} from {render_session_row(info)}? [Y/n/custom] ")
+    out.write(f"Resume session {info.session_id} ({render_session_row(info)})? [Y/n] ")
     out.flush()
     try:
         answer = in_stream.readline().strip().lower()

@@ -68,6 +68,16 @@ def _validate_name(name: str) -> str:
     return name
 
 
+_SECRET_KEY_TOKENS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASS", "AUTH", "CREDENTIAL")
+
+
+def _looks_secret(name: str) -> bool:
+    """Return True if ``name`` looks like it carries a secret value."""
+
+    upper = name.upper()
+    return any(token in upper for token in _SECRET_KEY_TOKENS)
+
+
 def add(name: str, command: Sequence[str], *, env: dict[str, str] | None = None) -> McpServerEntry:
     """Register an MCP server by name with the given argv."""
 
@@ -202,7 +212,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         cmd_str = " ".join(entry.command)
         print(f"Registered MCP server {entry.name!r}: {cmd_str}")
         if env:
-            print(f"  env: {env}")
+            masked = {k: ("***" if _looks_secret(k) else v) for k, v in env.items()}
+            print(f"  env: {masked}")
         return 0
 
     if args.mcp_command == "list":

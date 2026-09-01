@@ -267,7 +267,7 @@ async def test_repl_provider_command_does_not_leak_key(
     assert "super-secret-token" not in output
     assert "Provider: ollama" in output
     assert "Model: llama3.1" in output
-    assert "API key configured: True" in output
+    assert "API key configured: yes" in output
 
 
 @pytest.mark.asyncio

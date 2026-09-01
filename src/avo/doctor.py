@@ -167,16 +167,16 @@ def render_report(report: DoctorReport, *, out: IO[str]) -> None:
     """Print a human-readable report to ``out`` without leaking secrets."""
 
     if report.provider is None:
-        out.write("HERNNESS provider: (unset)\n")
+        out.write("AVO provider: (unset)\n")
         out.write("  set AVO_PROVIDER to one of: " + ", ".join(_PROVIDER_NAMES) + "\n")
     else:
         label = _PROVIDER_LABELS.get(report.provider, report.provider)
-        out.write(f"HERNNESS provider: {label}\n")
+        out.write(f"AVO provider: {label}\n")
 
     if report.model:
-        out.write(f"HERNNESS model: {report.model}\n")
+        out.write(f"AVO model: {report.model}\n")
     else:
-        out.write("HERNNESS model: (unset)\n")
+        out.write("AVO model: (unset)\n")
 
     if report.base_url:
         out.write(f"base URL: {report.base_url}\n")
@@ -189,7 +189,7 @@ def render_report(report: DoctorReport, *, out: IO[str]) -> None:
     if report.endpoint:
         out.write(f"endpoint: {report.endpoint}\n")
 
-    out.write(f"API key configured: {report.has_api_key}\n")
+    out.write(f"API key configured: {'yes' if report.has_api_key else 'no'}\n")
 
     if report.missing_vars:
         out.write("missing variables:\n")
