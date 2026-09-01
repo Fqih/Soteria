@@ -62,7 +62,15 @@ jobs:
       # v3.0.0 ships stale TUF trust-root metadata that fails
       # verification in the CI runner. Re-enable once the action
       # ships a refreshed trust root or we pin a newer version.
+      - name: Upload wheel + sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
       - name: Publish to PyPI
+        if: ${{ secrets.PYPI_TOKEN != '' }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
