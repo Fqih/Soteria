@@ -284,7 +284,13 @@ def _anthropic_message(message: dict[str, Any]) -> dict[str, Any]:
                 }
             ],
         }
-    return {"role": role, "content": message.get("content")}
+    content = message.get("content")
+    if isinstance(content, list):
+        # Already a list of typed blocks (text/image from
+        # avo.content_blocks). Pass through verbatim — Anthropic
+        # accepts this shape natively.
+        return {"role": role, "content": content}
+    return {"role": role, "content": content}
 
 
 __all__ = ["AnthropicConfig", "AnthropicProvider"]

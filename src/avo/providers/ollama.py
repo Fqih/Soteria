@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
@@ -269,7 +269,31 @@ def _ollama_message(message: dict[str, Any]) -> dict[str, Any]:
             "role": "tool",
             "content": json_safe_content(message.get("content")),
         }
-    return {"role": role, "content": message.get("content")}
+    content = message.get("content")
+    if isinstance(content, list):
+        # Translate typed blocks (text/image). Text is concatenated;
+        # images contribute to the ``images`` sibling array that Ollama
+        # expects (base64 strings, no data: prefix).
+        text_parts: list[str] = []
+        images: list[str] = []
+        for raw_block in content:
+            if not isinstance(raw_block, dict):
+                continue
+            block = cast(dict[str, Any], raw_block)
+            block_type = block.get("type")
+            if block_type == "text":
+                text_parts.append(str(block.get("text", "")))
+            elif block_type == "image":
+                raw_source = block.get("source")
+                source = raw_source if isinstance(raw_source, dict) else {}
+                data = source.get("data") if isinstance(source, dict) else None
+                if isinstance(data, str) and data:
+                    images.append(data)
+        out: dict[str, Any] = {"role": role, "content": "\n".join(text_parts)}
+        if images:
+            out["images"] = images
+        return out
+    return {"role": role, "content": content}
 
 
 def _coerce_arguments(raw: object) -> dict[str, Any]:

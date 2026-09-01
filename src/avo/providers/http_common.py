@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, cast
 
 from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from avo.exceptions import ProviderError
@@ -123,7 +123,32 @@ def _openai_message(message: dict[str, Any]) -> dict[str, object]:
             "tool_call_id": message["tool_call_id"],
             "content": json_safe_content(message["content"]),
         }
-    return {"role": role, "content": message["content"]}
+    content = message["content"]
+    if isinstance(content, list):
+        # Translate typed content blocks (text/image from
+        # avo.content_blocks) into the OpenAI ``content_part`` shape:
+        # images become ``image_url`` data URLs.
+        translated: list[dict[str, object]] = []
+        for raw_block in content:
+            if not isinstance(raw_block, dict):
+                continue
+            block = cast(dict[str, Any], raw_block)
+            block_type = block.get("type")
+            if block_type == "text":
+                translated.append({"type": "text", "text": str(block.get("text", ""))})
+            elif block_type == "image":
+                raw_source = block.get("source")
+                source = raw_source if isinstance(raw_source, dict) else {}
+                media_type = str(source.get("media_type", "image/png"))
+                data = str(source.get("data", ""))
+                translated.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{media_type};base64,{data}"},
+                    }
+                )
+        return {"role": role, "content": translated}
+    return {"role": role, "content": content}
 
 
 def _parse_tool_call(value: object) -> ToolCall:
