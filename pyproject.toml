@@ -88,6 +88,11 @@ testpaths = ["tests"]
 markers = [
   "live: opt-in tests that hit real HTTP endpoints; require --run-live",
 ]
+# Async subprocess transports raise "Event loop is closed" during GC in
+# 3.12.14 (rare, harmless). Suppress so the suite stays green.
+filterwarnings = [
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+]
 
 [tool.coverage.run]
 branch = true
