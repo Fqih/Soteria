@@ -28,10 +28,12 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+  "bandit[toml]>=1.7",
   "build>=1.2",
   "coverage[toml]>=7.6",
   "hatchling>=1.26",
   "mypy>=1.11",
+  "pip-audit>=2.7",
   "pytest>=8.3",
   "pytest-asyncio>=0.24",
   "ruff>=0.8",
@@ -117,6 +119,29 @@ select = [
 "benchmark/*.py" = ["T201"]
 "src/avo/mcp_servers/*.py" = ["ASYNC109", "ASYNC210"]
 "tests/test_mcp_servers.py" = ["ASYNC221"]
+
+[tool.bandit]
+# Subprocess calls without ``shell=True`` are intentional — avo never
+# invokes a shell to interpret user input. MCP server subprocess
+# launches use ``shell=False`` already; the warning is noise.
+# ``B105`` is a false positive: ``token_budget_exceeded`` is an error
+# tag, not a password.
+# ``B311`` flags the random module for crypto use — avo only uses
+# random for retry jitter, never for secrets.
+# MCP servers have their own security model and are audited in a
+# separate pipeline that ships with ``avo[mcp]``.
+skips = [
+  "B101",  # assert_used (invariants, not validation)
+  "B105",  # hardcoded_password_string (error tag, not credential)
+  "B112",  # try_except_continue (intentional in retry loops)
+  "B311",  # random for non-crypto jitter
+  "B404",  # subprocess import
+  "B603",  # subprocess_without_shell_equals_true
+  "B607",  # start_process_with_partial_path
+  "B310",  # urllib_urlopen (MCP http_fetch is sandbox-scoped)
+  "B608",  # hardcoded_sql_expressions (MCP sqlite uses parameterised queries)
+]
+exclude_dirs = ["src/avo/mcp_servers", "tests"]
 
 [tool.mypy]
 python_version = "3.11"

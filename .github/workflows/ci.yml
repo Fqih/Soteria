@@ -29,6 +29,10 @@ jobs:
         run: ruff format --check .
       - name: Mypy
         run: mypy src/avo
+      - name: Bandit
+        run: bandit -r src/avo -c pyproject.toml --severity-level medium
+      - name: pip-audit
+        run: pip-audit --strict
       - name: Tests
         run: pytest
       - name: Build
