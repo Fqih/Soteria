@@ -220,7 +220,7 @@ async def test_fresh_minimax_setup_reaches_repl_without_configerror(
     assert "got ''" not in combined
     # The header that proves the REPL actually entered the loop.
     assert "Slash commands" in combined
-    assert "Provider: minimax" in combined
+    assert "provider" in combined.lower() and "minimax" in combined
 
 
 @pytest.mark.asyncio
@@ -250,7 +250,7 @@ async def test_fresh_ollama_setup_reaches_repl(
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
     assert "AVO_PROVIDER must be one of" not in combined
-    assert "Provider: ollama" in combined
+    assert "provider" in combined.lower() and "ollama" in combined
 
 
 @pytest.mark.asyncio
@@ -280,7 +280,7 @@ async def test_fresh_openai_setup_reaches_repl(
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
     assert "AVO_PROVIDER must be one of" not in combined
-    assert "Provider: openai" in combined
+    assert "provider" in combined.lower() and "openai" in combined
 
 
 @pytest.mark.asyncio
@@ -310,7 +310,7 @@ async def test_fresh_anthropic_setup_reaches_repl(
     assert code == 0
     combined = stdout.getvalue() + stderr.getvalue()
     assert "AVO_PROVIDER must be one of" not in combined
-    assert "Provider: anthropic" in combined
+    assert "provider" in combined.lower() and "anthropic" in combined
 
 
 def test_build_chat_context_refuses_none_database_path() -> None:

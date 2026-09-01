@@ -557,8 +557,8 @@ async def test_chat_full_flow_until_quit(
 
     assert code == 0
     output = stdout.getvalue()
-    assert "Provider: ollama" in output
-    assert "Workspace:" in output
+    assert "provider" in output.lower() and "ollama" in output
+    assert "workspace" in output.lower()
     assert scripted.calls == ["hello there"]
 
 

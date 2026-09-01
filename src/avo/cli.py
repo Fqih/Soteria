@@ -17,6 +17,20 @@ from avo.storage.sqlite import SQLiteEventStore
 from avo.tracing import TraceInspector
 
 
+def _tail_argv(command: str) -> list[str]:
+    """Return argv after the leading ``avo <command>`` tokens.
+
+    Used by the delegated plugin/mcp/skill subcommands. Falls back to
+    an empty list when argv is unavailable (for example when the CLI is
+    invoked programmatically with ``argv=None``).
+    """
+
+    argv = sys.argv[1:]
+    if argv and argv[0] == command:
+        argv = argv[1:]
+    return argv
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="avo",
@@ -75,6 +89,20 @@ def _parser() -> argparse.ArgumentParser:
         help="Verify AVO_ provider configuration without making an HTTP call.",
     )
 
+    # Plugin / MCP / skill subcommands delegate to their own modules.
+    commands.add_parser(
+        "plugin",
+        help="Manage avo plugins (see `avo plugin --help`).",
+    )
+    commands.add_parser(
+        "mcp",
+        help="Manage MCP server registrations (see `avo mcp --help`).",
+    )
+    commands.add_parser(
+        "skill",
+        help="Manage skill packs (see `avo skill --help`).",
+    )
+
     return parser
 
 
@@ -84,6 +112,23 @@ async def _execute(args: argparse.Namespace) -> int:
         # so the inner argparse does not re-read sys.argv and complain
         # about the parent command's tail.
         return doctor_main([])
+
+    if args.command == "plugin":
+        # Plugin subcommands re-parse argv themselves. Pull the tail
+        # off ``sys.argv`` minus the leading ``avo plugin`` tokens.
+        from avo.cli_plugins import main as plugin_main
+
+        return plugin_main(_tail_argv("plugin"))
+
+    if args.command == "mcp":
+        from avo.cli_mcp import main as mcp_main
+
+        return mcp_main(_tail_argv("mcp"))
+
+    if args.command == "skill":
+        from avo.cli_skills import main as skill_main
+
+        return skill_main(_tail_argv("skill"))
 
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
