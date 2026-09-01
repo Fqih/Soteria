@@ -123,6 +123,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Run a deterministic benchmark against the FakeProvider (see `avo bench --help`).",
     )
 
+    commands.add_parser(
+        "sandbox",
+        help="Run a command inside an ephemeral docker sandbox (see `avo sandbox --help`).",
+    )
+
     return parser
 
 
@@ -159,6 +164,11 @@ async def _execute(args: argparse.Namespace) -> int:
         from avo.bench import main as bench_main
 
         return bench_main(_tail_argv("bench"))
+
+    if args.command == "sandbox":
+        from avo.cli_sandbox import main as sandbox_main
+
+        return sandbox_main(_tail_argv("sandbox"))
 
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
