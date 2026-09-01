@@ -108,6 +108,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Scaffold .avo/skills/ and AGENTS.md in the current directory.",
     )
 
+    commands.add_parser(
+        "bench",
+        help="Run a deterministic benchmark against the FakeProvider (see `avo bench --help`).",
+    )
+
     return parser
 
 
@@ -139,6 +144,11 @@ async def _execute(args: argparse.Namespace) -> int:
         from avo.cli_init import main as init_main
 
         return init_main(_tail_argv("init"))
+
+    if args.command == "bench":
+        from avo.bench import main as bench_main
+
+        return bench_main(_tail_argv("bench"))
 
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
