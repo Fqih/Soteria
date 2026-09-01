@@ -188,8 +188,28 @@ def build_parser() -> argparse.ArgumentParser:
 
     remove_p = sub.add_parser("remove", help="Remove an installed skill.")
     remove_p.add_argument("name")
+    remove_p.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the interactive confirmation prompt.",
+    )
 
     return parser
+
+
+def _confirm(prompt: str, *, assume_yes: bool) -> bool:
+    """Print ``prompt`` and read a y/N answer from stdin."""
+
+    if assume_yes:
+        return True
+    print(prompt, end="", flush=True)
+    try:
+        answer = input().strip().lower()
+    except EOFError:
+        print()
+        return False
+    return answer in ("y", "yes")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -218,6 +238,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.skill_command == "remove":
+        if not _confirm(
+            f"Remove skill {args.name!r}? This deletes the on-disk copy. [y/N] ",
+            assume_yes=args.yes,
+        ):
+            print("Aborted.")
+            return 1
         remove(args.name)
         print(f"Removed skill {args.name!r}.")
         return 0

@@ -257,8 +257,28 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not pip uninstall — only remove the on-disk copy.",
     )
+    remove_p.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the interactive confirmation prompt.",
+    )
 
     return parser
+
+
+def _confirm(prompt: str, *, assume_yes: bool) -> bool:
+    """Print ``prompt`` and read a y/N answer from stdin."""
+
+    if assume_yes:
+        return True
+    print(prompt, end="", flush=True)
+    try:
+        answer = input().strip().lower()
+    except EOFError:
+        print()
+        return False
+    return answer in ("y", "yes")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -293,6 +313,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.plugin_command == "remove":
+        if not _confirm(
+            f"Remove plugin {args.name!r}? This deletes the on-disk copy and uninstalls it. [y/N] ",
+            assume_yes=args.yes,
+        ):
+            print("Aborted.")
+            return 1
         remove(args.name, uninstall=not args.keep_install)
         print(f"Removed plugin {args.name!r}.")
         return 0

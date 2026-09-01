@@ -173,27 +173,44 @@ def build_parser() -> argparse.ArgumentParser:
     add_p = sub.add_parser("add", help="Register an MCP server.")
     add_p.add_argument("name", help="Server name (used as the registry key).")
     add_p.add_argument(
-        "--",
-        dest="separator",
-        required=True,
-        action="store_true",
-        help="End of avo mcp options; remaining argv is the server command.",
-    )
-    add_p.add_argument("command", nargs=argparse.REMAINDER, help="Server command argv.")
-    add_p.add_argument(
         "--env",
         action="append",
         default=[],
         metavar="KEY=VALUE",
         help="Environment variable to set when launching (repeatable).",
     )
+    add_p.add_argument(
+        "command",
+        nargs="*",
+        help="Server command argv (default: empty — edit mcp.json manually).",
+    )
 
     sub.add_parser("list", help="List registered MCP servers.")
 
     remove_p = sub.add_parser("remove", help="Remove a registered MCP server.")
     remove_p.add_argument("name")
+    remove_p.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        help="Skip the interactive confirmation prompt.",
+    )
 
     return parser
+
+
+def _confirm(prompt: str, *, assume_yes: bool) -> bool:
+    """Print ``prompt`` and read a y/N answer from stdin."""
+
+    if assume_yes:
+        return True
+    print(prompt, end="", flush=True)
+    try:
+        answer = input().strip().lower()
+    except EOFError:
+        print()
+        return False
+    return answer in ("y", "yes")
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -207,7 +224,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             key, value = raw.split("=", 1)
             env[key.strip()] = value
         if not args.command:
-            raise McpCliError("command required after `--`.")
+            raise McpCliError(
+                "command required; pass the server argv after the name "
+                "(e.g. `avo mcp add demo --env FOO=BAR echo hi`)."
+            )
         entry = add(args.name, args.command, env=env)
         cmd_str = " ".join(entry.command)
         print(f"Registered MCP server {entry.name!r}: {cmd_str}")
@@ -229,6 +249,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.mcp_command == "remove":
+        if not _confirm(
+            f"Remove MCP server {args.name!r}? This rewrites {MCP_CONFIG_PATH}. [y/N] ",
+            assume_yes=args.yes,
+        ):
+            print("Aborted.")
+            return 1
         remove(args.name)
         print(f"Removed MCP server {args.name!r}.")
         return 0
