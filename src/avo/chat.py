@@ -20,7 +20,7 @@ import shlex
 import sys
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TextIO
 
@@ -28,6 +28,7 @@ from avo import __version__ as AVO_VERSION
 from avo import runtime as _runtime  # noqa: F401  (typing hook)
 from avo.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from avo.app_tools.workspace import Workspace
+from avo.background import BackgroundJobManager, render_job_detail, render_job_row
 from avo.chat_session import (
     SessionInfo,
     SessionLifecycle,
@@ -91,6 +92,7 @@ class ChatContext:
     session: SessionLifecycle
     session_id: str
     pending_preamble: str | None = None
+    background: BackgroundJobManager = field(default_factory=BackgroundJobManager)
 
 
 def _read_environ() -> dict[str, str]:
@@ -186,6 +188,9 @@ SLASH_COMMANDS: tuple[tuple[str, str], ...] = (
     ("/inspect RUN_ID", "render the trace for one recorded run"),
     ("/skills", "list skills available in the current workspace"),
     ("/skill NAME", "load a skill body as the next turn"),
+    ("/jobs", "list background tasks"),
+    ("/job ID", "show one background task"),
+    ("/cancel ID", "cancel a running background task"),
     ("/quit (or /exit, Ctrl+D)", "leave the chat"),
 )
 
@@ -413,6 +418,40 @@ async def _run_slash(
         await _run_turn(ctx, body, out, err)
         return False
 
+    if cmd == "/jobs":
+        jobs = ctx.background.list_jobs()
+        if not jobs:
+            out.write("No background jobs.\n")
+            return False
+        for j in jobs:
+            out.write(render_job_row(j) + "\n")
+        return False
+
+    if cmd == "/job":
+        if len(args) != 2:
+            err.write("usage: /job JOB_ID\n")
+            return False
+        job = ctx.background.get(args[1])
+        if job is None:
+            err.write(f"unknown job id: {args[1]}; try /jobs to list ids\n")
+            return False
+        out.write(render_job_detail(job) + "\n")
+        return False
+
+    if cmd == "/cancel":
+        if len(args) != 2:
+            err.write("usage: /cancel JOB_ID\n")
+            return False
+        cancelled = await ctx.background.cancel(args[1])
+        if not cancelled:
+            err.write(
+                f"could not cancel {args[1]}: unknown id or already terminal; "
+                "try /jobs to list ids and statuses\n"
+            )
+            return False
+        out.write(f"Cancellation requested for job {args[1]}.\n")
+        return False
+
     err.write(f"unknown command: {cmd}; try /help to list slash commands\n")
     return False
 
@@ -477,6 +516,19 @@ async def _run_model_command(
 
     err.write("usage: /model [NAME]\n")
     return False
+
+
+def _prompt_with_jobs(prompt: str, manager: BackgroundJobManager) -> str:
+    """Render the REPL prompt with a trailing ``[jobs: N]`` counter.
+
+    Inactive when no background tasks are running so the prompt stays
+    clean during normal usage.
+    """
+
+    running = manager.running_count
+    if running == 0:
+        return prompt
+    return f"{prompt}[jobs: {running} running] "
 
 
 async def _resume_chat_session(
@@ -655,7 +707,7 @@ async def run_repl(
     try:
         while True:
             try:
-                out_stream.write(prompt)
+                out_stream.write(_prompt_with_jobs(prompt, ctx.background))
                 out_stream.flush()
                 line = in_stream.readline()
             except KeyboardInterrupt:
@@ -681,8 +733,21 @@ async def run_repl(
                     return 0
                 continue
 
+            background_requested = stripped.endswith("&") and not stripped.endswith("&&")
+            if background_requested:
+                task_text = stripped[:-1].rstrip()
+                job = ctx.background.submit(ctx, task_text)
+                out_stream.write(
+                    f"Backgrounded job {job.job_id}: {task_text}\n"
+                    f"  watch with /jobs, inspect with /job {job.job_id}, "
+                    f"cancel with /cancel {job.job_id}.\n"
+                )
+                out_stream.flush()
+                continue
+
             await _run_turn(ctx, stripped, out_stream, err_stream)
     finally:
+        await ctx.background.wait_all()
         await ctx.store.close()
         ctx.session.close()
 
