@@ -63,8 +63,12 @@ def _parse_frontmatter(text: str) -> tuple[str, str]:
     The block must start with ``---`` on its own line and end with the
     next ``---``. Keys we recognise are ``name`` (defaults to the
     file's directory name) and ``description`` (defaults to empty).
+    A leading UTF-8 BOM is stripped so editors that add one do not
+    break the marker scan.
     """
 
+    if text.startswith("﻿"):
+        text = text[1:]
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return "", ""

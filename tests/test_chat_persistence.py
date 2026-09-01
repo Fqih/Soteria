@@ -226,3 +226,93 @@ def test_setup_default_decline_does_not_write_rc(
     content = rc.read_text(encoding="utf-8")
     assert "avo setup" not in content
     assert "alias ll='ls -la'" in content
+
+
+# ---------------------------------------------------------------------------
+# Hardening: atomic write, broader shell escape, BOM handling
+# ---------------------------------------------------------------------------
+
+
+def test_quote_for_shell_escapes_dollar_backtick_newline() -> None:
+    """Dollar, backtick, and newline must round-trip through a POSIX shell."""
+
+    from avo.chat import _quote_for_shell
+
+    raw = "abc$xyz`cmd`line\nbreak\rcr"
+    quoted = _quote_for_shell(raw)
+    # All four escape classes appear, in the order we apply them.
+    assert quoted == "abc\\$xyz\\`cmd\\`line\\nbreak\\rcr"
+
+
+def test_persist_atomic_writes_via_temp_then_replace(tmp_path: Path) -> None:
+    """A successful persist leaves no ``.avo.tmp`` sibling behind."""
+
+    from avo.chat import persist_env_to_shell_rc
+
+    rc = tmp_path / ".zshrc"
+    persist_env_to_shell_rc({"AVO_PROVIDER": "ollama"}, rc_path=rc)
+    assert rc.exists()
+    assert not (rc.parent / (rc.name + ".avo.tmp")).exists()
+
+
+def test_persist_atomic_cleans_temp_on_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If rename fails the temp file must be removed (no half-written rc)."""
+
+    from avo import chat_shell_rc
+    from avo.chat import persist_env_to_shell_rc
+
+    rc = tmp_path / ".zshrc"
+    rc.write_text("alias ll='ls -la'\n", encoding="utf-8")
+    original = rc.read_text(encoding="utf-8")
+
+    def boom(_src: Path, _dst: Path) -> None:
+        raise OSError("rename refused")
+
+    monkeypatch.setattr(chat_shell_rc.os, "replace", boom)
+
+    with pytest.raises(OSError):
+        persist_env_to_shell_rc({"AVO_PROVIDER": "openai"}, rc_path=rc)
+
+    # The original rc is byte-for-byte unchanged.
+    assert rc.read_text(encoding="utf-8") == original
+    # And the temp sibling was cleaned up.
+    assert not (rc.parent / (rc.name + ".avo.tmp")).exists()
+
+
+def test_persist_handles_bom_in_existing_rc(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A BOM-prefixed rc must still get its previous avo block replaced."""
+
+    from avo.chat import persist_env_to_shell_rc
+
+    rc = tmp_path / ".zshrc"
+    # First write without BOM.
+    persist_env_to_shell_rc(
+        {"AVO_PROVIDER": "ollama", "AVO_OLLAMA_API_KEY": "first"},
+        rc_path=rc,
+    )
+    # Prepend a UTF-8 BOM to simulate an editor-written rc.
+    original = rc.read_bytes()
+    rc.write_bytes(b"\xef\xbb\xbf" + original)
+
+    persist_env_to_shell_rc(
+        {"AVO_PROVIDER": "openai", "AVO_OPENAI_API_KEY": "second"},
+        rc_path=rc,
+    )
+
+    content = rc.read_text(encoding="utf-8")
+    assert content.count("# >>> avo setup >>>") == 1
+    assert "first" not in content
+    assert "second" in content
+
+
+def test_skill_frontmatter_handles_bom() -> None:
+    """A BOM-prefixed SKILL.md must still parse the YAML block."""
+
+    from avo.cli_skills import _parse_frontmatter
+
+    body = "﻿---\nname: demo\ndescription: hello\n---\nbody\n"
+    assert _parse_frontmatter(body) == ("demo", "hello")
