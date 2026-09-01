@@ -31,6 +31,7 @@ python -m pip install -e ".[dev,providers,sandbox]"
 | `[dev]` | pytest, mypy, ruff, coverage | Local dev + tests |
 | `[providers]` | httpx | Talking to MiniMax, Anthropic, OpenAI-compatible endpoints |
 | `[sandbox]` | docker-py | Using `run_shell` against a real Docker daemon |
+| `[otel]` | opentelemetry-api, sdk, otlp exporter | Emitting `gen_ai.*` spans for a run |
 | `[live-benchmark]` | httpx, matplotlib | Running `python benchmark/run_benchmark.py` |
 | `[mcp]` | mcp SDK | Authoring MCP servers or non-stdio transports |
 
@@ -114,7 +115,7 @@ All knobs live in `AVO_*` env vars. The chat REPL's first-run wizard can persist
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `AVO_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` |
+| `AVO_PROVIDER` | yes | `ollama` \| `minimax` \| `anthropic` \| `openai` \| `groq` \| `cerebras` |
 | `AVO_MODEL` | yes | Default model name for the active provider |
 | `AVO_OLLAMA_BASE_URL` | no | Ollama endpoint (default `http://localhost:11434`) |
 | `AVO_OLLAMA_MODEL` | no | Ollama-specific model override |
@@ -129,6 +130,12 @@ All knobs live in `AVO_*` env vars. The chat REPL's first-run wizard can persist
 | `AVO_OPENAI_API_KEY` | yes for openai | API key |
 | `AVO_OPENAI_BASE_URL` | no | Default `https://api.openai.com/v1` |
 | `AVO_OPENAI_MODEL` | no | Provider-specific override |
+| `AVO_GROQ_API_KEY` | yes for groq | Groq API key |
+| `AVO_GROQ_BASE_URL` | no | Default `https://api.groq.com/openai/v1` |
+| `AVO_GROQ_MODEL` | no | Provider-specific override |
+| `AVO_CEREBRAS_API_KEY` | yes for cerebras | Cerebras API key |
+| `AVO_CEREBRAS_BASE_URL` | no | Default `https://api.cerebras.ai/v1` |
+| `AVO_CEREBRAS_MODEL` | no | Provider-specific override |
 
 ### Runtime + policy
 
@@ -157,8 +164,10 @@ See [`.env.example`](.env.example) for a copy-paste template.
 | MiniMax | `MiniMaxProvider` | Anthropic-compatible (default) or OpenAI-compatible style. |
 | Anthropic | `AnthropicProvider` | Native Anthropic Messages API. |
 | OpenAI | `OpenAICompatibleProvider` | Any `/v1/chat/completions` endpoint — OpenAI, vLLM, llama.cpp. |
+| Groq | `GroqProvider` | OpenAI-compatible Llama / Mixtral inference, low latency. |
+| Cerebras | `CerebrasProvider` | OpenAI-compatible inference on Cerebras wafer-scale hardware. |
 
-All four implement the same `ModelProvider` Protocol. Swapping providers is one line.
+All six implement the same `ModelProvider` Protocol. Swapping providers is one line.
 
 ---
 
@@ -221,6 +230,69 @@ runtime = AgentRuntime(provider=provider, tools=[...], approval_callback=callbac
 
 ---
 
+## Observability (OpenTelemetry)
+
+Set `AVO_OTEL_ENABLED=1` and the runtime wraps every `_drive` invocation in a span
+tagged with the `gen_ai.*` semantic conventions:
+
+```bash
+python -m pip install -e ".[otel]"
+export AVO_OTEL_ENABLED=1
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+avo chat
+```
+
+Spans carry `avo.run_id`, `gen_ai.system` (provider name), and `gen_ai.request.model`.
+`avo.observability.record_usage(...)` writes input / output token counts into the
+active span, so cost rollups line up with trace data. The module is a noop when the
+extra is not installed — no exceptions at import time, no runtime overhead.
+
+---
+
+## Cost tracking
+
+`avo cost` aggregates every persisted ledger entry (the same `avo.db` the event store
+uses) and prints total tokens + USD spend, with per-run and per-model breakdowns.
+Output is human-readable by default and machine-readable with `--json`:
+
+```bash
+avo cost --database avo.db --json
+```
+
+```json
+{
+  "run_count": 2,
+  "total": {"input_tokens": 700, "output_tokens": 370, "total_tokens": 1070},
+  "cost_usd": "0.0142",
+  "runs": [...],
+  "models": [...]
+}
+```
+
+Set `AVO_USAGE_RATES_INPUT_PER_1K` / `AVO_USAGE_RATES_OUTPUT_PER_1K` to seed the ledger
+with USD costs as each provider call returns.
+
+---
+
+## Scaffolding plugins
+
+`avo plugin init` writes a working plugin to disk so you can iterate on a new tool
+without touching project structure by hand:
+
+```bash
+mkdir ~/projects/my-tool && cd ~/projects/my-tool
+avo plugin init my-tool
+cd my-tool
+avo plugin install .    # registers the sample echo tool
+```
+
+The scaffold ships a `pyproject.toml` declaring an `avo.tools` entry point, a
+`register()` stub returning a sample `FunctionTool`, a `README.md`, and a `.gitignore`.
+Replace the sample tool with your own and the runtime picks it up on the next
+`avo plugin install .`.
+
+---
+
 ## CLI
 
 ```bash
@@ -236,9 +308,14 @@ avo [-d DATABASE] <command> [args]
 | `avo runs resume RUN_ID` | Resume a persisted FakeProvider run with no pending tool call. |
 | `avo plugin install URL \| PATH` | Install a plugin from git URL or local path. |
 | `avo plugin list` / `show NAME` / `remove NAME [-y]` | Manage installed plugins. |
+| `avo plugin init [NAME] [-d DIR] [--force]` | Scaffold a new plugin (pyproject + sample `FunctionTool`). |
 | `avo mcp add NAME [--env KEY=VAL]... CMD ARGS...` | Register an MCP server. |
 | `avo mcp list` / `remove NAME [-y]` | Manage MCP server registrations. |
 | `avo skill install PATH` / `list` / `show NAME` / `remove NAME [-y]` | Manage skill packs. |
+| `avo bench [--turns N] [--task ID] [--output PATH]` | Deterministic FakeProvider benchmark. |
+| `avo runs diff RUN_A RUN_B [--json]` | Compare two persisted runs. |
+| `avo cost [--database PATH] [--json]` | Aggregate token + USD spend across runs. |
+| `avo sandbox run --image IMG --workspace DIR [--network MODE] -- COMMAND ARGS...` | One-shot ephemeral docker sandbox. |
 
 ### Chat REPL slash commands
 
