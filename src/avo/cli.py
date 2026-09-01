@@ -103,6 +103,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Manage skill packs (see `avo skill --help`).",
     )
 
+    commands.add_parser(
+        "init",
+        help="Scaffold .avo/skills/ and AGENTS.md in the current directory.",
+    )
+
     return parser
 
 
@@ -129,6 +134,11 @@ async def _execute(args: argparse.Namespace) -> int:
         from avo.cli_skills import main as skill_main
 
         return skill_main(_tail_argv("skill"))
+
+    if args.command == "init":
+        from avo.cli_init import main as init_main
+
+        return init_main(_tail_argv("init"))
 
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()

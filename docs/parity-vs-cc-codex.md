@@ -17,7 +17,7 @@ and the gap vs Claude Code (CC) and Codex CLI. Status reflects the
 | Skills system (markdown)           | ✅ `/skills /skill` | ✅ | ✅ | loaded from `<workspace>/.avo/skills/` |
 | Plugin marketplace / install       | ✅ entry points | ✅ plugins marketplace | ✅ | avo has discover() but no `install/list/remove` yet — gap |
 | MCP servers (stdio JSON-RPC)       | ✅           | ✅           | ✅           | avo ships 4 built-in: filesystem, sqlite, git, http_fetch |
-| MCP registry (`avo mcp add/list/remove`) | 🟡        | ✅           | ✅           | gap — planned |
+| MCP registry (`avo mcp add/list/remove`) | ✅        | ✅           | ✅           | JSON-file backed, same shape as `.mcp.json` |
 | Approval/permission modes          | ✅ callback  | ✅           | ✅           | `AVO_TOOLS_REQUIRE_APPROVAL` |
 | Sandbox shell (Docker)             | ✅           | ✅           | ✅           | `app_tools.run_shell_tool` |
 | Workspace-scoped file tools        | ✅           | ✅           | ✅           | `read_file/write_file/edit_file/grep/glob` |
@@ -28,11 +28,11 @@ and the gap vs Claude Code (CC) and Codex CLI. Status reflects the
 | Auto-compact context               | ✅ `compact.py` | ✅ `/compact` | ✅       | |
 | Hooks (Pre/Post/Stop)              | ✅ `hooks.py` | ✅          | ✅           | avo: PreToolUse/PostToolUse/Stop callbacks |
 | Status line                        | 🟡           | ✅           | ✅           | avo prints banner at REPL start; live status line is a gap |
-| Init command                       | ❌           | ✅ `/init`   | ✅           | gap — `avo init` would scaffold skills + agent guide |
+| Init command                       | ✅ `avo init` | ✅ `/init` | ✅           | scaffolds `.avo/skills/` + `AGENTS.md` |
 | Diff display                       | 🟡           | ✅           | ✅           | inline render path exists; UI polish is a gap |
-| Image input                        | ❌           | ✅           | ✅           | deferred — depends on multimodal providers |
+| Image input                        | ✅           | ✅           | ✅           | typed `ContentBlock` (text/image); per-provider translators |
 | Cost tracking                      | ✅           | ✅           | ✅           | `ledger.py` + `usage.py` |
-| Background tasks                   | ❌           | ✅           | partial      | gap |
+| Background tasks                   | ✅           | ✅           | partial      | trailing `&` + `/jobs /job /cancel` + `[jobs: N]` indicator |
 | One-line install                   | ✅ `pip install avo[all]` | ✅ brew/curl | ✅ npm | |
 | PyPI distribution                  | ✅ `avo 0.1.1` | n/a         | n/a          | CC is closed source, Codex is npm |
 
@@ -58,9 +58,6 @@ Legend: ✅ shipped · 🟡 partial · ❌ not yet
 ## What stays on the roadmap
 
 - Live status line at the prompt (provider/model/turn/elapsed).
-- `avo init` (CC `/init`) — scan repo + scaffold skills + AGENTS.md.
-- Image input (multimodal providers).
-- Background tasks with `&` and monitor.
 - Diff-render polish for file edits.
 
 ## Design choices worth flagging
