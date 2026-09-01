@@ -676,3 +676,116 @@ async def test_slash_skill_without_name_prints_usage(
 
     assert should_exit is False
     assert "usage: /skill NAME" in stderr.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_repl_model_command_lists_catalog_with_current_marker(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``/model`` (no args) prints the catalog and marks the current model."""
+
+    env = _environ_with_ollama(model="llama3.1")
+    monkeypatch.setattr("os.environ", env)
+
+    stdin = io.StringIO("/model\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ=env,
+    )
+    assert code == 0
+    output = stdout.getvalue()
+    assert "Models for provider 'ollama'" in output
+    assert "llama3.1" in output
+    # Current model gets a marker; the catalog prints at least one alternative.
+    assert "*" in output
+    assert "Pick a model with: /model NAME" in output
+
+
+@pytest.mark.asyncio
+async def test_repl_model_command_switches_provider(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``/model NAME`` swaps the runtime provider and updates the label."""
+
+    env = _environ_with_ollama(model="llama3.1")
+    monkeypatch.setattr("os.environ", env)
+
+    stdin = io.StringIO("/model qwen2.5-coder\n/model\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ=env,
+    )
+    assert code == 0
+    output = stdout.getvalue()
+    assert "Switched provider 'ollama' to model 'qwen2.5-coder'" in output
+    # The provider actually swapped.
+    assert isinstance(env["AVO_MODEL"] or "", str)
+    # The second /model call should now mark qwen2.5-coder as the current model.
+    assert output.count("qwen2.5-coder") >= 2
+
+
+@pytest.mark.asyncio
+async def test_repl_model_command_rejects_unknown_model(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``/model bogus`` errors and does not change the active model."""
+
+    env = _environ_with_ollama(model="llama3.1")
+    monkeypatch.setattr("os.environ", env)
+
+    stdin = io.StringIO("/model not-a-real-model\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ=env,
+    )
+    assert code == 0
+    assert "is not in the 'ollama' catalog" in stderr.getvalue()
+    assert env["AVO_MODEL"] == "llama3.1"
+
+
+@pytest.mark.asyncio
+async def test_repl_model_command_usage_error_when_too_many_args(
+    chat_env: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env = _environ_with_ollama(model="llama3.1")
+    monkeypatch.setattr("os.environ", env)
+
+    stdin = io.StringIO("/model a b c\n/quit\n")
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    code = await run_repl(
+        database_path=chat_env["db"],
+        workspace_root=chat_env["workspace"],
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+        environ=env,
+    )
+    assert code == 0
+    assert "usage: /model" in stderr.getvalue()

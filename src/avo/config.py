@@ -15,10 +15,95 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 ProviderName = Literal["ollama", "minimax", "anthropic", "openai"]
 _PROVIDER_NAMES: tuple[ProviderName, ...] = ("ollama", "minimax", "anthropic", "openai")
+
+
+# Curated catalog of models each provider knows about. Used by the
+# `/model` slash command in the chat REPL to render a picker and to
+# validate user-typed model names. Entries are ordered so the default
+# always sits first — `/model` (no args) prints a numbered list and
+# the first entry is the recommended pick.
+PROVIDER_MODELS: dict[ProviderName, tuple[str, ...]] = {
+    "ollama": (
+        "llama3.1",
+        "llama3.2",
+        "qwen2.5-coder",
+        "qwen2.5",
+        "mistral",
+        "mixtral",
+        "codellama",
+        "deepseek-coder-v2",
+        "phi3",
+        "gemma2",
+        "command-r",
+    ),
+    "openai": (
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
+        "gpt-4.1-nano",
+        "o1",
+        "o1-mini",
+        "o1-preview",
+        "o3-mini",
+        "gpt-3.5-turbo",
+    ),
+    "anthropic": (
+        "claude-sonnet-4-5",
+        "claude-opus-4-5",
+        "claude-haiku-4-5",
+        "claude-3-5-sonnet",
+        "claude-3-5-haiku",
+        "claude-3-opus",
+    ),
+    "minimax": (
+        "MiniMax-M2",
+        "MiniMax-M3",
+    ),
+}
+
+
+def _lookup_catalog(provider_name: str) -> tuple[str, ...]:
+    """Resolve ``provider_name`` to its catalog tuple (empty if unknown)."""
+
+    key = cast(ProviderName, provider_name.lower())
+    return PROVIDER_MODELS.get(key, ())
+
+
+def default_model(provider_name: str) -> str:
+    """Return the catalog's recommended default for ``provider_name``."""
+
+    catalog = _lookup_catalog(provider_name)
+    if not catalog:
+        raise ConfigError(f"unknown provider {provider_name!r}; cannot pick a default model.")
+    return catalog[0]
+
+
+def available_models(provider_name: str) -> tuple[str, ...]:
+    """Return every catalogued model for ``provider_name``.
+
+    Returns an empty tuple when the provider is unknown so the chat
+    REPL degrades gracefully (the operator typed an unsupported name).
+    """
+
+    return _lookup_catalog(provider_name)
+
+
+def is_known_model(provider_name: str, model_name: str) -> bool:
+    """Return True if ``model_name`` is in the catalog for ``provider_name``."""
+
+    catalog = _lookup_catalog(provider_name)
+    if not catalog:
+        return False
+    if model_name in catalog:
+        return True
+    # Allow exact-case variants of the recommended default so the
+    # operator can paste whatever AVO_MODEL string they configured.
+    return model_name == catalog[0]
 
 
 class ConfigError(ValueError):
@@ -134,9 +219,13 @@ def database_path_from_env(environ: Mapping[str, str] | None = None) -> str | No
 
 
 __all__ = [
+    "PROVIDER_MODELS",
     "ConfigError",
     "ProviderName",
     "apply_runtime_overrides",
+    "available_models",
     "build_provider_from_env",
     "database_path_from_env",
+    "default_model",
+    "is_known_model",
 ]

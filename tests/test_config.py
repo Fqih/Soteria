@@ -168,3 +168,48 @@ def test_database_path_from_env_default_none() -> None:
 
 def test_database_path_from_env_strips_and_returns() -> None:
     assert database_path_from_env({"AVO_DATABASE_PATH": "  /tmp/avo.db  "}) == ("/tmp/avo.db")
+
+
+def test_provider_models_catalog_has_all_providers() -> None:
+    from avo.config import PROVIDER_MODELS
+
+    assert set(PROVIDER_MODELS.keys()) == {"ollama", "minimax", "anthropic", "openai"}
+    for catalog in PROVIDER_MODELS.values():
+        assert catalog, "every catalog must have at least one model"
+        assert catalog[0] == catalog[0].strip(), "default model cannot be blank"
+
+
+def test_default_model_returns_first_catalog_entry() -> None:
+    from avo.config import PROVIDER_MODELS, default_model
+
+    for name, catalog in PROVIDER_MODELS.items():
+        assert default_model(name) == catalog[0]
+    # Case-insensitive lookup so /model accepts the typed form.
+    assert default_model("OpenAI") == PROVIDER_MODELS["openai"][0]
+
+
+def test_default_model_unknown_provider_raises() -> None:
+    from avo.config import default_model
+
+    with pytest.raises(ConfigError, match="unknown provider"):
+        default_model("mystery")
+
+
+def test_available_models_empty_for_unknown_provider() -> None:
+    from avo.config import available_models
+
+    assert available_models("mystery") == ()
+
+
+def test_is_known_model_accepts_catalog_and_default_variant() -> None:
+    from avo.config import PROVIDER_MODELS, is_known_model
+
+    assert is_known_model("openai", "gpt-4o")
+    assert is_known_model("anthropic", "claude-sonnet-4-5")
+    # Default case-variant (exact default still accepted).
+    default_openai = PROVIDER_MODELS["openai"][0]
+    assert is_known_model("openai", default_openai)
+    # Random string is rejected.
+    assert not is_known_model("openai", "definitely-not-a-model")
+    # Unknown provider short-circuits to False.
+    assert not is_known_model("mystery", "anything")

@@ -42,7 +42,13 @@ from avo.chat_shell_rc import (  # re-export
     _quote_for_shell,
     persist_env_to_shell_rc,
 )
-from avo.config import ConfigError, build_provider_from_env
+from avo.config import (
+    ConfigError,
+    available_models,
+    build_provider_from_env,
+    default_model,
+    is_known_model,
+)
 from avo.exceptions import AvoError
 from avo.runtime import AgentRuntime
 from avo.skills import SkillRegistry
@@ -166,7 +172,7 @@ def _print_header(
     out.write(f"╰{'─' * inner_width}╯\n")
     out.write(
         "Slash commands: /sessions, /resume [ID], /inspect RUN_ID, /skills, /skill NAME, "
-        "/session, /new, /provider, /quit\n"
+        "/session, /new, /provider, /model [NAME], /quit\n"
     )
     out.write("Enter a task to run one AgentRuntime turn. Ctrl+D or /quit to exit.\n")
     out.flush()
@@ -278,6 +284,9 @@ async def _run_slash(
         _print_provider_summary(out, ctx, environ)
         return False
 
+    if cmd == "/model":
+        return await _run_model_command(ctx, args, out, err, environ)
+
     if cmd == "/sessions":
         infos = ctx.session.list_sessions()
         out.write(render_session_picker(infos))
@@ -373,6 +382,68 @@ async def _run_slash(
         return False
 
     err.write(f"unknown command: {cmd}\n")
+    return False
+
+
+async def _run_model_command(
+    ctx: ChatContext,
+    args: list[str],
+    out: TextIO,
+    err: TextIO,
+    environ: dict[str, str],
+) -> bool:
+    """Handle ``/model`` — list the catalog or switch to a specific model.
+
+    No arguments renders a numbered picker (current model marked with
+    ``*``); a single argument swaps the runtime's provider in place so
+    the very next turn talks to the new model.
+    """
+
+    provider_name = ctx.provider_name
+    catalog = available_models(provider_name)
+    if not catalog:
+        err.write(
+            f"provider {provider_name!r} has no model catalog; "
+            f"set AVO_MODEL=<name> in your environment to override.\n"
+        )
+        return False
+
+    if len(args) == 1:
+        out.write(f"Models for provider {provider_name!r} (current: {ctx.model_name!r}):\n")
+        recommended = default_model(provider_name)
+        for index, name in enumerate(catalog, start=1):
+            marker = "*" if name == ctx.model_name else " "
+            hint = " (recommended)" if name == recommended else ""
+            out.write(f"  {marker} {index:>2}. {name}{hint}\n")
+        out.write("Pick a model with: /model NAME\n")
+        return False
+
+    if len(args) == 2:
+        target = args[1].strip()
+        if not target:
+            err.write("usage: /model NAME\n")
+            return False
+        if not is_known_model(provider_name, target):
+            err.write(
+                f"{target!r} is not in the {provider_name!r} catalog. "
+                f"Run /model to see the available list.\n"
+            )
+            return False
+        environ["AVO_MODEL"] = target
+        os.environ["AVO_MODEL"] = target
+        try:
+            ctx.runtime.provider = build_provider_from_env(environ)
+        except ConfigError as exc:
+            err.write(f"model switch failed: {exc}\n")
+            return False
+        ctx.model_name = target
+        out.write(
+            f"Switched provider {provider_name!r} to model {target!r}. "
+            f"Next turn will use the new model.\n"
+        )
+        return False
+
+    err.write("usage: /model [NAME]\n")
     return False
 
 
