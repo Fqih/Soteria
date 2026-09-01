@@ -7,7 +7,7 @@ import inspect
 import json
 import time
 from collections.abc import Awaitable, Callable, Iterable
-from typing import Generic, Protocol, TypeVar, cast, runtime_checkable
+from typing import Any, Generic, Protocol, TypeVar, cast, runtime_checkable
 
 from pydantic import BaseModel, JsonValue, TypeAdapter, ValidationError
 
@@ -87,6 +87,110 @@ class FunctionTool(Generic[ArgumentsT]):
             raise ToolValidationError(
                 f"Tool {self._metadata.name!r} returned a non-JSON value: {exc}"
             ) from exc
+
+
+def _enforce_strict_object(node: dict[str, Any]) -> dict[str, Any]:
+    """Recursively set ``additionalProperties: false`` on every object schema.
+
+    OpenAI's strict function-calling mode rejects tool payloads whose
+    nested object schemas allow extra properties. Pydantic sets the
+    flag on the root, but nested ``$defs`` and ``items`` nodes are left
+    permissive unless we walk them.
+    """
+
+    if node.get("type") == "object" or "properties" in node:
+        node["additionalProperties"] = False
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            for child in properties.values():
+                if isinstance(child, dict):
+                    _enforce_strict_object(child)
+    for key in ("$defs", "definitions"):
+        defs = node.get(key)
+        if isinstance(defs, dict):
+            for child in defs.values():
+                if isinstance(child, dict):
+                    _enforce_strict_object(child)
+    for key in ("items", "additionalProperties"):
+        child = node.get(key)
+        if isinstance(child, dict):
+            _enforce_strict_object(child)
+    for key in ("anyOf", "oneOf", "allOf"):
+        variants = node.get(key)
+        if isinstance(variants, list):
+            for variant in variants:
+                if isinstance(variant, dict):
+                    _enforce_strict_object(variant)
+    return node
+
+
+def to_json_schema(model: type[BaseModel]) -> dict[str, Any]:
+    """Export a Pydantic model to a JSON Schema 2020-12 document.
+
+    The returned dictionary is safe to feed into OpenAI's
+    ``function.parameters``, Anthropic's ``tool.input_schema``, or any
+    MCP server that accepts JSON Schema over JSON-RPC. Nested object
+    schemas have ``additionalProperties: false`` set so the document
+    satisfies OpenAI's strict function-calling mode without further
+    post-processing.
+    """
+
+    schema = model.model_json_schema(ref_template="#/$defs/{model}")
+    _enforce_strict_object(schema)
+    return schema
+
+
+def to_openai_function(tool_name: str, description: str, model: type[BaseModel]) -> dict[str, Any]:
+    """Render a strict OpenAI function-calling entry.
+
+    The returned dictionary has the shape expected by the
+    ``ChatCompletions`` API::
+
+        {
+            "type": "function",
+            "function": {
+                "name": ...,
+                "description": ...,
+                "parameters": ...,
+                "strict": True,
+            },
+        }
+
+    The ``parameters`` field is a JSON Schema document produced by
+    :func:`to_json_schema`, with ``additionalProperties: false`` set
+    on every nested object so OpenAI's strict validator accepts the
+    payload.
+    """
+
+    return {
+        "type": "function",
+        "function": {
+            "name": tool_name,
+            "description": description,
+            "parameters": to_json_schema(model),
+            "strict": True,
+        },
+    }
+
+
+def to_anthropic_tool(tool_name: str, description: str, model: type[BaseModel]) -> dict[str, Any]:
+    """Render an Anthropic ``tools`` entry with ``input_schema``.
+
+    The returned dictionary has the shape expected by the Anthropic
+    Messages API::
+
+        {
+            "name": ...,
+            "description": ...,
+            "input_schema": ...,
+        }
+    """
+
+    return {
+        "name": tool_name,
+        "description": description,
+        "input_schema": to_json_schema(model),
+    }
 
 
 def canonical_fingerprint(value: JsonValue) -> str:
@@ -198,3 +302,18 @@ class ToolRegistry:
             finished_at=finished_at,
             duration_ms=max(0.0, (time.perf_counter() - started_clock) * 1000),
         )
+
+
+__all__ = [
+    "ArgumentsT",
+    "FunctionTool",
+    "Tool",
+    "ToolCallable",
+    "ToolRegistry",
+    "canonical_fingerprint",
+    "to_anthropic_tool",
+    "to_json_schema",
+    "to_openai_function",
+    "tool_call_fingerprint",
+    "tool_result_fingerprint",
+]
