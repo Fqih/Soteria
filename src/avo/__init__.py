@@ -21,7 +21,7 @@ from avo.state import RunState, StopReason
 from avo.tools import FunctionTool, Tool, ToolRegistry
 from avo.tracing import RunTrace, TraceEntry, TraceInspector
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 __all__ = [
     "AgentEvent",
