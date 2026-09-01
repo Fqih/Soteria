@@ -36,6 +36,7 @@ from avo.models import (
     ToolResult,
     utc_now,
 )
+from avo.observability import record_usage, span_for_turn
 from avo.policies import LoopPolicy
 from avo.progress import ProgressDetector
 from avo.providers.base import ModelProvider
@@ -284,11 +285,19 @@ class AgentRuntime:
             RunState.OBSERVATION_RECORDED: runtime_handlers.handle_observation_recorded,
             RunState.PAUSED: runtime_handlers.handle_paused,
         }
-        while not is_terminal(context.run.state):
-            handler = handlers.get(context.run.state)
-            if handler is None:
-                raise RuntimeError(f"No state handler exists for {context.run.state.value!r}.")
-            await handler(self, context)
+        provider_name = getattr(self.provider, "name", None) or "unknown"
+        model_name = getattr(self.provider, "model", None)
+        with span_for_turn(context.run.run_id, provider=provider_name, model=model_name) as span:
+            while not is_terminal(context.run.state):
+                handler = handlers.get(context.run.state)
+                if handler is None:
+                    raise RuntimeError(f"No state handler exists for {context.run.state.value!r}.")
+                await handler(self, context)
+            record_usage(
+                span,
+                input_tokens=context.token_usage.input_tokens,
+                output_tokens=context.token_usage.output_tokens,
+            )
         await self.hooks.fire(
             HookContext(event=HookEvent.STOP, run_id=context.run.run_id, run=context.run)
         )
