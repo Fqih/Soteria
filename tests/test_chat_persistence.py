@@ -20,7 +20,7 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-def test_persist_appends_soteria_block_to_new_rc(tmp_path: Path) -> None:
+def test_persist_appends_avo_block_to_new_rc(tmp_path: Path) -> None:
     """Empty rc file: persist creates the file with a marked block."""
 
     from avo.chat import persist_env_to_shell_rc

@@ -169,7 +169,7 @@ async def test_minimax_anthropic_parses_text_response() -> None:
         base_url="https://api.minimax.io",
         api_style="anthropic",
     )
-    config._soteria_api_key = "key-1"
+    config._avo_api_key = "key-1"
     provider = MiniMaxProvider(config, request_timeout_seconds=1.0, client=client)
 
     response = await provider.generate(_request())
@@ -200,7 +200,7 @@ async def test_minimax_anthropic_parses_tool_use() -> None:
         base_url="https://api.minimax.io",
         api_style="anthropic",
     )
-    config._soteria_api_key = "key-1"
+    config._avo_api_key = "key-1"
     provider = MiniMaxProvider(config, client=client)
 
     response = await provider.generate(_request())
@@ -223,7 +223,7 @@ async def test_minimax_openai_style_uses_bearer() -> None:
         base_url="https://api.minimax.io",
         api_style="openai",
     )
-    config._soteria_api_key = "key-1"
+    config._avo_api_key = "key-1"
     provider = MiniMaxProvider(config, client=client)
 
     response = await provider.generate(_request())
@@ -246,7 +246,7 @@ def _minimax_config(base_url: str, api_style: str = "anthropic") -> MiniMaxConfi
         base_url=base_url,
         api_style=api_style,  # type: ignore[arg-type]
     )
-    config._soteria_api_key = "k"
+    config._avo_api_key = "k"
     return config
 
 

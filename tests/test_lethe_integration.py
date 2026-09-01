@@ -34,7 +34,7 @@ def test_lethe_adapter_bounds_recall_and_persists_output() -> None:
     assert adapter.recall_text("current task") == ["bounded memory"]
     adapter.remember_output("answer", session_id="run-1")
 
-    assert stub.saved == [("answer", "run-1", ["soteria_output"])]
+    assert stub.saved == [("answer", "run-1", ["avo_output"])]
 
 
 def test_lethe_adapter_rejects_invalid_window() -> None:

@@ -43,7 +43,7 @@ def _resolve_base_url() -> str:
 
 def _make_provider(style: str, *, key: str, model: str, base_url: str) -> MiniMaxProvider:
     config = MiniMaxConfig.model_construct(model=model, base_url=base_url, api_style=style)  # type: ignore[arg-type]
-    config._soteria_api_key = key
+    config._avo_api_key = key
     return MiniMaxProvider(config, request_timeout_seconds=60.0)
 
 

@@ -12,6 +12,7 @@ Two layers:
 from __future__ import annotations
 
 import io
+import re
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -542,7 +543,10 @@ async def test_run_repl_starts_fresh_when_no_past_sessions(
     )
     assert code == 0
     # Header must include the session id line.
-    assert "Session:" in stdout.getvalue()
+    rendered = stdout.getvalue().lower()
+    assert "session" in rendered
+    # The newly-generated session id appears somewhere in the rendered output.
+    assert re.search(r"[a-f0-9]{12}", rendered) is not None
 
 
 @pytest.mark.asyncio
@@ -574,7 +578,7 @@ async def test_run_repl_force_new_session_skips_resume_prompt(
     )
     assert code == 0
     assert "Resume session" not in stdout.getvalue()
-    assert "Session: prior-id" not in stdout.getvalue()
+    assert "prior-id" not in stdout.getvalue()
 
 
 @pytest.mark.asyncio
@@ -675,4 +679,4 @@ async def test_run_repl_offers_resume_when_recent_session_exists(
     assert code == 0
     rendered = stdout.getvalue()
     assert "Resume session prev-id" in rendered
-    assert "Resumed from: prev-id" in rendered
+    assert "resumed" in rendered.lower() and "prev-id" in rendered

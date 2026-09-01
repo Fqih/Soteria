@@ -58,7 +58,7 @@ class MiniMaxConfig(BaseModel):
 
     _auth_token: str | None = PrivateAttr(default=None)
     _openai_auth_token: str | None = PrivateAttr(default=None)
-    _soteria_api_key: str | None = PrivateAttr(default=None)
+    _avo_api_key: str | None = PrivateAttr(default=None)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> MiniMaxConfig:
@@ -131,7 +131,7 @@ class MiniMaxConfig(BaseModel):
             )
 
         config = cls(model=model, base_url=base_url, api_style=api_style)
-        config._soteria_api_key = api_key
+        config._avo_api_key = api_key
         return config
 
     @property
@@ -164,14 +164,14 @@ class MiniMaxConfig(BaseModel):
     def headers(self) -> dict[str, str]:
         """Return only the auth headers for the selected style plus content type."""
 
-        soteria_key = self._soteria_api_key
+        avo_key = self._avo_api_key
         if self.api_style == "openai":
-            token = soteria_key or self._openai_auth_token or ""
+            token = avo_key or self._openai_auth_token or ""
             return {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             }
-        token = soteria_key or self._auth_token or ""
+        token = avo_key or self._auth_token or ""
         return {
             "x-api-key": token,
             "anthropic-version": _ANTHROPIC_VERSION,

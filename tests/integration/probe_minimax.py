@@ -49,7 +49,7 @@ def _redact_key(value: str, key: str | None) -> str:
 async def _probe_one(style: str, api_key: str, model: str, base_url: str) -> None:
     print(f"\n=== style={style} ===")
     config = MiniMaxConfig.model_construct(model=model, base_url=base_url, api_style=style)  # type: ignore[arg-type]
-    config._soteria_api_key = api_key
+    config._avo_api_key = api_key
 
     print(f"endpoint  : {config.endpoint}")
     headers = config.headers()

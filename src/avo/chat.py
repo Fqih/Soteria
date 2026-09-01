@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TextIO
 
+from avo import __version__ as AVO_VERSION
 from avo import runtime as _runtime  # noqa: F401  (typing hook)
 from avo.app_tools.file_tools import bind_workspace, read_file_tool, write_file_tool
 from avo.app_tools.workspace import Workspace
@@ -118,14 +119,51 @@ def _print_header(
     *,
     resumed_from: str | None = None,
 ) -> None:
-    out.write("Avo\n")
-    out.write(f"Provider: {ctx.provider_name}\n")
-    out.write(f"Model: {ctx.model_name}\n")
-    out.write(f"Workspace: {workspace_root}\n")
-    out.write(f"Session: {ctx.session_id}\n")
+    """Render the AVO banner with version, model, session, and cwd.
+
+    The header is a compact ASCII box so it survives every terminal
+    width without word-wrap damage. Labels are fixed-width so the
+    values line up. ``cwd`` is the resolved absolute path of the active
+    workspace; ``session`` is the chat thread id (uuid-prefix); and
+    ``model`` is whatever the runtime actually selected from the
+    provider config.
+    """
+
+    cwd = Path.cwd()
+    rows: list[tuple[str, str]] = [
+        ("provider", f"{ctx.provider_name}"),
+        ("model", f"{ctx.model_name}"),
+        ("session", ctx.session_id),
+        ("workspace", str(workspace_root)),
+        ("cwd", str(cwd)),
+        ("python", f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"),
+    ]
     if resumed_from:
-        out.write(f"Resumed from: {resumed_from}\n")
-    out.write("Logo: " + str(REPO_LOGO_PATH) + "\n")
+        rows.append(("resumed", resumed_from))
+
+    label_width = max(len(label) for label, _ in rows)
+    title_prefix = f" AVO v{AVO_VERSION} "
+    max_value_width = max(len(value) for _, value in rows)
+    inner_width = max(
+        len(title_prefix) + 4,
+        label_width + 3 + max_value_width,  # "label : value"
+    )
+    inner_width = max(inner_width, 40)
+    inner_width = min(inner_width, 100)
+
+    def _fit(value: str) -> str:
+        budget = inner_width - label_width - 3
+        if len(value) >= budget:
+            return value[: max(budget - 3, 0)] + "..."
+        return value.ljust(budget)
+
+    title_dash_count = inner_width - len(title_prefix)
+    out.write("\n")
+    out.write(f"╭{title_prefix}{'─' * title_dash_count}╮\n")
+    for label, value in rows:
+        padded_label = label.ljust(label_width)
+        out.write(f"│{padded_label} : {_fit(value)}│\n")
+    out.write(f"╰{'─' * inner_width}╯\n")
     out.write(
         "Slash commands: /sessions, /resume [ID], /inspect RUN_ID, /skills, /skill NAME, "
         "/session, /new, /provider, /quit\n"
@@ -177,7 +215,7 @@ def build_chat_context(
         event_store=store,
         tools=[read_file_tool(), write_file_tool()],
     )
-    skills_root = workspace_root / ".soteria" / "skills"
+    skills_root = workspace_root / ".avo" / "skills"
     # Ensure the skills directory exists for first-run use, but the
     # registry itself walks a path — body lookup happens lazily.
     skills_root.mkdir(parents=True, exist_ok=True)

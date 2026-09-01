@@ -167,6 +167,4 @@ def test_database_path_from_env_default_none() -> None:
 
 
 def test_database_path_from_env_strips_and_returns() -> None:
-    assert database_path_from_env({"AVO_DATABASE_PATH": "  /tmp/soteria.db  "}) == (
-        "/tmp/soteria.db"
-    )
+    assert database_path_from_env({"AVO_DATABASE_PATH": "  /tmp/avo.db  "}) == ("/tmp/avo.db")

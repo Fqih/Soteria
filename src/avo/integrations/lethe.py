@@ -53,4 +53,4 @@ class LetheMemoryAdapter:
         """Persist a final agent output as a Lethe memory."""
 
         if content.strip():
-            self.store.remember(content, session_id=session_id, tags=["soteria_output"])
+            self.store.remember(content, session_id=session_id, tags=["avo_output"])
