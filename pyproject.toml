@@ -102,6 +102,9 @@ skip_covered = true
 target-version = "py311"
 line-length = 100
 extend-exclude = ["tests/fixtures"]
+# Markdown formatting requires the ruff preview mode; skip .md files so
+# `ruff format --check` is green without opting into experimental rules.
+exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = [
