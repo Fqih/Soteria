@@ -36,7 +36,11 @@ jobs:
           mypy src/avo
           pytest
           bandit -r src/avo -c pyproject.toml --severity-level medium
-          pip-audit --strict
+          # ``pip-audit --strict`` chokes on the editable avo install
+          # itself (``avo`` is not on PyPI yet — that's the whole
+          # point of this release). ``--skip-editable`` audits the
+          # transitive deps without trying to resolve avo.
+          pip-audit --strict --skip-editable
       - name: Build wheel and sdist (reproducible)
         env:
           SOURCE_DATE_EPOCH: ${{ github.event.repository.updated_at_timestamp || '0' }}
