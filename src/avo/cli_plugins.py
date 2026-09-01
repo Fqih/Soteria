@@ -221,6 +221,169 @@ def _entry_to_plugin(name: str, entry: dict[str, object]) -> InstalledPlugin:
 
 
 # ---------------------------------------------------------------------------
+# Plugin scaffold (init)
+# ---------------------------------------------------------------------------
+
+
+PLUGIN_TEMPLATE = '''"""Plugin entrypoint for {package}."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
+from avo.tools import FunctionTool
+
+
+class EchoArgs(BaseModel):
+    """Echo the user-supplied message back to the agent."""
+
+    message: str = Field(..., description="The message to echo back.")
+
+
+async def echo(arguments: EchoArgs) -> dict[str, str]:
+    """A trivial sample tool — replace with your own."""
+
+    return {{"echoed": arguments.message}}
+
+
+def register() -> tuple[FunctionTool[EchoArgs, dict[str, str]], ...]:
+    """Return the tools this plugin exposes.
+
+    The avo runtime calls ``register()`` on entry-point discovery; every
+    tool returned here becomes available to the agent alongside the
+    built-ins. The package's ``pyproject.toml`` declares this function
+    as the ``avo.tools`` entry point.
+    """
+
+    tool = FunctionTool(
+        name="plugin_{slug}_echo",
+        description="Echo the supplied message (sample tool from the {package} plugin).",
+        arguments_model=EchoArgs,
+        function=echo,
+    )
+    return (tool,)
+
+
+__all__ = ["register"]
+'''
+
+
+PLUGIN_PYPROJECT_TEMPLATE = """[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "{package}"
+version = "0.1.0"
+description = "Avo plugin: {description}"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {{ text = "MIT" }}
+authors = [{{ name = "{author}" }}]
+dependencies = [
+    "avo",
+    "pydantic>=2",
+]
+
+[project.entry-points."avo.tools"]
+{package} = "{module}:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["{module_dir}"]
+"""
+
+
+PLUGIN_README_TEMPLATE = """# {package}
+
+Scaffolded by `avo plugin init`. Fill in the description and ship it.
+
+## Quick start
+
+```bash
+# from this directory
+avo plugin install .
+
+# exercise the bundled sample tool
+avo chat
+# then in the REPL:
+#   use plugin_{slug}_echo with message="hello"
+```
+
+## Entry points
+
+| group       | object                          |
+|-------------|---------------------------------|
+| avo.tools   | `{package} = {module}:register` |
+
+Add new `FunctionTool` instances inside `register()` and they will be
+discovered on the next `avo chat` start (or after `avo plugin install`).
+"""
+
+
+PLUGIN_GITIGNORE = """__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+"""
+
+
+def init_scaffold(
+    name: str | None = None,
+    *,
+    directory: Path | str = Path("."),
+    force: bool = False,
+    author: str = "Avo Plugin Author",
+    description: str = "a fresh avo plugin",
+) -> Path:
+    """Scaffold a new avo plugin directory.
+
+    Creates ``<directory>/<name>/`` with a ``pyproject.toml`` that
+    registers an ``avo.tools`` entry point, a ``register()`` stub that
+    ships a sample ``echo`` tool, a ``README.md``, and a ``.gitignore``.
+
+    Returns the resolved plugin directory path.
+    """
+
+    parent = Path(directory).expanduser().resolve()
+    pkg_name = _validate_name(name) if name else _validate_name(parent.name)
+    module_name = pkg_name.replace("-", "_")
+    plugin_dir = parent / pkg_name
+    if plugin_dir.exists() and not force:
+        raise PluginCliError(
+            f"plugin directory {plugin_dir} already exists; pass --force to overwrite."
+        )
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+
+    module_dir = plugin_dir / module_name
+    module_dir.mkdir(parents=True, exist_ok=True)
+    (module_dir / "__init__.py").write_text(
+        PLUGIN_TEMPLATE.format(package=pkg_name, slug=module_name, module=module_name),
+        encoding="utf-8",
+    )
+
+    (plugin_dir / "pyproject.toml").write_text(
+        PLUGIN_PYPROJECT_TEMPLATE.format(
+            package=pkg_name,
+            description=description,
+            author=author,
+            module=module_name,
+            module_dir=module_name,
+        ),
+        encoding="utf-8",
+    )
+
+    (plugin_dir / "README.md").write_text(
+        PLUGIN_README_TEMPLATE.format(package=pkg_name, slug=module_name, module=module_name),
+        encoding="utf-8",
+    )
+
+    (plugin_dir / ".gitignore").write_text(PLUGIN_GITIGNORE, encoding="utf-8")
+    return plugin_dir
+
+
+# ---------------------------------------------------------------------------
 # CLI wiring
 # ---------------------------------------------------------------------------
 
@@ -262,6 +425,29 @@ def build_parser() -> argparse.ArgumentParser:
         "-y",
         action="store_true",
         help="Skip the interactive confirmation prompt.",
+    )
+
+    init_p = sub.add_parser(
+        "init",
+        help="Scaffold a new avo plugin directory (see `avo plugin init --help`).",
+    )
+    init_p.add_argument(
+        "name",
+        nargs="?",
+        default=None,
+        help="Plugin package name (default: derived from the current directory name).",
+    )
+    init_p.add_argument(
+        "--directory",
+        "-d",
+        type=Path,
+        default=Path("."),
+        help="Parent directory to write the plugin into (default: current directory).",
+    )
+    init_p.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing plugin directory with the same name.",
     )
 
     return parser
@@ -323,6 +509,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Removed plugin {args.name!r}.")
         return 0
 
+    if args.plugin_command == "init":
+        path = init_scaffold(
+            args.name,
+            directory=args.directory,
+            force=args.force,
+        )
+        print(f"Scaffolded plugin at {path}")
+        print("Next: `avo plugin install .` from inside the new directory.")
+        return 0
+
     raise PluginCliError(f"unknown plugin subcommand: {args.plugin_command}")
 
 
@@ -335,6 +531,7 @@ __all__ = [
     "PLUGIN_ROOT",
     "InstalledPlugin",
     "PluginCliError",
+    "init_scaffold",
     "install",
     "list_installed",
     "main",
