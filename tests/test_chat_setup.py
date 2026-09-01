@@ -184,7 +184,7 @@ async def test_repl_setup_succeeds_then_quits(
     out = stdout.getvalue()
     assert "Avo First-Time Setup" in out
     assert "Provider configured: Ollama" in out
-    assert "Slash commands" in out  # REPL header after setup
+    assert "/help" in out  # REPL header after setup
 
 
 @pytest.mark.asyncio
@@ -219,7 +219,7 @@ async def test_fresh_minimax_setup_reaches_repl_without_configerror(
     assert "AVO_PROVIDER must be one of" not in combined
     assert "got ''" not in combined
     # The header that proves the REPL actually entered the loop.
-    assert "Slash commands" in combined
+    assert "/help" in combined
     assert "provider" in combined.lower() and "minimax" in combined
 
 

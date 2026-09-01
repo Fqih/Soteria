@@ -170,11 +170,35 @@ def _print_header(
         padded_label = label.ljust(label_width)
         out.write(f"│{padded_label} : {_fit(value)}│\n")
     out.write(f"╰{'─' * inner_width}╯\n")
-    out.write(
-        "Slash commands: /sessions, /resume [ID], /inspect RUN_ID, /skills, /skill NAME, "
-        "/session, /new, /provider, /model [NAME], /quit\n"
-    )
+    out.write("Type /help for the full slash command list.\n")
     out.write("Enter a task to run one AgentRuntime turn. Ctrl+D or /quit to exit.\n")
+    out.flush()
+
+
+SLASH_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("/help", "show this command list"),
+    ("/provider", "show provider/model/API-key status"),
+    ("/model [NAME]", "list known models, or switch to NAME"),
+    ("/sessions", "list past chat sessions"),
+    ("/resume [ID]", "resume a chat session (no arg = picker) or a recorded run"),
+    ("/session", "show the current session id and turn count"),
+    ("/new", "close the current session and start a fresh thread"),
+    ("/inspect RUN_ID", "render the trace for one recorded run"),
+    ("/skills", "list skills available in the current workspace"),
+    ("/skill NAME", "load a skill body as the next turn"),
+    ("/quit (or /exit, Ctrl+D)", "leave the chat"),
+)
+
+
+def _print_slash_help(out: TextIO) -> None:
+    """Render the slash-command reference box."""
+
+    width = max(len(name) for name, _ in SLASH_COMMANDS) + 2
+    out.write("\n")
+    out.write("╭─ Slash commands " + "─" * max(width - len("─ Slash commands"), 1) + "╮\n")
+    for name, summary in SLASH_COMMANDS:
+        out.write(f"│ {name.ljust(width - 1)} {summary} │\n".rstrip() + "\n")
+    out.write("╰" + "─" * (width + max(len(summary) for _, summary in SLASH_COMMANDS) + 2) + "╯\n")
     out.flush()
 
 
@@ -276,6 +300,10 @@ async def _run_slash(
         return False
 
     cmd = args[0]
+
+    if cmd == "/help":
+        _print_slash_help(out)
+        return False
 
     if cmd in ("/quit", "/exit"):
         return True
@@ -418,7 +446,7 @@ async def _run_model_command(
         for index, name in enumerate(catalog, start=1):
             marker = "*" if name == ctx.model_name else " "
             hint = " (recommended)" if name == recommended else ""
-            out.write(f"  {marker} {index:>2}. {name}{hint}\n")
+            out.write(f"  {marker} {index}. {name}{hint}\n")
         out.write("Pick a model with: /model NAME\n")
         return False
 
@@ -519,7 +547,7 @@ async def _run_turn(ctx: ChatContext, task: str, out: TextIO, err: TextIO) -> No
     if result.error:
         out.write(f"error: {result.error}\n")
     if result.output:
-        out.write(f"> {result.output}\n")
+        out.write(f"Avo> {result.output}\n")
     out.flush()
 
 

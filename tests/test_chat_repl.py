@@ -211,7 +211,7 @@ async def test_repl_quit_command_exits(
     )
 
     assert code == 0
-    assert "Slash commands" in stdout.getvalue()
+    assert "/help" in stdout.getvalue()
 
 
 @pytest.mark.asyncio
@@ -314,7 +314,7 @@ async def test_repl_eof_exits_cleanly(
         environ=env,
     )
     assert code == 0
-    assert "Slash commands" in stdout.getvalue()
+    assert "/help" in stdout.getvalue()
 
 
 @pytest.mark.asyncio
