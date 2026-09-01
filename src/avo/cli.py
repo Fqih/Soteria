@@ -52,6 +52,16 @@ def _parser() -> argparse.ArgumentParser:
     inspect_parser.add_argument("run_id")
     resume_parser = run_commands.add_parser("resume", help="Resume a scripted fake-provider run.")
     resume_parser.add_argument("run_id")
+    diff_parser = run_commands.add_parser(
+        "diff", help="Compare two persisted runs (see `avo runs diff --help`)."
+    )
+    diff_parser.add_argument("run_a")
+    diff_parser.add_argument("run_b")
+    diff_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit JSON instead of a human-readable table.",
+    )
 
     chat = commands.add_parser(
         "chat",
@@ -176,6 +186,16 @@ async def _execute(args: argparse.Namespace) -> int:
         if args.runs_command == "inspect":
             trace = await TraceInspector(store).inspect(args.run_id)
             print(trace.to_text())
+            return 0
+
+        if args.runs_command == "diff":
+            from avo.diff import diff_runs
+
+            report = diff_runs(store, run_a=args.run_a, run_b=args.run_b)
+            if args.json:
+                print(report.to_json())
+            else:
+                print(report.to_text(), end="")
             return 0
 
         if args.runs_command == "resume":
