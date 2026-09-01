@@ -218,7 +218,7 @@ def _completed_record(scenario_name: str, approach: str, run_index: int) -> Live
 
 
 @pytest.mark.asyncio
-async def test_run_all_orchestrates_three_scenarios_raw_and_soteria(tmp_path: Path) -> None:
+async def test_run_all_orchestrates_three_scenarios_raw_and_avo(tmp_path: Path) -> None:
     args = SimpleNamespace(
         provider="minimax",
         runs=2,
@@ -264,11 +264,11 @@ async def test_run_all_orchestrates_three_scenarios_raw_and_soteria(tmp_path: Pa
     # scenario * 2 scenarios * 2 runs), and one scenario is
     # avo-interrupted-only.
     raw_calls = [entry for entry in call_log if entry.startswith("raw:")]
-    soteria_calls = [entry for entry in call_log if entry.startswith("avo:")]
+    avo_calls = [entry for entry in call_log if entry.startswith("avo:")]
     interrupted_calls = [entry for entry in call_log if entry.startswith("avo-interrupted:")]
 
     assert len(raw_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
-    assert len(soteria_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
+    assert len(avo_calls) == 2 * 2  # 2 raw-capable scenarios * 2 runs
     assert len(interrupted_calls) == 2  # 1 resume scenario * 2 runs
 
     assert results.provider == "minimax"
@@ -421,7 +421,7 @@ def test_main_prints_summary_and_one_trace_example(
     import benchmark.live.run_live_benchmark as cli_module
 
     original_raw = cli_module.run_raw_loop
-    original_soteria = cli_module.run_avo
+    original_avo = cli_module.run_avo
     original_interrupted = cli_module.run_avo_interrupted
     cli_module.run_raw_loop = raw_runner  # type: ignore[assignment]
     cli_module.run_avo = avo_runner  # type: ignore[assignment]
@@ -442,7 +442,7 @@ def test_main_prints_summary_and_one_trace_example(
         )
     finally:
         cli_module.run_raw_loop = original_raw
-        cli_module.run_avo = original_soteria
+        cli_module.run_avo = original_avo
         cli_module.run_avo_interrupted = original_interrupted
 
     assert code == 0

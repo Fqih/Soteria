@@ -237,10 +237,10 @@ or after every tool call. `resume(run_id)`:
 
 ## 4. Domain models (`src/avo/models.py`)
 
-`SoteriaModel` is the strict base:
+`AvoModel` is the strict base:
 
 ```python
-class SoteriaModel(BaseModel):
+class AvoModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 ```
 
@@ -534,9 +534,9 @@ Supports both `openai` and `anthropic` API styles. Two env conventions:
   `AVO_MINIMAX_BASE_URL` (default `https://api.minimax.io`),
   `AVO_MINIMAX_MODEL` (fallback to `AVO_MODEL`),
   `AVO_MINIMAX_API_STYLE` (default `anthropic`). Read via
-  `MiniMaxConfig.from_soteria_env`.
+  `MiniMaxConfig.from_avo_env`.
 
-The private token attribute `_soteria_api_key` takes precedence over the
+The private token attribute `_avo_api_key` takes precedence over the
 legacy `_auth_token` / `_openai_auth_token` when present.
 
 ### 12.5 `AnthropicProvider` (`providers/anthropic.py`)
@@ -583,7 +583,7 @@ build_provider_from_env(environ=None, *, max_completion_tokens=1024,
 
 Reads `AVO_PROVIDER` (`ollama | minimax | anthropic | openai`) and
 `AVO_MODEL`, then delegates to the matching
-`<Provider>Config.from_soteria_env`. Raises `ConfigError(ValueError)`
+`<Provider>Config.from_avo_env`. Raises `ConfigError(ValueError)`
 with one actionable message per missing required variable.
 
 | Variable | Required | Default |
@@ -732,7 +732,7 @@ cursor for `resume` (only for runs without a pending application tool).
 `AVO_PROVIDER` is set, it launches an interactive first-run wizard
 (numbered menu, hidden API-key prompt via `getpass`) and, on consent,
 persists the resulting `AVO_*` exports to `~/.zshrc` or `~/.bashrc`
-(delimited by `# >>> soteria setup >>>` markers, `chmod 0o600` on POSIX).
+(delimited by `# >>> avo setup >>>` markers, `chmod 0o600` on POSIX).
 Slash commands inside the REPL: `/provider`, `/inspect RUN_ID`,
 `/resume RUN_ID`, `/quit`.
 
@@ -766,7 +766,7 @@ what `chat` would actually hit.
 ## 16. Exception hierarchy (`src/avo/exceptions.py`)
 
 ```
-SoteriaError
+AvoError
 ├── InvalidStateTransitionError
 ├── RunNotFoundError
 ├── RunAlreadyTerminalError
@@ -908,7 +908,7 @@ containment. Wall-clock timings vary by machine. See
 `test_consent`, `test_cli`, `test_example_output`, `test_minimax_provider`,
 `test_openai_provider`, `test_pricing`, `test_provider_config`,
 `test_provider_conversion`, `test_raw_loop`, `test_render`,
-`test_scaffold`, `test_scenarios`, `test_soteria_run`.
+`test_scaffold`, `test_scenarios`, `test_avo_run`.
 
 ---
 
@@ -1086,7 +1086,7 @@ order that keeps each slice shippable and testable.
 ```bash
 # 0.4 prototype: pick provider from env, open a chat run, persist every turn.
 AVO_PROVIDER=ollama AVO_MODEL=llama3.1 \
-AVO_DATABASE_PATH=~/.soteria/chat.db \
+AVO_DATABASE_PATH=~/.avo/chat.db \
 AVO_WORKSPACE_ROOT=$(pwd) \
 avo chat
 ```

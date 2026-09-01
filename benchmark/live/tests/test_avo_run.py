@@ -10,15 +10,14 @@ from pydantic import JsonValue
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
+from avo.providers import FakeProvider
+from avo.state import RunState, StopReason
 from benchmark.live.avo_run import (
     avo_contained,
     run_avo,
     run_avo_interrupted,
 )
-
-from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
-from avo.providers import FakeProvider
-from avo.state import RunState, StopReason
 from benchmark.live.scenarios import LiveScenario, scenario_by_name
 
 

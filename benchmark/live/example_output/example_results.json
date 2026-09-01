@@ -35,7 +35,7 @@
       "api_style": null,
       "model": null,
       "scenario": "normal_completion",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 0,
       "outcome": null,
       "status": "completed",
@@ -85,7 +85,7 @@
       "api_style": null,
       "model": null,
       "scenario": "normal_completion",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 1,
       "outcome": null,
       "status": "completed",
@@ -135,7 +135,7 @@
       "api_style": null,
       "model": null,
       "scenario": "normal_completion",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 2,
       "outcome": null,
       "status": "completed",
@@ -185,7 +185,7 @@
       "api_style": null,
       "model": null,
       "scenario": "repetition_prone",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 0,
       "outcome": null,
       "status": "stopped",
@@ -235,7 +235,7 @@
       "api_style": null,
       "model": null,
       "scenario": "repetition_prone",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 1,
       "outcome": null,
       "status": "stopped",
@@ -285,7 +285,7 @@
       "api_style": null,
       "model": null,
       "scenario": "repetition_prone",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 2,
       "outcome": null,
       "status": "stopped",
@@ -310,7 +310,7 @@
       "api_style": null,
       "model": null,
       "scenario": "interrupted_resume",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 0,
       "outcome": null,
       "status": "completed",
@@ -328,14 +328,14 @@
       "expected_error_type": null,
       "unexpected_error_type": null,
       "unexpected_error_message": null,
-      "trace_text": "Run: live-soteria_loop-interrupted_resume-0\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 583 (input=501, output=82, available)\nDuration: 6.928s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (3800.61ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint 1efde57a-b3ff-4a40-8010-a60cfd9537f6\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (3112.56ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
+      "trace_text": "Run: live-avo_loop-interrupted_resume-0\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 583 (input=501, output=82, available)\nDuration: 6.928s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (3800.61ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint 1efde57a-b3ff-4a40-8010-a60cfd9537f6\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (3112.56ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
     },
     {
       "provider": null,
       "api_style": null,
       "model": null,
       "scenario": "interrupted_resume",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 1,
       "outcome": null,
       "status": "completed",
@@ -353,14 +353,14 @@
       "expected_error_type": null,
       "unexpected_error_type": null,
       "unexpected_error_message": null,
-      "trace_text": "Run: live-soteria_loop-interrupted_resume-1\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 557 (input=496, output=61, available)\nDuration: 7.134s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (3621.44ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint 868192cf-07e4-44d6-928a-bef73df288bf\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (3496.32ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
+      "trace_text": "Run: live-avo_loop-interrupted_resume-1\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 557 (input=496, output=61, available)\nDuration: 7.134s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (3621.44ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint 868192cf-07e4-44d6-928a-bef73df288bf\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (3496.32ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
     },
     {
       "provider": null,
       "api_style": null,
       "model": null,
       "scenario": "interrupted_resume",
-      "approach": "soteria_loop",
+      "approach": "avo_loop",
       "run_index": 2,
       "outcome": null,
       "status": "completed",
@@ -378,7 +378,7 @@
       "expected_error_type": null,
       "unexpected_error_type": null,
       "unexpected_error_message": null,
-      "trace_text": "Run: live-soteria_loop-interrupted_resume-2\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 542 (input=478, output=64, available)\nDuration: 4.213s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (2215.52ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint ef678e2e-bac0-4a36-a9c3-53c96dd2522a\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (1982.20ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
+      "trace_text": "Run: live-avo_loop-interrupted_resume-2\nState: completed\nStop reason: completed\nSteps: 2\nTokens: 542 (input=478, output=64, available)\nDuration: 4.213s\n\nEvents:\n   1  run_created                 run created\n   2  state_changed               created -> model_pending\n   3  checkpoint_created          checkpoint at model_pending\n   4  model_requested             provider call for step 1\n   5  model_responded             provider requested tool at step 1 (2215.52ms)\n   6  state_changed               model_pending -> decision_received\n   7  checkpoint_created          checkpoint at decision_received\n   8  tool_requested              tool requested: record_side_effect\n   9  state_changed               decision_received -> tool_pending\n  10  tool_approval_requested     approval requested: record_side_effect\n  11  state_changed               tool_pending -> approval_pending\n  12  tool_approved               tool approved: record_side_effect\n  13  state_changed               approval_pending -> tool_executing\n  14  tool_started                tool started: record_side_effect\n  15  tool_completed              tool completed: record_side_effect (0.02ms)\n  16  state_changed               tool_executing -> observation_recorded\n  17  checkpoint_created          checkpoint at observation_recorded\n  18  run_resumed                 resumed from checkpoint ef678e2e-bac0-4a36-a9c3-53c96dd2522a\n  19  state_changed               observation_recorded -> model_pending\n  20  model_requested             provider call for step 2\n  21  model_responded             provider returned final decision at step 2 (1982.20ms)\n  22  state_changed               model_pending -> decision_received\n  23  checkpoint_created          checkpoint at decision_received\n  24  checkpoint_created          checkpoint at decision_received\n  25  state_changed               decision_received -> completed\n  26  run_completed               terminal: completed / completed"
     }
   ]
 }

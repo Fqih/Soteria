@@ -26,8 +26,8 @@ from collections import defaultdict
 from pathlib import Path
 
 import matplotlib
-from benchmark.live.avo_run import avo_contained
 
+from benchmark.live.avo_run import avo_contained
 from benchmark.live.models import LiveResults, LiveRunRecord
 
 matplotlib.use("Agg")  # headless backend, must precede pyplot

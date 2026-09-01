@@ -73,13 +73,13 @@ def test_example_records_carry_token_duration_and_containment_fields() -> None:
         assert record.token_usage.input_tokens > 0
         assert record.token_usage.output_tokens > 0
 
-    repetition_soteria = [
+    repetition_avo = [
         record
         for record in results.records
         if record.scenario == "repetition_prone" and record.approach == "avo"
     ]
-    assert repetition_soteria
-    for record in repetition_soteria:
+    assert repetition_avo
+    for record in repetition_avo:
         assert record.status is RunState.STOPPED
         assert record.stop_reason is StopReason.REPEATED_ACTION
         assert record.repeated_action_detected is True

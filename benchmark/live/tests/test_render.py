@@ -42,7 +42,7 @@ def _normal_raw(steps: int, duration: float, run_index: int) -> LiveRunRecord:
     )
 
 
-def _normal_soteria(steps: int, duration: float, run_index: int) -> LiveRunRecord:
+def _normal_avo(steps: int, duration: float, run_index: int) -> LiveRunRecord:
     return LiveRunRecord(
         scenario="normal_completion",
         approach="avo",
@@ -66,7 +66,7 @@ def _repetition_raw(contained: bool, run_index: int) -> LiveRunRecord:
     )
 
 
-def _repetition_soteria(contained: bool, run_index: int) -> LiveRunRecord:
+def _repetition_avo(contained: bool, run_index: int) -> LiveRunRecord:
     return LiveRunRecord(
         scenario="repetition_prone",
         approach="avo",
@@ -83,12 +83,12 @@ def _build_fixture() -> LiveResults:
     records: list[LiveRunRecord] = [
         _normal_raw(steps=4, duration=0.6, run_index=0),
         _normal_raw(steps=5, duration=0.7, run_index=1),
-        _normal_soteria(steps=3, duration=0.5, run_index=0),
-        _normal_soteria(steps=4, duration=0.6, run_index=1),
+        _normal_avo(steps=3, duration=0.5, run_index=0),
+        _normal_avo(steps=4, duration=0.6, run_index=1),
         _repetition_raw(contained=True, run_index=0),
         _repetition_raw(contained=True, run_index=1),
-        _repetition_soteria(contained=True, run_index=0),
-        _repetition_soteria(contained=True, run_index=1),
+        _repetition_avo(contained=True, run_index=0),
+        _repetition_avo(contained=True, run_index=1),
     ]
     return LiveResults(
         provider="fixture",

@@ -29,12 +29,11 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from avo.providers.base import ModelProvider
 from benchmark.live.avo_run import (
     run_avo,
     run_avo_interrupted,
 )
-
-from avo.providers.base import ModelProvider
 from benchmark.live.consent import (
     COST_CONSENT_ENV,
     COST_CONSENT_FLAG,
