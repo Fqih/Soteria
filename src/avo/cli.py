@@ -128,6 +128,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Run a command inside an ephemeral docker sandbox (see `avo sandbox --help`).",
     )
 
+    commands.add_parser(
+        "cost",
+        help="Aggregate token usage and USD cost across recorded Avo runs (see `avo cost --help`).",
+    )
+
     return parser
 
 
@@ -169,6 +174,11 @@ async def _execute(args: argparse.Namespace) -> int:
         from avo.cli_sandbox import main as sandbox_main
 
         return sandbox_main(_tail_argv("sandbox"))
+
+    if args.command == "cost":
+        from avo.cost import main as cost_main
+
+        return cost_main(_tail_argv("cost"))
 
     if args.command == "chat":
         workspace_root = (args.workspace_root or Path.cwd()).resolve()
