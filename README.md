@@ -1,35 +1,23 @@
 <div align="center">
 
-![Soteria logo](logo.png)
+![Avo logo](logo.png)
 
-# Soteria
+# avo
 
 **A provider-agnostic reliability runtime for bounded, observable, resumable, and replayable AI agent loops.**
 
 *Bounded. Resumable. Provider-agnostic. Honest about why it stopped.*
 
-**Soteria** is the open-source product. The agent runtime inside it is called **avo** —
-that is what you `pip install`, what the `avo` CLI runs, and what the `AVO_*`
-environment variables configure.
+**avo** packages a strict state machine, an append-only event history, configurable
+safety policies, a provider-neutral interface, and a sandboxed application-tools
+layer. To use it you install the `avo` package, set `AVO_*` environment variables,
+and `import avo` from Python.
 
 </div>
 
 ---
 
-## What is Soteria, what is avo?
-
-- **Soteria** is the product: an open-source reliability layer for tool-using AI agents.
-  It packages a strict state machine, an append-only event history, configurable safety
-  policies, a provider-neutral interface, and a sandboxed application-tools layer.
-- **avo** is the runtime inside Soteria. It is what you install, what the `avo`
-  CLI runs, what the `AVO_*` environment variables configure, and what Python code
-  imports as `import avo`.
-
-When you read this README, "Soteria" and "avo" refer to the same engine — Soteria
-is the brand, avo is the artifact. To use it you only ever install avo and set
-`AVO_*` variables.
-
-> ⚠️ Avo 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
+> ⚠️ avo 0.1 is an **alpha foundation**. It is suitable for evaluation, deterministic
 > testing, and local prototypes; it is **not production-ready**.
 
 ---
@@ -41,8 +29,8 @@ Requires **Python 3.11+**. The core runtime depends only on **Pydantic**.
 ### From this repository
 
 ```bash
-git clone https://github.com/Fqih/Soteria.git
-cd Soteria
+git clone https://github.com/Fqih/avo.git
+cd Avo
 python -m pip install -e ".[dev]"
 ```
 
@@ -387,7 +375,7 @@ The chat REPL accepts slash commands:
 | `/provider` | Print provider / model / base URL / key-presence. |
 | `/inspect RUN_ID` | Render a stored trace. |
 | `/resume RUN_ID` | Resume a stored run. |
-| `/skills` | List skills under `<workspace>/.soteria/skills`. |
+| `/skills` | List skills under `<workspace>/.avo/skills`. |
 | `/skill NAME` | Inject a skill body as the next user turn. |
 | `/quit` / `/exit` | Exit the REPL. |
 

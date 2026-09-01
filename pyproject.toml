@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "avo"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reliable execution infrastructure for long-running AI agents."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -58,9 +58,9 @@ mcp = [
 avo = "avo.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Fqih/Avo"
-Repository = "https://github.com/Fqih/Avo"
-Issues = "https://github.com/Fqih/Avo/issues"
+Homepage = "https://github.com/Fqih/avo"
+Repository = "https://github.com/Fqih/avo"
+Issues = "https://github.com/Fqih/avo/issues"
 
 [project.entry-points.pytest11]
 avo-live = "avo._pytest_plugin"
