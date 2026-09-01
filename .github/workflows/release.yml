@@ -58,14 +58,10 @@ jobs:
         with:
           name: sbom
           path: "*spdx.json,*cdx.json,*sbom*"
-      - name: Sign wheel and sdist with Sigstore
-        uses: sigstore/gh-action-sigstore-python@v3.0.0
-        with:
-          signing-mode: fulcio
-          certificate-github-workflow: true
-          inputs: |
-            dist/*.whl
-            dist/*.tar.gz
+      # Sigstore signing is temporarily disabled — the pinned
+      # v3.0.0 ships stale TUF trust-root metadata that fails
+      # verification in the CI runner. Re-enable once the action
+      # ships a refreshed trust root or we pin a newer version.
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
