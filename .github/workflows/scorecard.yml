@@ -1,0 +1,40 @@
+name: Scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "30 5 * * 1"
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  id-token: write
+  security-events: write
+
+jobs:
+  analysis:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: results.sarif
