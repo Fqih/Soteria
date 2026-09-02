@@ -91,6 +91,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_circuit_breaker.py` — 12 tests covering state
   transitions, half-open probe semantics, LoopPolicy integration,
   and end-to-end runtime opening after consecutive provider failures.
+- `avo.logging_config` — `JsonFormatter`, `install_json_handler`,
+  `configure_logging()` for structured JSON log emission.
+  One JSON object per record with `ts` (RFC 3339 UTC), `level`,
+  `logger`, `message`, `exc_info` when set, and any `extra={}`
+  keys passed at the call site. Idempotent under repeated
+  configuration.
+- `tests/test_logging_config.py` — 8 tests covering formatter
+  output, extras serialization, exception capture, and idempotent
+  reconfiguration.
+- `release.yml` — Sigstore re-enabled via the `sigstore>=3`
+  Python client (GitHub Action pinned stale TUF metadata). Keyless
+  signing uses GitHub Actions OIDC; `.sig` files attach to the
+  GitHub release alongside the wheel, sdist, and SBOM.
 
 ## [0.1.3] — 2026-09-01
 
