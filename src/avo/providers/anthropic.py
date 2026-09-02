@@ -11,15 +11,21 @@ The provider targets ``POST /v1/messages`` with the ``x-api-key`` and
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
-from typing import Any, Protocol
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from avo.exceptions import ProviderError
+from avo.providers.streaming import ModelChunk
 
-from .http_common import json_safe_content, redact_text
+from .http_common import (
+    _AsyncHTTPClient,
+    json_safe_content,
+    redact_text,
+    stream_anthropic_chunks,
+)
 
 try:  # pragma: no cover - exercised indirectly by the optional dependency
     import httpx
@@ -30,21 +36,6 @@ except ModuleNotFoundError:  # pragma: no cover - httpx is optional at import ti
 _DEFAULT_BASE_URL = "https://api.anthropic.com"
 _DEFAULT_MODEL = "claude-sonnet-4-6"
 _ANTHROPIC_VERSION = "2023-06-01"
-
-
-class _AsyncHTTPClient(Protocol):
-    """Minimal async client surface used by :class:`AnthropicProvider`."""
-
-    async def post(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        json: dict[str, Any],
-        timeout: float | None,  # noqa: ASYNC109 - mirrors the httpx client signature
-    ) -> Any: ...
-
-    async def aclose(self) -> None: ...
 
 
 class AnthropicConfig(BaseModel):
@@ -98,6 +89,8 @@ class AnthropicConfig(BaseModel):
 class AnthropicProvider:
     """An async ``ModelProvider`` for the Anthropic Messages API."""
 
+    name = "anthropic"
+
     def __init__(
         self,
         config: AnthropicConfig,
@@ -113,7 +106,7 @@ class AnthropicProvider:
         if client is not None:
             self._client: _AsyncHTTPClient | None = client
         elif httpx is not None:
-            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)
+            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)  # type: ignore[assignment]
         else:  # pragma: no cover - only when httpx is not installed
             self._client = None
 
@@ -129,6 +122,32 @@ class AnthropicProvider:
         payload = self._build_payload(request)
         raw = await self._post(payload)
         return self._parse_response(raw)
+
+    async def stream(
+        self, request: ModelRequest
+    ) -> AsyncIterator[ModelChunk]:
+        """Yield :class:`ModelChunk` events from the Anthropic SSE stream."""
+
+        if self._client is None:  # pragma: no cover - requires missing httpx
+            raise ProviderError(
+                "AnthropicProvider requires httpx or an injected client",
+                retryable=False,
+            )
+        if not hasattr(self._client, "stream"):
+            response = await self.generate(request)
+            yield ModelChunk(text=response.content or "")
+            return
+        payload = self._build_payload(request)
+        payload["stream"] = True
+        async for chunk in stream_anthropic_chunks(
+            self._client,
+            self._config.endpoint,
+            self._config.headers(),
+            payload,
+            self._request_timeout_seconds,
+            transport_name="Anthropic",
+        ):
+            yield chunk
 
     def _build_payload(self, request: ModelRequest) -> dict[str, Any]:
         system_parts: list[str] = []

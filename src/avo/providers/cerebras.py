@@ -15,15 +15,22 @@ Configuration:
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
-from typing import Any, Protocol
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from avo import ModelRequest, ModelResponse
 from avo.exceptions import ProviderError
+from avo.providers.streaming import ModelChunk
 
-from .http_common import build_openai_payload, parse_openai_response, redact_text
+from .http_common import (
+    _AsyncHTTPClient,
+    build_openai_payload,
+    parse_openai_response,
+    redact_text,
+    stream_openai_chunks,
+)
 
 try:  # pragma: no cover - exercised indirectly by the optional dependency
     import httpx
@@ -32,19 +39,6 @@ except ModuleNotFoundError:  # pragma: no cover - httpx is optional at import ti
 
 
 _DEFAULT_BASE_URL = "https://api.cerebras.ai/v1"
-
-
-class _AsyncHTTPClient(Protocol):
-    async def post(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        json: dict[str, Any],
-        timeout: float | None,  # noqa: ASYNC109 - mirrors the httpx client signature
-    ) -> Any: ...
-
-    async def aclose(self) -> None: ...
 
 
 class CerebrasConfig(BaseModel):
@@ -107,7 +101,7 @@ class CerebrasProvider:
         if client is not None:
             self._client: _AsyncHTTPClient | None = client
         elif httpx is not None:
-            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)
+            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)  # type: ignore[assignment]
         else:  # pragma: no cover - requires missing httpx
             self._client = None
 
@@ -124,6 +118,36 @@ class CerebrasProvider:
         )
         raw = await self._post(payload)
         return parse_openai_response(raw)
+
+    async def stream(
+        self, request: ModelRequest
+    ) -> AsyncIterator[ModelChunk]:
+        """Yield :class:`ModelChunk` events from the Cerebras SSE stream."""
+
+        if self._client is None:  # pragma: no cover - requires missing httpx
+            raise ProviderError(
+                "CerebrasProvider requires httpx or an injected client",
+                retryable=False,
+            )
+        if not hasattr(self._client, "stream"):
+            response = await self.generate(request)
+            yield ModelChunk(text=response.content or "")
+            return
+        payload = build_openai_payload(
+            self._config.model,
+            request,
+            self._max_completion_tokens,
+            stream=True,
+        )
+        async for chunk in stream_openai_chunks(
+            self._client,
+            self._config.endpoint,
+            self._config.headers(),
+            payload,
+            self._request_timeout_seconds,
+            transport_name="Cerebras",
+        ):
+            yield chunk
 
     async def _post(self, payload: dict[str, Any]) -> Any:
         assert self._client is not None

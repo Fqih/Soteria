@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from collections.abc import Mapping
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
@@ -13,6 +13,7 @@ from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from avo.exceptions import ProviderError
 
 from .http_common import (
+    _AsyncHTTPClient,
     build_openai_payload,
     json_safe_content,
     parse_openai_response,
@@ -26,21 +27,6 @@ except ModuleNotFoundError:  # pragma: no cover - httpx is optional at import ti
 
 ApiStyle = Literal["openai", "anthropic"]
 _ANTHROPIC_VERSION = "2023-06-01"
-
-
-class _AsyncHTTPClient(Protocol):
-    """The minimal async client surface used by :class:`MiniMaxProvider`."""
-
-    async def post(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        json: dict[str, Any],
-        timeout: float | None = ...,  # noqa: ASYNC109 - mirrors the httpx client signature
-    ) -> Any: ...
-
-    async def aclose(self) -> None: ...
 
 
 class MiniMaxConfig(BaseModel):
@@ -197,7 +183,7 @@ class MiniMaxProvider:
         if client is not None:
             self._client: _AsyncHTTPClient | None = client
         elif httpx is not None:
-            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)
+            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)  # type: ignore[assignment]
         else:  # pragma: no cover - only when httpx is not installed
             self._client = None
 

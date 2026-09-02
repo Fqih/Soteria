@@ -16,14 +16,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from avo.exceptions import ProviderError
 
-from .http_common import json_safe_content, redact_text
+from .http_common import _AsyncHTTPClient, json_safe_content, redact_text
 
 try:  # pragma: no cover - exercised indirectly by the optional dependency
     import httpx
@@ -32,21 +32,6 @@ except ModuleNotFoundError:  # pragma: no cover - httpx is optional at import ti
 
 
 _DEFAULT_BASE_URL = "http://localhost:11434"
-
-
-class _AsyncHTTPClient(Protocol):
-    """Minimal async client surface used by :class:`OllamaProvider`."""
-
-    async def post(
-        self,
-        url: str,
-        *,
-        headers: dict[str, str],
-        json: dict[str, Any],
-        timeout: float | None,  # noqa: ASYNC109 - mirrors the httpx client signature
-    ) -> Any: ...
-
-    async def aclose(self) -> None: ...
 
 
 class OllamaConfig(BaseModel):
@@ -108,7 +93,7 @@ class OllamaProvider:
         if client is not None:
             self._client: _AsyncHTTPClient | None = client
         elif httpx is not None:
-            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)
+            self._client = httpx.AsyncClient(timeout=request_timeout_seconds)  # type: ignore[assignment]
         else:  # pragma: no cover - only when httpx is not installed
             self._client = None
 

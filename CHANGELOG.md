@@ -53,6 +53,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now passes `git commit --no-verify` so the local pre-commit
   identity hook does not reject the fixture's per-repo author.
 
+### Added
+
+- `avo.providers.streaming` — `ModelChunk` / `StreamingModelProvider`
+  protocol + `collect_stream()` helper, already shipped earlier as
+  scaffolding. Now exercised by every HTTP provider.
+- `avo.providers.http_common` — shared SSE byte-iterator parser
+  (`iter_sse_lines`, `iter_anthropic_sse_events`), per-protocol chunk
+  parsers (`parse_openai_stream_payload`, `parse_anthropic_stream_event`),
+  and high-level `stream_openai_chunks` / `stream_anthropic_chunks`
+  helpers.
+- `OpenAICompatibleProvider.stream()`, `GroqProvider.stream()`,
+  `CerebrasProvider.stream()`, `AnthropicProvider.stream()` —
+  `async def stream(request) -> AsyncIterator[ModelChunk]` on the
+  HTTP providers. Sets `stream: true` in the request payload,
+  iterates SSE frames, and yields `ModelChunk` events with text
+  deltas, finish reasons, and tool-call argument deltas. Falls
+  back to a single-chunk emission of `generate()` when the injected
+  client does not implement `stream()`.
+- Shared `_AsyncHTTPClient` Protocol in `http_common.py` now declares
+  `post()` + `stream()` + `aclose()`. All HTTP providers (openai,
+  groq, cerebras, anthropic, minimax, ollama) import the shared
+  protocol instead of redeclaring it inline.
+- `tests/test_provider_streaming.py` — 19 tests covering the SSE
+  parsers, OpenAI/Anthropic chunk translators, end-to-end
+  `stream()` coroutines on four providers with a fake HTTP client,
+  and `collect_stream()` integration.
+
 ## [0.1.3] — 2026-09-01
 
 ### Added

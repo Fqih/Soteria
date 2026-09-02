@@ -4,10 +4,68 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, cast
+from collections.abc import AsyncIterator
+from typing import Any, Protocol, cast, runtime_checkable
 
 from avo import ModelRequest, ModelResponse, TokenUsage, ToolCall
 from avo.exceptions import ProviderError
+from avo.providers.streaming import ModelChunk
+
+
+@runtime_checkable
+class _StreamResponse(Protocol):
+    """Minimal streaming response surface used by :class:`_AsyncHTTPClient.stream`."""
+
+    @property
+    def status_code(self) -> int: ...
+
+    @property
+    def text(self) -> str: ...
+
+    def aiter_bytes(self) -> AsyncIterator[bytes]: ...
+
+    async def aclose(self) -> None: ...
+
+
+@runtime_checkable
+class _StreamContext(Protocol):
+    """Async context manager yielding a :class:`_StreamResponse`."""
+
+    async def __aenter__(self) -> _StreamResponse: ...
+
+    async def __aexit__(self, *args: Any) -> None: ...
+
+
+@runtime_checkable
+class _AsyncHTTPClient(Protocol):
+    """Minimal async client surface used by every HTTP-backed provider.
+
+    ``post`` covers non-streaming calls; ``stream`` opens a streaming
+    response as an async context manager. The matching ``httpx`` shape
+    is ``httpx.AsyncClient``. Implementations only need to satisfy the
+    signatures below; types are :mod:`typing` ``Protocol`` so mypy treats
+    the duck-typed client as compatible.
+    """
+
+    async def post(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, Any],
+        timeout: float | None,  # noqa: ASYNC109 - mirrors the httpx client signature
+    ) -> Any: ...
+
+    def stream(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        json: dict[str, Any],
+        timeout: float | None,
+    ) -> _StreamContext: ...
+
+    async def aclose(self) -> None: ...
 
 
 def json_safe_content(value: object) -> str:
@@ -40,6 +98,8 @@ def build_openai_payload(
     model: str,
     request: ModelRequest,
     max_completion_tokens: int,
+    *,
+    stream: bool = False,
 ) -> dict[str, object]:
     """Convert a Avo model request to an OpenAI-compatible payload."""
 
@@ -58,7 +118,7 @@ def build_openai_payload(
     payload: dict[str, object] = {
         "model": model,
         "messages": messages,
-        "stream": False,
+        "stream": stream,
         "max_tokens": max_completion_tokens,
         "max_completion_tokens": max_completion_tokens,
     }
@@ -97,6 +157,223 @@ def parse_openai_response(payload: object) -> ModelResponse:
             f"Invalid OpenAI-compatible response: {detail}",
             retryable=False,
         ) from exc
+
+
+def parse_openai_stream_payload(payload: str) -> ModelChunk | None:
+    """Parse one ``data: {...}`` SSE line from an OpenAI-compatible stream.
+
+    Accepts the raw payload either with or without the leading
+    ``data:`` prefix. The ``[DONE]`` sentinel yields ``None`` so
+    callers can stop cleanly. Empty lines and unknown shapes are
+    skipped (returns ``None``).
+    """
+
+    line = payload.strip()
+    if line.startswith("data:"):
+        line = line[len("data:") :].strip()
+    if not line or line == "[DONE]":
+        return None
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(event, dict):
+        return None
+    choices = event.get("choices")
+    if not isinstance(choices, list) or not choices:
+        usage = event.get("usage")
+        if isinstance(usage, dict):
+            parsed = _parse_usage(usage)
+            if parsed is not None:
+                # Some providers emit usage only on the terminal chunk.
+                return ModelChunk(finish_reason="usage_only")
+        return None
+    choice = _require_dict(choices[0])
+    delta = choice.get("delta")
+    text: str = ""
+    tool_call_delta: dict[str, Any] | None = None
+    if isinstance(delta, dict):
+        content = delta.get("content")
+        if isinstance(content, str):
+            text = content
+        tool_calls = delta.get("tool_calls")
+        if isinstance(tool_calls, list) and tool_calls:
+            tool_call_delta = _require_dict(tool_calls[0])
+    finish_reason = choice.get("finish_reason")
+    if isinstance(finish_reason, str) and finish_reason:
+        return ModelChunk(text=text, finish_reason=finish_reason, tool_call_delta=tool_call_delta)
+    if text or tool_call_delta is not None:
+        return ModelChunk(text=text, tool_call_delta=tool_call_delta)
+    return None
+
+
+async def iter_sse_lines(byte_iter: AsyncIterator[bytes]) -> AsyncIterator[str]:
+    """Yield SSE ``data:`` payload strings from an async byte iterator.
+
+    Splits on ``\\n\\n`` event boundaries; trims the optional ``data:``
+    prefix. Lines without a ``data:`` prefix are skipped, mirroring the
+    heartbeat / comment conventions used by every major SSE endpoint.
+    """
+
+    buffer = ""
+    async for chunk in byte_iter:
+        if not chunk:
+            continue
+        buffer += chunk.decode("utf-8", errors="replace")
+        while "\n\n" in buffer:
+            event, buffer = buffer.split("\n\n", 1)
+            for line in event.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith(":"):
+                    continue
+                if stripped.startswith("data:"):
+                    yield stripped[len("data:") :].strip()
+
+
+async def iter_anthropic_sse_events(
+    byte_iter: AsyncIterator[bytes],
+) -> AsyncIterator[tuple[str, dict[str, Any]]]:
+    """Yield ``(event_type, data_dict)`` pairs from Anthropic SSE streams.
+
+    Anthropic streams use ``event: <name>\\ndata: <json>`` pairs inside
+    ``\\n\\n``-separated blocks. ``message_start`` carries the message id,
+    ``content_block_delta`` carries text deltas, ``content_block_start``
+    announces a tool_use block, ``message_delta`` carries the final
+    stop_reason, and ``message_stop`` marks the terminal frame.
+    """
+
+    buffer = ""
+    current_event: str | None = None
+    data_lines: list[str] = []
+    async for chunk in byte_iter:
+        if not chunk:
+            continue
+        buffer += chunk.decode("utf-8", errors="replace")
+        while "\n\n" in buffer:
+            event_block, buffer = buffer.split("\n\n", 1)
+            current_event = None
+            data_lines = []
+            for line in event_block.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith(":"):
+                    continue
+                if stripped.startswith("event:"):
+                    current_event = stripped[len("event:") :].strip()
+                elif stripped.startswith("data:"):
+                    data_lines.append(stripped[len("data:") :].strip())
+            if current_event and data_lines:
+                try:
+                    payload = json.loads("\n".join(data_lines))
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(payload, dict):
+                    yield current_event, payload
+
+
+def parse_anthropic_stream_event(
+    event_type: str,
+    payload: dict[str, Any],
+) -> ModelChunk | None:
+    """Translate one Anthropic SSE event into a :class:`ModelChunk`.
+
+    Returns ``None`` for event types that carry no incremental content
+    (``ping``, ``message_start``, ``content_block_start`` with
+    non-tool blocks, etc.) so callers can simply ``async for`` and skip.
+    """
+
+    if event_type == "content_block_delta":
+        delta = payload.get("delta")
+        if not isinstance(delta, dict):
+            return None
+        if delta.get("type") == "text_delta":
+            text = delta.get("text")
+            if isinstance(text, str) and text:
+                return ModelChunk(text=text)
+        if delta.get("type") == "input_json_delta":
+            partial = delta.get("partial_json")
+            if isinstance(partial, str) and partial:
+                return ModelChunk(tool_call_delta={"arguments_delta": partial})
+        return None
+    if event_type == "message_delta":
+        delta = payload.get("delta")
+        finish_reason: str | None = None
+        if isinstance(delta, dict):
+            stop = delta.get("stop_reason")
+            if isinstance(stop, str) and stop:
+                finish_reason = stop
+        return ModelChunk(finish_reason=finish_reason) if finish_reason else None
+    if event_type == "message_stop":
+        return ModelChunk(finish_reason="stop")
+    return None
+
+
+async def stream_openai_chunks(
+    client: _AsyncHTTPClient,
+    endpoint: str,
+    headers: dict[str, str],
+    payload: dict[str, object],
+    timeout: float,  # noqa: ASYNC109 - mirrors the httpx client signature
+    *,
+    transport_name: str = "OpenAI",
+) -> AsyncIterator[ModelChunk]:
+    """Open a streaming POST and yield :class:`ModelChunk` events.
+
+    Used by every OpenAI-compatible provider (openai, groq, cerebras,
+    minimax-openai). Surfaces ``ProviderError`` for non-2xx responses so
+    callers can let the runtime decide whether to retry.
+    """
+
+    stream_ctx = client.stream(
+        endpoint,
+        headers=headers,
+        json=payload,
+        timeout=timeout,
+    )
+    async with stream_ctx as response:
+        status = int(response.status_code)
+        if status >= 400:
+            detail = redact_text(str(getattr(response, "text", "")))
+            raise ProviderError(
+                f"{transport_name} stream failed with status {status}: {detail}",
+                retryable=status == 429 or status >= 500,
+            )
+        async for line in iter_sse_lines(response.aiter_bytes()):
+            chunk = parse_openai_stream_payload(line)
+            if chunk is not None:
+                yield chunk
+
+
+async def stream_anthropic_chunks(
+    client: _AsyncHTTPClient,
+    endpoint: str,
+    headers: dict[str, str],
+    payload: dict[str, Any],
+    timeout: float,  # noqa: ASYNC109 - mirrors the httpx client signature
+    *,
+    transport_name: str = "Anthropic",
+) -> AsyncIterator[ModelChunk]:
+    """Open an Anthropic-style streaming POST and yield :class:`ModelChunk`."""
+
+    stream_ctx = client.stream(
+        endpoint,
+        headers=headers,
+        json=payload,
+        timeout=timeout,
+    )
+    async with stream_ctx as response:
+        status = int(response.status_code)
+        if status >= 400:
+            detail = redact_text(str(getattr(response, "text", "")))
+            raise ProviderError(
+                f"{transport_name} stream failed with status {status}: {detail}",
+                retryable=status == 429 or status >= 500,
+            )
+        async for event_type, event_payload in iter_anthropic_sse_events(
+            response.aiter_bytes()
+        ):
+            chunk = parse_anthropic_stream_event(event_type, event_payload)
+            if chunk is not None:
+                yield chunk
 
 
 def _openai_message(message: dict[str, Any]) -> dict[str, object]:
