@@ -137,6 +137,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.github/workflows/docs.yml` — strict build job on every push + PR
   touching docs / source / workflow; deploy job publishes to GitHub
   Pages on `main` only.
+- `native/` PyO3 extension (`avo_native`) — streaming SHA-256 cache-key
+  digest implemented in Rust via `pyo3` 0.23 with `abi3-py311` so a
+  single wheel serves Python 3.11/3.12/3.13. Built with `maturin`;
+  install with `pip install avo[native]` and `maturin build` from
+  `native/`. The pure-Python fallback in
+  `avo.providers.prompt_cache.cache_key_for_request` stays
+  authoritative — both paths produce byte-identical keys.
+- `avo._native` — lazy loader exposing `is_available()`, `version()`,
+  `cache_key_hash_native()` for code that wants to short-circuit the
+  import when the wheel is missing.
+- `[native]` optional extra — `maturin>=1.5` so users can rebuild the
+  wheel from source against their local interpreter.
+- `.github/workflows/native.yml` — Linux build across Python 3.11
+  through 3.13, wheel install, and the `test_native` + `test_prompt_cache`
+  suites under the loaded extension.
+- `netlify.toml` — publish config for the documentation site, set up
+  so the user can deploy `site/` directly to Netlify without pulling
+  in the GitHub Pages job.
 
 ## [0.1.3] — 2026-09-01
 

@@ -33,33 +33,9 @@ jobs:
         # ``--strict`` fails on warnings (broken links, missing nav
         # references, malformed admonitions). Keeps docs honest.
         run: mkdocs build --strict
-
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
         with:
-          python-version: "3.12"
-          cache: pip
-      - name: Install
-        run: python -m pip install -e ".[dev,docs,providers,sandbox,otel,langchain]"
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-      - name: Build
-        run: mkdocs build --strict
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
+          name: mkdocs-site
           path: site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          retention-days: 7

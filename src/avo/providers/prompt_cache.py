@@ -24,9 +24,9 @@ turn + pending tool result are not.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 
 @dataclass(frozen=True)
@@ -126,12 +126,43 @@ def cache_key_for_request(
     The key is deterministic per ``(run_id, step)`` and the SHA-256
     prefix of the JSON-encoded message tail. Identical prefixes share
     a key; divergent tails diverge it.
+
+    When the :mod:`avo_native` extension is installed the digest is
+    computed in a single streaming pass over the message fragments;
+    otherwise the pure-Python fallback runs here. Both paths produce
+    identical keys for the same inputs — the extension is a speed
+    optimisation, never a behavioural change.
     """
 
+    fragments = [_serialise_repr(message) for message in messages]
+    native = _native_cache_key_hash()
+    if native is not None:
+        try:
+            return native(run_id, step, fragments)
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            pass
     digest = hashlib.sha256()
-    for message in messages:
-        digest.update(repr(_serialise(message)).encode("utf-8"))
+    for fragment in fragments:
+        digest.update(fragment.encode("utf-8"))
     return f"avo:{run_id}:{step}:{digest.hexdigest()[:16]}"
+
+
+def _serialise_repr(message: Mapping[str, Any]) -> str:
+    """Stable ``repr`` for a message — used as cache-key fragment."""
+
+    return repr(_serialise(message))
+
+
+def _native_cache_key_hash() -> Callable[..., str] | None:
+    """Return the native hash function if available, else ``None``."""
+
+    try:
+        from avo import _native
+    except ImportError:
+        return None
+    if not _native.is_available():
+        return None
+    return cast(Callable[..., str], _native.cache_key_hash_native)
 
 
 def _marker_indices(

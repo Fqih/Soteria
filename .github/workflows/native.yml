@@ -1,0 +1,55 @@
+name: Native
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - "src/avo/_native.py"
+      - "src/avo/providers/prompt_cache.py"
+      - "pyproject.toml"
+      - ".github/workflows/native.yml"
+  pull_request:
+    paths:
+      - "native/**"
+      - "src/avo/_native.py"
+      - "src/avo/providers/prompt_cache.py"
+      - "pyproject.toml"
+      - ".github/workflows/native.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "native -> target"
+      - name: Install
+        run: python -m pip install -e ".[dev,native]"
+      - name: Build wheel
+        working-directory: native
+        run: maturin build --release
+      - name: Install wheel + verify
+        working-directory: native
+        run: |
+          python -m pip install --force-reinstall target/wheels/avo_native-*.whl
+          python -c "import avo_native; print('native', avo_native.version())"
+      - name: Tests with native loaded
+        run: |
+          python -c "import avo_native; print('OK')"
+          pytest -q tests/test_native.py tests/test_prompt_cache.py
