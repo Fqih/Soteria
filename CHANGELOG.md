@@ -126,6 +126,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entry points, streaming via `StreamingModelProvider`, and
   StructuredTool adaptation. Skips cleanly when `langchain-core`
   is not installed.
+- `mkdocs.yml` + `docs/index.md`, `docs/cli.md`, `docs/changelog.md`,
+  `docs/api/index.md` — Material for MkDocs site with light/dark
+  palette, navigation tabs, mkdocstrings-powered API reference,
+  and included changelog. Build with `mkdocs build --strict`
+  (--strict fails on broken links, missing nav, malformed admonitions).
+- `[docs]` optional extra — `mkdocs`, `mkdocs-material`,
+  `mkdocstrings[python]`, `pymdown-extensions` for local preview
+  and CI build.
+- `.github/workflows/docs.yml` — strict build job on every push + PR
+  touching docs / source / workflow; deploy job publishes to GitHub
+  Pages on `main` only.
 
 ## [0.1.3] — 2026-09-01
 
