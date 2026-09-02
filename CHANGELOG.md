@@ -155,6 +155,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `netlify.toml` — publish config for the documentation site, set up
   so the user can deploy `site/` directly to Netlify without pulling
   in the GitHub Pages job.
+- `.github/workflows/native-release.yml` — multi-platform
+  `avo_native` wheel matrix via `PyO3/maturin-action@v1`:
+  `x86_64/aarch64-unknown-linux-{gnu,musl}`, `x86_64/aarch64-apple-darwin`,
+  and `x86_64/aarch64-pc-windows-msvc`. sccache caches the Rust build
+  across matrix legs. Wheels attach to the GitHub release on tag
+  pushes so `pip install avo_native` resolves to a binary that
+  matches the avo release tag.
 
 ## [0.1.3] — 2026-09-01
 
