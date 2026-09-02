@@ -115,6 +115,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/test_prompt_cache.py` — 12 tests covering breakpoint
   heuristics, Anthropic annotation, cache-key derivation, and
   end-to-end provider payload inspection.
+- `avo.integrations.langchain_bridge` — `AvoLangChainModel`
+  wrapping any avo `ModelProvider` as a LangChain `BaseChatModel`,
+  plus `avo_messages_from_lc` (LC → avo message translation) and
+  `avo_tool_from_lc` (LC `StructuredTool` → avo `FunctionTool`).
+  Installed via `pip install avo[langchain]`; the bridge uses lazy
+  imports so the rest of Avo never pulls LangChain at module load.
+- `tests/test_langchain_bridge.py` — 10 tests covering role
+  translation, tool-call fan-out, `BaseChatModel` sync + async
+  entry points, streaming via `StreamingModelProvider`, and
+  StructuredTool adaptation. Skips cleanly when `langchain-core`
+  is not installed.
 
 ## [0.1.3] — 2026-09-01
 

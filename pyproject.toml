@@ -81,6 +81,13 @@ otel = [
   "opentelemetry-sdk>=1.27",
   "opentelemetry-exporter-otlp>=1.27",
 ]
+langchain = [
+  # LangChain bridge for wrapping avo ModelProvider as BaseChatModel
+  # and adapting LangChain StructuredTool instances into avo's
+  # FunctionTool registry. Optional — install only when integrating
+  # avo with chains, agents, or output parsers.
+  "langchain-core>=0.3",
+]
 
 [project.scripts]
 avo = "avo.cli:main"
