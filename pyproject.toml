@@ -10,16 +10,34 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [
-  { name = "FaqihHakim" },
+  { name = "Fqih", email = "mhmdfkih21@gmail.com" },
 ]
-keywords = ["agents", "ai", "reliability", "sqlite", "runtime"]
+maintainers = [
+  { name = "Fqih", email = "mhmdfkih21@gmail.com" },
+]
+keywords = [
+  "agents",
+  "ai",
+  "llm",
+  "reliability",
+  "sqlite",
+  "runtime",
+  "state-machine",
+  "resumable",
+  "observable",
+]
 classifiers = [
   "Development Status :: 3 - Alpha",
+  "Framework :: AsyncIO",
+  "Intended Audience :: Developers",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
   "Typing :: Typed",
 ]
 dependencies = [
@@ -71,6 +89,9 @@ avo = "avo.cli:main"
 Homepage = "https://github.com/Fqih/avo"
 Repository = "https://github.com/Fqih/avo"
 Issues = "https://github.com/Fqih/avo/issues"
+Changelog = "https://github.com/Fqih/avo/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/Fqih/avo#readme"
+Funding = "https://github.com/Fqih/avo"
 
 [project.entry-points.pytest11]
 avo-live = "avo._pytest_plugin"

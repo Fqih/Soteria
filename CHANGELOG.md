@@ -39,6 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cerebras providers, cost CLI, plugin init, sandbox run, bench, diff.
 - `mcp_servers.git._run_git` timeout bumped from 10s to 30s for
   cold-cache CI environments.
+- `pyproject.toml` PyPI metadata enriched: explicit `maintainers`
+  field, 9-keyword list (agents, ai, llm, reliability, sqlite,
+  runtime, state-machine, resumable, observable), 12-classifier
+  set (Framework::AsyncIO, Intended Audience, OS Independent,
+  Python 3::Only, Topic, Typing::Typed), and 3 extra `project_urls`
+  (Changelog, Documentation, Funding). Author identity fixed to
+  `Fqih <mhmdfkih21@gmail.com>`.
+
+### Fixed
+
+- `tests/test_mcp_servers.py::test_git_server_reports_status_and_log`
+  now passes `git commit --no-verify` so the local pre-commit
+  identity hook does not reject the fixture's per-repo author.
 
 ## [0.1.3] — 2026-09-01
 

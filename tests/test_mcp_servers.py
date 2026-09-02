@@ -169,7 +169,7 @@ async def test_git_server_reports_status_and_log(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("hello", encoding="utf-8")
     subprocess.run(["git", "add", "a.txt"], cwd=tmp_path, check=True)
     subprocess.run(
-        ["git", "commit", "--quiet", "-m", "init"],
+        ["git", "commit", "--quiet", "--no-verify", "-m", "init"],
         cwd=tmp_path,
         check=True,
         env={
