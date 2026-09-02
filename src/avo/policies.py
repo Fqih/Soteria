@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from avo.circuit_breaker import CircuitBreakerPolicy
 from avo.models import TokenUsage
 from avo.state import StopReason
 
@@ -24,6 +25,7 @@ class LoopPolicy(BaseModel):
     checkpoint_every_step: bool = True
     provider_timeout_seconds: float | None = Field(default=60, gt=0)
     tool_timeout_seconds: float | None = Field(default=60, gt=0)
+    circuit_breaker: CircuitBreakerPolicy | None = Field(default=None)
 
     def token_budget_reason(
         self,

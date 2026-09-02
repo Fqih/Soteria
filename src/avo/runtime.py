@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, cast
 from pydantic import JsonValue, ValidationError
 
 from avo import runtime_handlers, runtime_persistence
+from avo.circuit_breaker import CircuitBreaker
 from avo.events import AgentEvent, EventType
 from avo.exceptions import (
     CheckpointNotFoundError,
@@ -102,6 +103,11 @@ class AgentRuntime:
         self._approval_callback = approval_callback or _always_approve
         self.memory = memory
         self.hooks = hooks if hooks is not None else HookRegistry()
+        self._breaker: CircuitBreaker | None = (
+            CircuitBreaker(self.policy.circuit_breaker)
+            if self.policy.circuit_breaker is not None
+            else None
+        )
         self._execution_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------

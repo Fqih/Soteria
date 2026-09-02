@@ -79,6 +79,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   parsers, OpenAI/Anthropic chunk translators, end-to-end
   `stream()` coroutines on four providers with a fake HTTP client,
   and `collect_stream()` integration.
+- `avo.circuit_breaker` — three-state `CircuitBreaker`
+  (CLOSED / OPEN / HALF_OPEN) with `CircuitBreakerPolicy` (failure
+  threshold, cooldown seconds, half-open max probes) and an
+  injectable monotonic clock. `BreakerOpen` exception carries a
+  `retry_after_seconds` hint.
+- `LoopPolicy.circuit_breaker` — optional breaker attached to the
+  runtime. When set, `AgentRuntime` consults the breaker before each
+  provider call, records success/failure, and short-circuits
+  saturated upstream paths with a non-retryable `ProviderError`.
+- `tests/test_circuit_breaker.py` — 12 tests covering state
+  transitions, half-open probe semantics, LoopPolicy integration,
+  and end-to-end runtime opening after consecutive provider failures.
 
 ## [0.1.3] — 2026-09-01
 

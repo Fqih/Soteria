@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 
 from pydantic import JsonValue, ValidationError
 
+from avo.circuit_breaker import BreakerOpen
 from avo.events import EventType
 from avo.exceptions import (
     FakeProviderExhaustedError,
@@ -71,6 +72,20 @@ async def handle_model_pending(runtime: AgentRuntime, context: _RunContext) -> N
     )
 
     started = time.perf_counter()
+    breaker = runtime._breaker
+    if breaker is not None:
+        try:
+            breaker.allow()
+        except BreakerOpen as exc:
+            await handle_provider_error(
+                runtime,
+                context,
+                step,
+                started,
+                ProviderError(str(exc), retryable=False),
+            )
+            return
+
     try:
         provider_call = runtime.provider.generate(request)
         if context.policy.provider_timeout_seconds is None:
@@ -83,7 +98,11 @@ async def handle_model_pending(runtime: AgentRuntime, context: _RunContext) -> N
         from avo.models import ModelResponse
 
         response = ModelResponse.model_validate(generated)
+        if breaker is not None:
+            breaker.record_success()
     except TimeoutError:
+        if breaker is not None:
+            breaker.record_failure()
         timeout = context.policy.provider_timeout_seconds
         await handle_provider_error(
             runtime,
@@ -97,6 +116,8 @@ async def handle_model_pending(runtime: AgentRuntime, context: _RunContext) -> N
         )
         return
     except ValidationError as exc:
+        if breaker is not None:
+            breaker.record_failure()
         await runtime._append(
             context,
             EventType.MODEL_FAILED,
@@ -115,6 +136,8 @@ async def handle_model_pending(runtime: AgentRuntime, context: _RunContext) -> N
         )
         return
     except Exception as exc:
+        if breaker is not None:
+            breaker.record_failure()
         await handle_provider_error(runtime, context, step, started, exc)
         return
 
