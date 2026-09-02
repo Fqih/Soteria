@@ -119,9 +119,7 @@ class CerebrasProvider:
         raw = await self._post(payload)
         return parse_openai_response(raw)
 
-    async def stream(
-        self, request: ModelRequest
-    ) -> AsyncIterator[ModelChunk]:
+    async def stream(self, request: ModelRequest) -> AsyncIterator[ModelChunk]:
         """Yield :class:`ModelChunk` events from the Cerebras SSE stream."""
 
         if self._client is None:  # pragma: no cover - requires missing httpx

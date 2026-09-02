@@ -368,9 +368,7 @@ async def stream_anthropic_chunks(
                 f"{transport_name} stream failed with status {status}: {detail}",
                 retryable=status == 429 or status >= 500,
             )
-        async for event_type, event_payload in iter_anthropic_sse_events(
-            response.aiter_bytes()
-        ):
+        async for event_type, event_payload in iter_anthropic_sse_events(response.aiter_bytes()):
             chunk = parse_anthropic_stream_event(event_type, event_payload)
             if chunk is not None:
                 yield chunk
