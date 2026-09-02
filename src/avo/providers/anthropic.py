@@ -26,6 +26,7 @@ from .http_common import (
     redact_text,
     stream_anthropic_chunks,
 )
+from .prompt_cache import annotate_anthropic_messages, compute_breakpoints
 
 try:  # pragma: no cover - exercised indirectly by the optional dependency
     import httpx
@@ -158,6 +159,13 @@ class AnthropicProvider:
                     system_parts.append(content)
                 continue
             anthropic_messages.append(_anthropic_message(message))
+
+        if request.cache:
+            breakpoints = compute_breakpoints(
+                anthropic_messages,
+                prefix_override=request.cache_prefix_messages,
+            )
+            annotate_anthropic_messages(anthropic_messages, breakpoints)
 
         payload: dict[str, Any] = {
             "model": self._config.model,

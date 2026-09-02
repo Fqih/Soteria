@@ -125,6 +125,14 @@ def build_openai_payload(
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
+    if request.cache:
+        from .prompt_cache import cache_key_for_request
+
+        payload["prompt_cache_key"] = cache_key_for_request(
+            run_id=request.run_id,
+            step=request.step,
+            messages=request.messages,
+        )
     return payload
 
 

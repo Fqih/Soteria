@@ -111,6 +111,8 @@ class ModelRequest(AvoModel):
     step: int = Field(ge=1)
     messages: list[dict[str, JsonValue]]
     tools: list[ToolMetadata] = Field(default_factory=list)
+    cache: bool = False
+    cache_prefix_messages: int | None = Field(default=None, ge=0)
 
 
 class ModelResponse(AvoModel):

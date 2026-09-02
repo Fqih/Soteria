@@ -104,6 +104,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python client (GitHub Action pinned stale TUF metadata). Keyless
   signing uses GitHub Actions OIDC; `.sig` files attach to the
   GitHub release alongside the wheel, sdist, and SBOM.
+- `avo.providers.prompt_cache` — `CacheBreakpoints`,
+  `compute_breakpoints`, `stable_prefix_size`,
+  `annotate_anthropic_messages`, `cache_key_for_request`.
+- `ModelRequest.cache` + `ModelRequest.cache_prefix_messages` — opt
+  the request into per-provider cache hints. Anthropic providers
+  inject `cache_control: {"type": "ephemeral"}` markers on the
+  breakpoint and tail messages; OpenAI-compatible providers add a
+  deterministic `prompt_cache_key` for cache partitioning.
+- `tests/test_prompt_cache.py` — 12 tests covering breakpoint
+  heuristics, Anthropic annotation, cache-key derivation, and
+  end-to-end provider payload inspection.
 
 ## [0.1.3] — 2026-09-01
 
